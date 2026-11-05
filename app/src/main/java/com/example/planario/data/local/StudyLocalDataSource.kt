@@ -112,6 +112,20 @@ class StudyLocalDataSource(
         )
     }
 
+    fun restorePausedActiveStudyTimerTracking(
+        date: LocalDate,
+        elapsedSeconds: Long
+    ) {
+        saveActiveStudyTimerSnapshot(
+            StoredActiveStudyTimerSnapshot(
+                state = StoredActiveStudyTimerState.PAUSED,
+                date = date,
+                accumulatedSeconds = elapsedSeconds.coerceAtLeast(0L),
+                startedAtEpochMillis = 0L
+            )
+        )
+    }
+
     fun loadActiveStudyTimerSnapshot(): StoredActiveStudyTimerSnapshot {
         val state = runCatching {
             StoredActiveStudyTimerState.valueOf(
