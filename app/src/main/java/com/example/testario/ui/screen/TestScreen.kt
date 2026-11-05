@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -83,6 +84,7 @@ fun TestScreen(
     val mode by sessionViewModel.mode.collectAsState()
     val remainingSeconds by sessionViewModel.remainingSeconds.collectAsState()
     val timeExpired by sessionViewModel.timeExpired.collectAsState()
+    val isPreparing by sessionViewModel.isPreparing.collectAsState()
 
     val totalElapsedSeconds by sessionViewModel.totalElapsedSeconds.collectAsState()
 
@@ -112,12 +114,30 @@ fun TestScreen(
         }
     }
 
+    if (isPreparing) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CircularProgressIndicator(color = TestarioPrimary)
+                Text("Preparando test…", color = TestarioMutedText)
+            }
+        }
+        return
+    }
+
     if (questions.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("No hay preguntas.", color = TestarioText)
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = onFinish) { Text("Volver") }
+                Button(
+                    onClick = {
+                        sessionViewModel.cancelSession()
+                        onFinish()
+                    }
+                ) { Text("Volver") }
             }
         }
         return
@@ -165,6 +185,7 @@ fun TestScreen(
                     }
                     TextButton(onClick = {
                         showExitDialog = false
+                        sessionViewModel.cancelSession()
                         onFinish()
                     }) {
                         Text("Salir sin guardar", color = TestarioRed)
@@ -178,8 +199,7 @@ fun TestScreen(
         val res = remember { sessionViewModel.finish() }
         LaunchedEffect(Unit) {
             if (!registeredFinalStats) {
-                val secSum = questions.sumOf { it.timeSpentSeconds }
-                val elapsedMins = maxOf(1, (secSum / 60).toInt())
+                val elapsedMins = maxOf(1, (totalElapsedSeconds / 60L).toInt())
                 statsViewModel.registerTestResults(
                     results = questions,
                     finalTestResult = res,
