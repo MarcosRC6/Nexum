@@ -30,7 +30,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
         var jsonContent = ""
         if (!imagesDir.exists()) imagesDir.mkdirs()
 
-        val canonicalImagesDir = imagesDir.canonicalPath
+        val canonicalImagesDir = imagesDir.canonicalPath + File.separator
 
         ZipInputStream(inputStream).use { zis ->
             var entry = zis.nextEntry
@@ -39,8 +39,11 @@ class ImportManager(private val context: Context, private val localStore: Testar
                     jsonContent = String(zis.readBytes())
                 } else if (entry.name.startsWith("question_images/") && !entry.isDirectory) {
                     val imgName = entry.name.substringAfter("question_images/")
-                    val destFile = File(imagesDir, imgName)
+                    if (imgName.isBlank() || imgName.contains('/') || imgName.contains('\\')) {
+                        throw SecurityException("Ruta de imagen no válida en el ZIP: ${entry.name}")
+                    }
 
+                    val destFile = File(imagesDir, imgName)
                     if (!destFile.canonicalPath.startsWith(canonicalImagesDir)) {
                         throw SecurityException("Vulnerabilidad Zip Slip detectada en el archivo: ${entry.name}")
                     }
