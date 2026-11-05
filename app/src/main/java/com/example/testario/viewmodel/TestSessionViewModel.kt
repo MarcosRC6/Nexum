@@ -187,12 +187,32 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
         val dbQuestions = topics.flatMap { it.questions }.associateBy { it.id }
 
         val updatedList = _questions.value.mapNotNull { state ->
-            val freshQ = dbQuestions[state.question.id]
-            if (freshQ != null) {
-                if (freshQ != state.question) state.copy(question = freshQ) else state
-            } else {
-                null
+            val freshQuestion = dbQuestions[state.question.id] ?: return@mapNotNull null
+            if (freshQuestion == state.question) return@mapNotNull state
+
+            // La sesión baraja las respuestas al arrancar. Un cambio externo de la
+            // pregunta (bandera, dificultad, edición, etc.) no debe recolocarlas
+            // delante del usuario. Conservamos el orden de IDs ya mostrado y
+            // añadimos al final cualquier respuesta nueva que haya aparecido.
+            val freshAnswersById = freshQuestion.answers.associateBy { it.id }
+            val existingIds = state.question.answers.mapTo(linkedSetOf()) { it.id }
+            val mergedAnswers = buildList {
+                state.question.answers.forEach { currentAnswer ->
+                    freshAnswersById[currentAnswer.id]?.let(::add)
+                }
+                freshQuestion.answers.forEach { freshAnswer ->
+                    if (freshAnswer.id !in existingIds) add(freshAnswer)
+                }
             }
+
+            val validAnswerIds = mergedAnswers.mapTo(hashSetOf()) { it.id }
+            val selectedAnswerId = state.selectedAnswerId?.takeIf { it in validAnswerIds }
+
+            state.copy(
+                question = freshQuestion.copy(answers = mergedAnswers),
+                selectedAnswerId = selectedAnswerId,
+                corrected = if (state.selectedAnswerId != null && selectedAnswerId == null) false else state.corrected
+            )
         }
 
         _questions.value = updatedList
