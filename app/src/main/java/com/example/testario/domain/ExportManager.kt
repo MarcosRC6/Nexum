@@ -33,15 +33,30 @@ class ExportManager(private val context: Context, private val localStore: Testar
             )
         }
         val jsonString = json.encodeToString(TestarioDatabase(topics = cleanTopics, testsDone = 0))
-        packageZip(outputStream, jsonString)
+        val referencedImageNames = cleanTopics
+            .asSequence()
+            .flatMap { it.questions.asSequence() }
+            .flatMap { question ->
+                sequenceOf(question.explanationImageUri, question.correctionImageUri)
+            }
+            .mapNotNull { path -> path?.takeIf { it.isNotBlank() } }
+            .map { path -> File(path).name }
+            .filter { it.isNotBlank() }
+            .toSet()
+
+        packageZip(outputStream, jsonString, referencedImageNames)
     }
 
     fun exportBackupZip(outputStream: OutputStream) {
         val jsonString = json.encodeToString(localStore.database.value)
-        packageZip(outputStream, jsonString)
+        packageZip(outputStream, jsonString, imageNames = null)
     }
 
-    private fun packageZip(outputStream: OutputStream, jsonString: String) {
+    private fun packageZip(
+        outputStream: OutputStream,
+        jsonString: String,
+        imageNames: Set<String>?
+    ) {
         ZipOutputStream(outputStream).use { zos ->
             // 1. Archivo de datos JSON
             zos.putNextEntry(ZipEntry("testario_database.json"))
@@ -50,11 +65,15 @@ class ExportManager(private val context: Context, private val localStore: Testar
 
             // 2. Empaquetar todas las imágenes internas
             if (imagesDir.exists() && imagesDir.isDirectory) {
-                imagesDir.listFiles()?.forEach { file ->
-                    zos.putNextEntry(ZipEntry("question_images/${file.name}"))
-                    file.inputStream().use { input -> input.copyTo(zos) }
-                    zos.closeEntry()
-                }
+                imagesDir.listFiles()
+                    ?.asSequence()
+                    ?.filter { it.isFile }
+                    ?.filter { imageNames == null || it.name in imageNames }
+                    ?.forEach { file ->
+                        zos.putNextEntry(ZipEntry("question_images/${file.name}"))
+                        file.inputStream().use { input -> input.copyTo(zos) }
+                        zos.closeEntry()
+                    }
             }
         }
     }
