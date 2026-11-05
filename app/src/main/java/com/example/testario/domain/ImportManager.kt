@@ -139,14 +139,26 @@ class ImportManager(private val context: Context, private val localStore: Testar
             return 0
         }
 
-        // Mapeamos las preguntas externas usando el texto normalizado como clave
-        val externalQuestionsMap = externalTopics.flatMap { it.questions }.associateBy { normalizeText(it.text) }
+        // Agrupamos por enunciado normalizado. Puede haber varias preguntas con
+        // exactamente el mismo enunciado pero respuestas distintas, así que no
+        // usamos associateBy (que descartaría silenciosamente todas menos una).
+        val externalQuestionsMap = externalTopics
+            .flatMap { it.questions }
+            .groupBy { normalizeText(it.text) }
 
         for (i in finalTopics.indices) {
             val currentTopic = finalTopics[i]
             val updatedQuestions = currentTopic.questions.map { myQuestion ->
                 val normalizedText = normalizeText(myQuestion.text)
-                val externalMatch = externalQuestionsMap[normalizedText]
+                val candidates = externalQuestionsMap[normalizedText].orEmpty()
+                val externalMatch = when {
+                    candidates.isEmpty() -> null
+                    candidates.size == 1 -> candidates.first()
+                    else -> candidates.firstOrNull { it.id == myQuestion.id }
+                        ?: candidates.maxByOrNull { candidate ->
+                            answerSimilarityScore(myQuestion, candidate)
+                        }
+                }
 
                 if (externalMatch != null && hasSyncDifferences(myQuestion, externalMatch)) {
                     updatedCount++
@@ -216,6 +228,15 @@ class ImportManager(private val context: Context, private val localStore: Testar
             finalTopics.add(cleanTopic.copy(name = finalName))
         }
         localStore.saveDatabase(db.copy(topics = finalTopics))
+    }
+
+    private fun answerSimilarityScore(
+        current: Question,
+        candidate: Question
+    ): Int {
+        val currentAnswers = current.answers
+            .mapTo(hashSetOf()) { normalizeText(it.text) }
+        return candidate.answers.count { normalizeText(it.text) in currentAnswers }
     }
 
     private fun createQuestionFingerprint(question: Question): String {
