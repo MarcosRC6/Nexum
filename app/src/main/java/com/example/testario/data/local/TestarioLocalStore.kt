@@ -56,14 +56,21 @@ class TestarioLocalStore private constructor(context: Context) {
         }
     }
 
-    private val mutex = kotlinx.coroutines.sync.Mutex() // Añadir esto arriba
+    private val mutex = kotlinx.coroutines.sync.Mutex()
 
     fun saveDatabase(newDb: TestarioDatabase) {
         _database.value = newDb
         ioScope.launch {
-            mutex.withLock { // Añadir este candado
-                try { file.writeText(json.encodeToString(newDb)) }
-                catch (e: Exception) { e.printStackTrace() }
+            mutex.withLock {
+                try {
+                    // Varias acciones rápidas pueden encolar escrituras distintas.
+                    // Persistimos siempre el estado más reciente, no la copia capturada
+                    // cuando se lanzó esta coroutine, para impedir regresiones en disco.
+                    val latestDb = _database.value
+                    file.writeText(json.encodeToString(latestDb))
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     }
