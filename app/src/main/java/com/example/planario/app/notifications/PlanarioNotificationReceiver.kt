@@ -267,6 +267,8 @@ class PlanarioNotificationReceiver : BroadcastReceiver() {
     }
 
     private fun StudySettings.isTypeEnabled(type: String): Boolean {
+        if (!notificationsEnabled) return false
+
         return when (type) {
             TYPE_STUDY_REMINDER -> studyReminderEnabled
             TYPE_FIXED_OBJECTIVES -> fixedObjectivesReminderEnabled
