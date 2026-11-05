@@ -49,6 +49,7 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
     private var generationJob: Job? = null
     private var questionTimerJob: Job? = null
     private var sessionActive: Boolean = false
+    private var finalStatsClaimed: Boolean = false
 
     private var pointsCorrect: Double = 1.0
     private var penaltyWrong: Double = -0.25
@@ -77,6 +78,7 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
         generationJob?.cancel()
 
         sessionActive = true
+        finalStatsClaimed = false
         _isPreparing.value = true
         _questions.value = emptyList()
         _currentIndex.value = 0
@@ -264,8 +266,15 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
         )
     }
 
+    fun claimFinalStatsRegistration(): Boolean {
+        if (finalStatsClaimed) return false
+        finalStatsClaimed = true
+        return true
+    }
+
     fun cancelSession() {
         sessionActive = false
+        finalStatsClaimed = false
         _isPreparing.value = false
         timerJob?.cancel()
         generationJob?.cancel()
