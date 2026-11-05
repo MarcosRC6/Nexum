@@ -18,7 +18,7 @@ class GroupHierarchyTest {
     @Test
     fun parentResolvesDirectAndRecursiveTopicsWithoutDuplicates() {
         assertEquals(
-            linkedSetOf("t1", "t2", "t4", "t3"),
+            setOf("t1", "t2", "t3", "t4"),
             GroupHierarchy.resolveTopicIds(groups, "root")
         )
     }
