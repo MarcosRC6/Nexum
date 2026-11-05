@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.planario.features.home.HomeViewModel
+import com.example.planario.domain.timer.StudyTimerState
 import com.example.testario.data.local.QuickTestLinkManager
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioMutedText
@@ -182,11 +183,19 @@ fun HomeScreen(
                         visibleWidgetIds = visibleWidgetIds,
                         isDragging = draggedWidgetId == widgetId,
                         onDragStateChange = { dragging ->
+                            if (!dragging && draggedWidgetId == widgetId) {
+                                homeSettingsViewModel.persistWidgetOrder()
+                            }
                             draggedWidgetId = if (dragging) widgetId else null
                         },
                         onEnterReorderMode = { isReorderMode = true },
                         onMove = { direction ->
-                            homeSettingsViewModel.moveWidgetRelative(widgetId, direction, visibleWidgetIds)
+                            homeSettingsViewModel.moveWidgetRelative(
+                                widgetId = widgetId,
+                                direction = direction,
+                                visibleIds = visibleWidgetIds,
+                                persistImmediately = false
+                            )
                         }
                     ) {
                     when (widgetId) {
@@ -224,34 +233,71 @@ fun HomeScreen(
 
                                     Text("Acciones del día", style = MaterialTheme.typography.labelLarge, color = TestarioMutedText)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        val primaryLabel = if (studyState.studyTimerState == StudyTimerState.STOPPED) {
+                                            "Iniciar estudio"
+                                        } else {
+                                            "Reiniciar"
+                                        }
                                         Button(
-                                            onClick = { studyViewModel.startStudyFromHome() },
-                                            enabled = !studyState.isStudyTimerActive && !studyState.isFreeDay,
+                                            onClick = {
+                                                if (studyState.studyTimerState == StudyTimerState.STOPPED) {
+                                                    studyViewModel.startStudyFromHome()
+                                                } else {
+                                                    studyViewModel.restartStudyFromHome()
+                                                }
+                                            },
+                                            enabled = !studyState.isFreeDay,
                                             modifier = Modifier.weight(1f)
-                                        ) { Text("Iniciar estudio") }
+                                        ) { Text(primaryLabel) }
+
+                                        val secondaryLabel = if (studyState.studyTimerState == StudyTimerState.PAUSED) {
+                                            "Reanudar"
+                                        } else {
+                                            "Pausar"
+                                        }
                                         OutlinedButton(
-                                            onClick = { studyViewModel.stopStudyFromHome() },
-                                            enabled = studyState.isStudyTimerActive,
+                                            onClick = {
+                                                when (studyState.studyTimerState) {
+                                                    StudyTimerState.RUNNING -> studyViewModel.pauseStudyFromHome()
+                                                    StudyTimerState.PAUSED -> studyViewModel.resumeStudyFromHome()
+                                                    StudyTimerState.STOPPED -> Unit
+                                                }
+                                            },
+                                            enabled = studyState.studyTimerState != StudyTimerState.STOPPED && !studyState.isFreeDay,
                                             modifier = Modifier.weight(1f)
-                                        ) { Text("Parar reloj") }
+                                        ) { Text(secondaryLabel) }
                                     }
 
                                     if (homeSettingsViewModel.showStudyObjectives && studyState.fixedObjectives.isNotEmpty()) {
-                                        Spacer(Modifier.height(2.dp))
+                                        Spacer(Modifier.height(6.dp))
                                         Text("Objetivos diarios", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                                         studyState.fixedObjectives.forEach { objective ->
                                             val checked = studyState.isFixedObjectiveCompleted(objective.id)
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .clickable { studyViewModel.toggleFixedObjectiveCompleted(objective.id) },
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .clickable { studyViewModel.toggleFixedObjectiveCompleted(objective.id) }
+                                                    .padding(vertical = 6.dp, horizontal = 2.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Checkbox(checked = checked, onCheckedChange = null)
-                                                Column(Modifier.weight(1f)) {
-                                                    Text(objective.name, color = TestarioText)
-                                                    Text("${objective.targetMinutes} min", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
-                                                }
+                                                Checkbox(
+                                                    checked = checked,
+                                                    onCheckedChange = null
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    text = objective.name,
+                                                    color = TestarioText,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Spacer(Modifier.width(12.dp))
+                                                Text(
+                                                    text = "${objective.targetMinutes} min",
+                                                    color = TestarioMutedText,
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
                                             }
                                         }
                                     }
@@ -496,9 +542,9 @@ private fun ReorderableHomeBlock(
     val latestReorderMode by rememberUpdatedState(reorderMode)
     val density = LocalDensity.current
     val spacingPx = with(density) { 14.dp.toPx() }
-    val edgeZonePx = with(density) { 128.dp.toPx() }
-    val minAutoScrollPx = with(density) { 15.dp.toPx() }
-    val maxAutoScrollPx = with(density) { 46.dp.toPx() }
+    val edgeZonePx = with(density) { 112.dp.toPx() }
+    val minAutoScrollPx = with(density) { 18.dp.toPx() }
+    val maxAutoScrollPx = with(density) { 36.dp.toPx() }
     val shadowPx = with(density) { 18.dp.toPx() }
 
     val displayedOffset by animateFloatAsState(
@@ -591,20 +637,6 @@ private fun ReorderableHomeBlock(
         }
     }
 
-    val wobble = if (reorderMode && !isDragging) {
-        val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "homeWobble")
-        val angle by transition.animateFloat(
-            initialValue = -0.34f,
-            targetValue = 0.34f,
-            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-                animation = androidx.compose.animation.core.tween(125),
-                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-            ),
-            label = "homeWobbleAngle"
-        )
-        angle
-    } else 0f
-
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -616,8 +648,7 @@ private fun ReorderableHomeBlock(
                 shadowElevation = if (isDragging) shadowPx else 0f
                 alpha = if (isDragging) 0.985f else 1f
             }
-            .rotate(wobble)
-            .pointerInput(widgetId) {
+            .pointerInput(widgetId, reorderMode) {
                 awaitEachGesture {
                     val down = awaitFirstDown(
                         requireUnconsumed = false,
@@ -626,7 +657,7 @@ private fun ReorderableHomeBlock(
                     val pointerId = down.id
                     val start = down.position
                     var last = start
-                    val holdMillis = if (latestReorderMode) 220L else 760L
+                    val holdMillis = if (latestReorderMode) 90L else 520L
 
                     val interrupted = withTimeoutOrNull(holdMillis) {
                         while (true) {
