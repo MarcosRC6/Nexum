@@ -51,7 +51,18 @@ class TestarioLocalStore private constructor(context: Context) {
                 db
             }
         } catch (_: Exception) {
-            // Si el archivo está completamente corrupto o ilegible, arrancamos en limpio
+            // No sobrescribimos silenciosamente una base corrupta o creada por una
+            // versión futura. Conservamos una copia recuperable antes de arrancar
+            // con un estado vacío en memoria.
+            if (file.exists()) {
+                runCatching {
+                    val recoveryFile = File(
+                        file.parentFile,
+                        "testario_database_recovery_${System.currentTimeMillis()}.json"
+                    )
+                    file.copyTo(recoveryFile, overwrite = false)
+                }
+            }
             TestarioDatabase()
         }
     }
