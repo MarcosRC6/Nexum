@@ -2,6 +2,7 @@ package com.example.testario.data.repository
 
 import com.example.testario.data.local.TestarioLocalStore
 import com.example.testario.data.model.Question
+import com.example.testario.data.model.TestarioDatabase
 import com.example.testario.data.model.Topic
 import com.example.testario.domain.ImageManager
 import java.util.UUID
@@ -31,10 +32,18 @@ class QuestionRepository(
         val oldQuestion = topic?.questions?.firstOrNull { it.id == question.id }
 
         if (oldQuestion?.explanationImageUri != null && oldQuestion.explanationImageUri != question.explanationImageUri) {
-            imageManager.deleteImage(oldQuestion.explanationImageUri)
+            deleteImageIfUnreferenced(
+                path = oldQuestion.explanationImageUri,
+                db = db,
+                excludedQuestionIds = setOf(question.id)
+            )
         }
         if (oldQuestion?.correctionImageUri != null && oldQuestion.correctionImageUri != question.correctionImageUri) {
-            imageManager.deleteImage(oldQuestion.correctionImageUri)
+            deleteImageIfUnreferenced(
+                path = oldQuestion.correctionImageUri,
+                db = db,
+                excludedQuestionIds = setOf(question.id)
+            )
         }
 
         localStore.saveDatabase(
@@ -79,7 +88,13 @@ class QuestionRepository(
         val topic = db.topics.firstOrNull { it.id == topicId }
         val questionToDelete = topic?.questions?.firstOrNull { it.id == questionId }
 
-        deleteQuestionImages(questionToDelete)
+        questionToDelete?.let { question ->
+            deleteQuestionImagesIfUnreferenced(
+                question = question,
+                db = db,
+                excludedQuestionIds = setOf(question.id)
+            )
+        }
 
         localStore.saveDatabase(
             db.copy(
@@ -248,8 +263,14 @@ class QuestionRepository(
         val questionsToDelete = topic.questions.filter { it.id in questionIds }
         if (questionsToDelete.isEmpty()) return 0
 
-        questionsToDelete.forEach(::deleteQuestionImages)
         val deletedIds = questionsToDelete.mapTo(mutableSetOf()) { it.id }
+        questionsToDelete.forEach { question ->
+            deleteQuestionImagesIfUnreferenced(
+                question = question,
+                db = db,
+                excludedQuestionIds = deletedIds
+            )
+        }
 
         localStore.saveDatabase(
             db.copy(
@@ -315,8 +336,32 @@ class QuestionRepository(
         return question.copy(originTopicName = sourceTopicName)
     }
 
-    private fun deleteQuestionImages(question: Question?) {
-        imageManager.deleteImage(question?.explanationImageUri)
-        imageManager.deleteImage(question?.correctionImageUri)
+    private fun deleteQuestionImagesIfUnreferenced(
+        question: Question,
+        db: TestarioDatabase,
+        excludedQuestionIds: Set<String>
+    ) {
+        deleteImageIfUnreferenced(question.explanationImageUri, db, excludedQuestionIds)
+        deleteImageIfUnreferenced(question.correctionImageUri, db, excludedQuestionIds)
+    }
+
+    private fun deleteImageIfUnreferenced(
+        path: String?,
+        db: TestarioDatabase,
+        excludedQuestionIds: Set<String>
+    ) {
+        if (path.isNullOrBlank()) return
+
+        val stillReferenced = db.topics
+            .asSequence()
+            .flatMap { it.questions.asSequence() }
+            .filterNot { it.id in excludedQuestionIds }
+            .any { question ->
+                question.explanationImageUri == path || question.correctionImageUri == path
+            }
+
+        if (!stillReferenced) {
+            imageManager.deleteImage(path)
+        }
     }
 }
