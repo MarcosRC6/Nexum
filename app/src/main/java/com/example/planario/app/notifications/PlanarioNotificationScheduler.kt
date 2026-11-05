@@ -21,6 +21,10 @@ class PlanarioNotificationScheduler(
     fun scheduleAll(settings: StudySettings) {
         cancelAll()
 
+        if (!settings.notificationsEnabled) {
+            return
+        }
+
         if (settings.studyReminderEnabled) {
             scheduleNotification(
                 type = PlanarioNotificationReceiver.TYPE_STUDY_REMINDER,
