@@ -15,11 +15,11 @@ class PreferencesManager(context: Context) {
     }
 
     fun getUiScale(): Float {
-        return prefs.getFloat("ui_scale", 1.0f)
+        return prefs.getFloat("ui_scale", 1.0f).coerceIn(0.65f, 1.35f)
     }
 
     fun setUiScale(scale: Float) {
-        prefs.edit().putFloat("ui_scale", scale).apply()
+        prefs.edit().putFloat("ui_scale", scale.coerceIn(0.65f, 1.35f)).apply()
     }
 
 
