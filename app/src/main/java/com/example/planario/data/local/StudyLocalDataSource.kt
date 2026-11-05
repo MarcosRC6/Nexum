@@ -258,8 +258,8 @@ private fun jsonArrayToStudyTopics(array: JSONArray?): List<StudyTopic> {
             StudyTopic(
                 id = id,
                 name = name,
-                queuePosition = item.optInt("queuePosition", 0),
-                round = item.optInt("round", 1),
+                queuePosition = item.optInt("queuePosition", 0).coerceAtLeast(0),
+                round = item.optInt("round", 1).coerceAtLeast(1),
                 isArchived = item.optBoolean("isArchived", false)
             )
         )
@@ -303,7 +303,7 @@ private fun jsonArrayToFixedObjectives(array: JSONArray?): List<FixedObjective> 
             FixedObjective(
                 id = id,
                 name = name,
-                targetMinutes = item.optInt("targetMinutes", 0),
+                targetMinutes = item.optInt("targetMinutes", 1).coerceAtLeast(1),
                 isEnabled = item.optBoolean("isEnabled", true),
                 order = item.optInt("order", 0)
             )
@@ -439,13 +439,14 @@ private fun jsonArrayToTimeEntries(array: JSONArray?): List<TimeEntry> {
             TimeEntryType.valueOf(item.optString("type"))
         }.getOrDefault(TimeEntryType.MANUAL)
 
-        if (id.isBlank()) continue
+        val minutes = item.optInt("minutes", 0)
+        if (id.isBlank() || minutes <= 0) continue
 
         result.add(
             TimeEntry(
                 id = id,
                 date = date,
-                minutes = item.optInt("minutes", 0),
+                minutes = minutes,
                 type = type,
                 label = item.optString("label", "Estudio"),
                 createdAt = createdAt
@@ -488,27 +489,27 @@ private fun jsonObjectToStudySettings(item: JSONObject?): StudySettings {
     }.getOrDefault(ThemeMode.SYSTEM)
 
     return StudySettings(
-        dailyGoalMinutes = item.optInt("dailyGoalMinutes", 360),
+        dailyGoalMinutes = item.optInt("dailyGoalMinutes", 360).coerceIn(30, 720),
         notificationsEnabled = item.optBoolean("notificationsEnabled", true),
 
         studyReminderEnabled = item.optBoolean("studyReminderEnabled", true),
-        studyReminderTime = item.optString("studyReminderTime", "09:00"),
+        studyReminderTime = item.optTimeString("studyReminderTime", "09:00"),
 
         fixedObjectivesReminderEnabled = item.optBoolean("fixedObjectivesReminderEnabled", true),
-        fixedObjectivesReminderTime = item.optString("fixedObjectivesReminderTime", "20:00"),
+        fixedObjectivesReminderTime = item.optTimeString("fixedObjectivesReminderTime", "20:00"),
 
         restDayNotificationEnabled = item.optBoolean("restDayNotificationEnabled", true),
-        restDayNotificationTime = item.optString("restDayNotificationTime", "09:00"),
+        restDayNotificationTime = item.optTimeString("restDayNotificationTime", "09:00"),
 
         dailySummaryEnabled = item.optBoolean("dailySummaryEnabled", true),
-        dailySummaryTime = item.optString("dailySummaryTime", "22:00"),
+        dailySummaryTime = item.optTimeString("dailySummaryTime", "22:00"),
 
         defaultFreeWeekDays = jsonArrayToIntSet(
             item.optJSONArray("defaultFreeWeekDays")
         ),
 
         darkMode = themeMode,
-        lastPomodoroMinutes = item.optInt("lastPomodoroMinutes", 25)
+        lastPomodoroMinutes = item.optInt("lastPomodoroMinutes", 25).coerceIn(1, 24 * 60)
     )
 }
 
