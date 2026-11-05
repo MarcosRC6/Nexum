@@ -60,6 +60,7 @@ class StudyTimerForegroundService : Service() {
 
             ACTION_PAUSE -> {
                 PlanarioDependencies.studyTimerController.pauseStudyTimer()
+                PlanarioDependencies.studyRepository.pauseActiveStudyTimerTracking()
                 startForegroundNow()
                 observeTimer()
                 observeAutoClosedSessions()
@@ -68,6 +69,7 @@ class StudyTimerForegroundService : Service() {
 
             ACTION_RESUME -> {
                 PlanarioDependencies.studyTimerController.resumeStudyTimer()
+                PlanarioDependencies.studyRepository.resumeActiveStudyTimerTracking()
                 startForegroundNow()
                 observeTimer()
                 observeAutoClosedSessions()
