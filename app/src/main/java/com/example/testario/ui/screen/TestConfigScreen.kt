@@ -1,5 +1,10 @@
 package com.example.testario.ui.screen
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -48,7 +53,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.example.planario.app.PlanarioDependencies
 import com.example.testario.data.model.GroupQuestionAllocation
 import com.example.testario.data.model.SavedFailureScope
@@ -124,6 +131,19 @@ fun TestConfigScreen(
     var templateName by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var infoMessage by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        PlanarioDependencies.studyRepository.setNotificationsEnabled(granted)
+        PlanarioDependencies.schedulePlanarioNotifications()
+        infoMessage = if (granted) {
+            "Notificaciones activadas."
+        } else {
+            "Android no concedió permiso para mostrar notificaciones."
+        }
+    }
 
     LaunchedEffect(database.topics, database.groups) {
         val validTopicIds = database.topics.mapTo(hashSetOf()) { it.id }
@@ -292,9 +312,26 @@ fun TestConfigScreen(
                 actions = {
                     androidx.compose.material3.IconButton(
                         onClick = {
-                            val enabled = !studySettings.notificationsEnabled
-                            PlanarioDependencies.studyRepository.setNotificationsEnabled(enabled)
-                            PlanarioDependencies.schedulePlanarioNotifications()
+                            if (studySettings.notificationsEnabled) {
+                                PlanarioDependencies.studyRepository.setNotificationsEnabled(false)
+                                PlanarioDependencies.schedulePlanarioNotifications()
+                                infoMessage = "Notificaciones desactivadas."
+                            } else {
+                                val needsPermission =
+                                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                        ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.POST_NOTIFICATIONS
+                                        ) != PackageManager.PERMISSION_GRANTED
+
+                                if (needsPermission) {
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    PlanarioDependencies.studyRepository.setNotificationsEnabled(true)
+                                    PlanarioDependencies.schedulePlanarioNotifications()
+                                    infoMessage = "Notificaciones activadas."
+                                }
+                            }
                         }
                     ) {
                         EstudarioIcon(
