@@ -218,8 +218,11 @@ class ImportManager(private val context: Context, private val localStore: Testar
 
     private fun createQuestionFingerprint(question: Question): String {
         val qText = normalizeText(question.text)
-        val aText = question.answers.map { normalizeText(it.text) }.sorted().joinToString("")
-        return qText + aText
+        val aText = question.answers
+            .map { normalizeText(it.text) }
+            .sorted()
+            .joinToString("|")
+        return "$qText::$aText"
     }
 
     private fun hasSyncDifferences(local: Question, external: Question): Boolean {
@@ -238,7 +241,10 @@ class ImportManager(private val context: Context, private val localStore: Testar
         return false
     }
 
-    private fun normalizeText(text: String): String = text.lowercase().replace("á", "a").replace("é", "e").replace("í", "i").replace("ó", "o").replace("ú", "u").replace("ü", "u").replace(Regex("[^a-z0-9]"), "")
+    private fun normalizeText(text: String): String =
+        java.text.Normalizer.normalize(text.lowercase(), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{Mn}+"), "")
+            .replace(Regex("[^a-z0-9]"), "")
 
     private fun detectImportFileType(rawText: String, fileName: String?): ImportFileType {
         val extension = fileName?.substringAfterLast('.', missingDelimiterValue = "")?.lowercase()?.trim().orEmpty()
