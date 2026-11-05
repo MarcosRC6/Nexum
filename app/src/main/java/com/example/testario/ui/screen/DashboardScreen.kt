@@ -647,7 +647,7 @@ private fun ReorderableHomeBlock(
                 shadowElevation = if (isDragging) shadowPx else 0f
                 alpha = if (isDragging) 0.985f else 1f
             }
-            .pointerInput(widgetId, reorderMode) {
+            .pointerInput(widgetId) {
                 awaitEachGesture {
                     val down = awaitFirstDown(
                         requireUnconsumed = false,
