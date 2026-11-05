@@ -117,7 +117,12 @@ class HomeSettingsViewModel(application: Application) : AndroidViewModel(applica
         preferencesManager.setHomeShowPlanShortcut(enabled)
     }
 
-    fun moveWidgetRelative(widgetId: String, direction: Int, visibleIds: List<String>) {
+    fun moveWidgetRelative(
+        widgetId: String,
+        direction: Int,
+        visibleIds: List<String>,
+        persistImmediately: Boolean = true
+    ) {
         if (direction == 0) return
         val visibleIndex = visibleIds.indexOf(widgetId)
         if (visibleIndex < 0) return
@@ -131,6 +136,13 @@ class HomeSettingsViewModel(application: Application) : AndroidViewModel(applica
         mutable[from] = targetId
         mutable[to] = widgetId
         widgetOrder = mutable
+
+        if (persistImmediately) {
+            persistWidgetOrder()
+        }
+    }
+
+    fun persistWidgetOrder() {
         preferencesManager.setHomeWidgetOrder(widgetOrder)
     }
 
