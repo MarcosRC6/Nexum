@@ -113,9 +113,21 @@ class HomeViewModel(
         PlanarioDependencies.startStudyTimerForegroundService()
     }
 
-    fun restartStudyFromHome() {
-        studyTimerController.discardStudyTimer()
-        repository.clearActiveStudyTimerTracking()
+    fun restartStudyFromHome(saveCurrentTime: Boolean) {
+        if (saveCurrentTime) {
+            val session = studyTimerController.finishStudyTimerAndReturnSession()
+            repository.clearActiveStudyTimerTracking()
+
+            if (session.minutes > 0) {
+                repository.addTimerTime(
+                    minutes = session.minutes,
+                    date = session.date
+                )
+            }
+        } else {
+            studyTimerController.discardStudyTimer()
+            repository.clearActiveStudyTimerTracking()
+        }
 
         studyTimerController.startStudyTimer()
         repository.startActiveStudyTimerTracking(LocalDate.now())
