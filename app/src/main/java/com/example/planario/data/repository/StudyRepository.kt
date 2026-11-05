@@ -782,12 +782,30 @@ class StudyRepository(
     }
 
     fun exportBackupJson(): String {
+        val activeTimer = localDataSource.loadActiveStudyTimerSnapshot()
+        val activeTimerMinutes = activeTimer.elapsedMinutes()
+
+        val exportedTimeEntries = if (
+            activeTimer.isActive &&
+            activeTimer.date != null &&
+            activeTimerMinutes > 0
+        ) {
+            _timeEntries.value + TimeEntry(
+                date = activeTimer.date,
+                minutes = activeTimerMinutes,
+                type = TimeEntryType.TIMER,
+                label = "Cronómetro · sesión activa incluida en la copia"
+            )
+        } else {
+            _timeEntries.value
+        }
+
         return localDataSource.exportToJson(
             StoredStudyData(
                 topics = _topics.value,
                 fixedObjectives = _fixedObjectives.value,
                 studyDays = _studyDays.value,
-                timeEntries = _timeEntries.value,
+                timeEntries = exportedTimeEntries,
                 settings = _settings.value
             )
         )
