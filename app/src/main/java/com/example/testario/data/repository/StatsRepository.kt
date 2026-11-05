@@ -30,6 +30,8 @@ class StatsRepository(
         localStore.saveDatabase(
             db.copy(
                 testsDone = 0,
+                totalTrainingMinutes = 0,
+                testHistory = emptyList(),
                 topics = db.topics.map { topic ->
                     topic.copy(questions = topic.questions.map { it.copy(stats = QuestionStats()) })
                 }
