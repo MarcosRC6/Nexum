@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -90,6 +92,7 @@ fun HomeScreen(
     val context = LocalContext.current
     val quickTestLinks = remember { QuickTestLinkManager(context.applicationContext) }
     var isReorderMode by remember { mutableStateOf(false) }
+    var showRestartStudyDialog by remember { mutableStateOf(false) }
 
     val allQuestions = database.topics.flatMap { it.questions }
     val failures = allQuestions.count { it.stats.inFailures }
@@ -242,7 +245,7 @@ fun HomeScreen(
                                                 if (studyState.studyTimerState == StudyTimerState.STOPPED) {
                                                     studyViewModel.startStudyFromHome()
                                                 } else {
-                                                    studyViewModel.restartStudyFromHome()
+                                                    showRestartStudyDialog = true
                                                 }
                                             },
                                             enabled = !studyState.isFreeDay,
@@ -516,6 +519,49 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    if (showRestartStudyDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestartStudyDialog = false },
+            containerColor = TestarioSurface,
+            titleContentColor = TestarioText,
+            textContentColor = TestarioMutedText,
+            title = { Text("Reiniciar sesión de estudio") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Llevas ${studyState.currentTimerText} en esta sesión. ¿Quieres guardar ese tiempo antes de empezar de nuevo?",
+                        color = TestarioMutedText
+                    )
+                    Button(
+                        onClick = {
+                            showRestartStudyDialog = false
+                            studyViewModel.restartStudyFromHome(saveCurrentTime = true)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Guardar y reiniciar")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            showRestartStudyDialog = false
+                            studyViewModel.restartStudyFromHome(saveCurrentTime = false)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Reiniciar sin guardar")
+                    }
+                    TextButton(
+                        onClick = { showRestartStudyDialog = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Cancelar")
+                    }
+                }
+            },
+            confirmButton = {}
+        )
     }
 }
 
