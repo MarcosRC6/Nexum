@@ -31,10 +31,12 @@ class ImageManager(private val context: Context) {
             if (!imagesDir.exists()) imagesDir.mkdirs()
 
             val destinationFile = File(imagesDir, "IMG_${UUID.randomUUID()}.jpg")
+            val input = context.contentResolver.openInputStream(uri)
+                ?: return temporaryUriString
 
-            context.contentResolver.openInputStream(uri)?.use { input ->
+            input.use {
                 FileOutputStream(destinationFile).use { output ->
-                    input.copyTo(output)
+                    it.copyTo(output)
                 }
             }
 
