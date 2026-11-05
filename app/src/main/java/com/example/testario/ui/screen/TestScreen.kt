@@ -43,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,11 +89,10 @@ fun TestScreen(
 
     val totalElapsedSeconds by sessionViewModel.totalElapsedSeconds.collectAsState()
 
-    var finished by remember { mutableStateOf(false) }
-    var registeredFinalStats by remember { mutableStateOf(false) }
-    var showExitDialog by remember { mutableStateOf(false) }
-    var reviewingResults by remember { mutableStateOf(false) }
-    var reviewIndex by remember { mutableStateOf(0) }
+    var finished by rememberSaveable { mutableStateOf(false) }
+    var showExitDialog by rememberSaveable { mutableStateOf(false) }
+    var reviewingResults by rememberSaveable { mutableStateOf(false) }
+    var reviewIndex by rememberSaveable { mutableStateOf(0) }
 
     val listState = rememberLazyListState()
     val context = LocalContext.current
@@ -164,14 +164,15 @@ fun TestScreen(
                 Button(
                     onClick = {
                         showExitDialog = false
-                        var secSum = 0L
-                        questions.forEach {
-                            statsViewModel.registerAnswer(it.question.id, it.selectedAnswerId, it.timeSpentSeconds)
-                            secSum += it.timeSpentSeconds
-                        }
-                        val elapsedMins = maxOf(1, (secSum / 60).toInt())
                         val res = sessionViewModel.finish()
-                        statsViewModel.saveTestResult(res, elapsedMins)
+                        if (sessionViewModel.claimFinalStatsRegistration()) {
+                            val elapsedMins = maxOf(1, (totalElapsedSeconds / 60L).toInt())
+                            statsViewModel.registerTestResults(
+                                results = questions,
+                                finalTestResult = res,
+                                totalTimeSpentMinutes = elapsedMins
+                            )
+                        }
                         onFinish()
                     }
                 ) {
@@ -197,15 +198,14 @@ fun TestScreen(
 
     if (finished || timeExpired) {
         val res = remember { sessionViewModel.finish() }
-        LaunchedEffect(Unit) {
-            if (!registeredFinalStats) {
+        LaunchedEffect(res, totalElapsedSeconds) {
+            if (sessionViewModel.claimFinalStatsRegistration()) {
                 val elapsedMins = maxOf(1, (totalElapsedSeconds / 60L).toInt())
                 statsViewModel.registerTestResults(
                     results = questions,
                     finalTestResult = res,
                     totalTimeSpentMinutes = elapsedMins
                 )
-                registeredFinalStats = true
             }
         }
 
