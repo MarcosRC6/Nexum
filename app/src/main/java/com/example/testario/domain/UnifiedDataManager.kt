@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.planario.app.PlanarioDependencies
 import com.example.planario.data.local.StudyLocalDataSource
 import com.example.testario.data.model.TestarioDatabase
+import com.example.testario.data.local.MigrationManager
 import com.example.testario.data.local.QuickTestLinkManager
 import com.example.testario.data.local.TestarioLocalStore
 import kotlinx.serialization.decodeFromString
@@ -71,7 +72,10 @@ class UnifiedDataManager(private val context: Context) {
         }.getOrNull() ?: return false
 
         // Validamos completamente la base antes de escribir una sola imagen o dato.
-        runCatching { json.decodeFromString<TestarioDatabase>(raw) }.getOrElse { return false }
+        runCatching {
+            val migrated = MigrationManager.migrate(raw)
+            json.decodeFromString<TestarioDatabase>(migrated)
+        }.getOrElse { return false }
 
         if (!extractQuestionImages(bytes)) return false
 
@@ -124,7 +128,10 @@ class UnifiedDataManager(private val context: Context) {
         if (manifestJson.optInt("version", 0) !in 1..1) return false
 
         val dbRaw = textEntries["testario_database.json"] ?: return false
-        runCatching { json.decodeFromString<TestarioDatabase>(dbRaw) }.getOrElse { return false }
+        runCatching {
+            val migrated = MigrationManager.migrate(dbRaw)
+            json.decodeFromString<TestarioDatabase>(migrated)
+        }.getOrElse { return false }
 
         val planRaw = textEntries["planario_backup.json"]
         if (planRaw != null && StudyLocalDataSource(context).importFromJson(planRaw) == null) {
