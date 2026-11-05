@@ -6,6 +6,10 @@ on:
       - fix/home-ux-20261105
   workflow_dispatch:
 
+concurrency:
+  group: nexum-audit-fix-home-ux
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
