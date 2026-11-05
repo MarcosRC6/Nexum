@@ -36,10 +36,29 @@ class TopicRepository(
         val db = localStore.database.value
         val topicToDelete = db.topics.firstOrNull { it.id == topicId }
 
-        // Borramos TODOS los archivos de imagen de las preguntas de este tema
+        // Solo borramos una imagen física si ninguna pregunta de otro tema
+        // sigue apuntando al mismo archivo.
+        val deletedQuestionIds = topicToDelete
+            ?.questions
+            .orEmpty()
+            .mapTo(hashSetOf()) { it.id }
+        val referencedElsewhere = db.topics
+            .asSequence()
+            .flatMap { it.questions.asSequence() }
+            .filterNot { it.id in deletedQuestionIds }
+            .flatMap { question ->
+                sequenceOf(question.explanationImageUri, question.correctionImageUri)
+            }
+            .filterNotNull()
+            .toSet()
+
         topicToDelete?.questions?.forEach { question ->
-            imageManager.deleteImage(question.explanationImageUri)
-            imageManager.deleteImage(question.correctionImageUri)
+            if (question.explanationImageUri !in referencedElsewhere) {
+                imageManager.deleteImage(question.explanationImageUri)
+            }
+            if (question.correctionImageUri !in referencedElsewhere) {
+                imageManager.deleteImage(question.correctionImageUri)
+            }
         }
 
         val cleanedGroups = db.groups.map { group ->
