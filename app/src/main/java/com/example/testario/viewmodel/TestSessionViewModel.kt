@@ -42,8 +42,13 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
     private val _totalElapsedSeconds = MutableStateFlow(0L)
     val totalElapsedSeconds: StateFlow<Long> = _totalElapsedSeconds
 
+    private val _isPreparing = MutableStateFlow(false)
+    val isPreparing: StateFlow<Boolean> = _isPreparing
+
     private var timerJob: Job? = null
+    private var generationJob: Job? = null
     private var questionTimerJob: Job? = null
+    private var sessionActive: Boolean = false
 
     private var pointsCorrect: Double = 1.0
     private var penaltyWrong: Double = -0.25
@@ -52,7 +57,7 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
         questionTimerJob = viewModelScope.launch {
             while (true) {
                 delay(1000)
-                if (!_timeExpired.value && _questions.value.isNotEmpty()) {
+                if (sessionActive && !_timeExpired.value && _questions.value.isNotEmpty()) {
                     _totalElapsedSeconds.value += 1
 
                     val idx = _currentIndex.value
@@ -68,15 +73,22 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
 
     fun start(topics: List<Topic>, config: TestConfig) {
         timerJob?.cancel()
+        generationJob?.cancel()
+
+        sessionActive = true
+        _isPreparing.value = true
+        _questions.value = emptyList()
+        _currentIndex.value = 0
         _mode.value = config.mode
         pointsCorrect = config.pointsCorrect
         penaltyWrong = config.penaltyWrong
         _timeExpired.value = false
         _totalElapsedSeconds.value = 0L
+        _remainingSeconds.value = null
 
         val prioritizeFailuresInNormalTests = preferencesManager.getPrioritizeFailuresInNormalTests()
 
-        viewModelScope.launch(Dispatchers.Default) {
+        generationJob = viewModelScope.launch(Dispatchers.Default) {
             val validQuestionsByTopic = topics.mapNotNull { topic ->
                 var filtered = topic.questions
 
@@ -114,8 +126,11 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
             }
 
             withContext(Dispatchers.Main) {
+                if (!sessionActive) return@withContext
+
                 _questions.value = mappedQuestions
                 _currentIndex.value = 0
+                _isPreparing.value = false
 
                 if (config.timerEnabled && config.mode == TestMode.EXAM && config.timerMinutes > 0) {
                     startTimer(config.timerMinutes)
@@ -140,6 +155,7 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
             }
             _remainingSeconds.value = 0
             _timeExpired.value = true
+            sessionActive = false
         }
     }
 
@@ -225,7 +241,10 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun finish(): TestResult {
+        sessionActive = false
+        _isPreparing.value = false
         timerJob?.cancel()
+        generationJob?.cancel()
         val l = _questions.value
         val c = l.count { it.selectedAnswerId != null && it.selectedAnswerId == it.question.correctAnswerId }
         val b = l.count { it.selectedAnswerId == null }
@@ -239,10 +258,22 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
         )
     }
 
+    fun cancelSession() {
+        sessionActive = false
+        _isPreparing.value = false
+        timerJob?.cancel()
+        generationJob?.cancel()
+        _remainingSeconds.value = null
+        _timeExpired.value = false
+        _questions.value = emptyList()
+        _currentIndex.value = 0
+    }
+
     fun isLastQuestion(): Boolean = _currentIndex.value == _questions.value.lastIndex
 
     override fun onCleared() {
         timerJob?.cancel()
+        generationJob?.cancel()
         questionTimerJob?.cancel()
         super.onCleared()
     }
