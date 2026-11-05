@@ -54,6 +54,32 @@ class PlanarioNotificationScheduler(
         }
     }
 
+    fun scheduleNextForType(
+        type: String,
+        settings: StudySettings
+    ) {
+        cancelNotification(type)
+        if (!settings.notificationsEnabled) return
+
+        val time = when (type) {
+            PlanarioNotificationReceiver.TYPE_STUDY_REMINDER ->
+                settings.studyReminderTime.takeIf { settings.studyReminderEnabled }
+
+            PlanarioNotificationReceiver.TYPE_FIXED_OBJECTIVES ->
+                settings.fixedObjectivesReminderTime.takeIf { settings.fixedObjectivesReminderEnabled }
+
+            PlanarioNotificationReceiver.TYPE_REST_DAY ->
+                settings.restDayNotificationTime.takeIf { settings.restDayNotificationEnabled }
+
+            PlanarioNotificationReceiver.TYPE_DAILY_SUMMARY ->
+                settings.dailySummaryTime.takeIf { settings.dailySummaryEnabled }
+
+            else -> null
+        } ?: return
+
+        scheduleNotification(type = type, time = time)
+    }
+
     fun cancelAll() {
         cancelNotification(PlanarioNotificationReceiver.TYPE_STUDY_REMINDER)
         cancelNotification(PlanarioNotificationReceiver.TYPE_FIXED_OBJECTIVES)
