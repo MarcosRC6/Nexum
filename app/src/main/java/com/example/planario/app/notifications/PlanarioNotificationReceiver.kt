@@ -37,10 +37,13 @@ class PlanarioNotificationReceiver : BroadcastReceiver() {
 
         val type = intent.getStringExtra(EXTRA_TYPE) ?: return
 
-        PlanarioDependencies.schedulePlanarioNotifications()
-
         val repository = PlanarioDependencies.studyRepository
         val settings = repository.settings.value
+
+        // Cada alarma reprograma únicamente su siguiente ejecución. Reprogramar
+        // todas aquí podía cancelar otra notificación prevista para la misma hora.
+        PlanarioNotificationScheduler(context.applicationContext)
+            .scheduleNextForType(type, settings)
 
         if (!settings.isTypeEnabled(type)) return
         if (!canPostNotifications(context)) return
