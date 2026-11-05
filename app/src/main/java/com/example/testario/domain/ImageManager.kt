@@ -13,9 +13,17 @@ class ImageManager(private val context: Context) {
     fun persistImageToInternalStorage(temporaryUriString: String?): String? {
         if (temporaryUriString == null) return null
 
-        // Si ya es una ruta interna nuestra, no hacemos nada
-        if (temporaryUriString.contains(context.filesDir.absolutePath)) {
-            return temporaryUriString
+        // Si ya es una imagen interna nuestra, no hacemos nada.
+        val canonicalImagesDir = runCatching {
+            imagesDir.canonicalPath + File.separator
+        }.getOrNull()
+        val existingFile = runCatching { File(temporaryUriString) }.getOrNull()
+        if (
+            canonicalImagesDir != null &&
+            existingFile != null &&
+            runCatching { existingFile.canonicalPath.startsWith(canonicalImagesDir) }.getOrDefault(false)
+        ) {
+            return existingFile.absolutePath
         }
 
         return try {
@@ -37,14 +45,16 @@ class ImageManager(private val context: Context) {
         }
     }
 
-    // NUEVO: Método para borrar la imagen física cuando se borra la pregunta
     fun deleteImage(pathString: String?) {
-        if (pathString == null) return
+        if (pathString.isNullOrBlank()) return
         try {
             val file = File(pathString)
-            // Seguridad extra: Solo borramos si el archivo está realmente dentro de nuestra carpeta
-            if (file.exists() && file.absolutePath.contains("question_images")) {
-                file.delete()
+            val canonicalImagesDir = imagesDir.canonicalPath + File.separator
+            val canonicalFile = file.canonicalFile
+
+            // Nunca se borra nada que no esté físicamente dentro de question_images.
+            if (canonicalFile.exists() && canonicalFile.path.startsWith(canonicalImagesDir)) {
+                canonicalFile.delete()
             }
         } catch (e: Exception) {
             e.printStackTrace()
