@@ -53,9 +53,10 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
     private var pointsCorrect: Double = 1.0
     private var penaltyWrong: Double = -0.25
 
-    init {
+    private fun startQuestionTicker() {
+        questionTimerJob?.cancel()
         questionTimerJob = viewModelScope.launch {
-            while (true) {
+            while (sessionActive) {
                 delay(1000)
                 if (sessionActive && !_timeExpired.value && _questions.value.isNotEmpty()) {
                     _totalElapsedSeconds.value += 1
@@ -85,6 +86,7 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
         _timeExpired.value = false
         _totalElapsedSeconds.value = 0L
         _remainingSeconds.value = null
+        startQuestionTicker()
 
         val prioritizeFailuresInNormalTests = preferencesManager.getPrioritizeFailuresInNormalTests()
 
@@ -156,6 +158,8 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
             _remainingSeconds.value = 0
             _timeExpired.value = true
             sessionActive = false
+            questionTimerJob?.cancel()
+            questionTimerJob = null
         }
     }
 
@@ -245,6 +249,8 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
         _isPreparing.value = false
         timerJob?.cancel()
         generationJob?.cancel()
+        questionTimerJob?.cancel()
+        questionTimerJob = null
         val l = _questions.value
         val c = l.count { it.selectedAnswerId != null && it.selectedAnswerId == it.question.correctAnswerId }
         val b = l.count { it.selectedAnswerId == null }
@@ -263,6 +269,8 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
         _isPreparing.value = false
         timerJob?.cancel()
         generationJob?.cancel()
+        questionTimerJob?.cancel()
+        questionTimerJob = null
         _remainingSeconds.value = null
         _timeExpired.value = false
         _questions.value = emptyList()
