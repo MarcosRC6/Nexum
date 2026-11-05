@@ -825,20 +825,22 @@ class StudyRepository(
         return true
     }
 
-    private fun refreshDay(date: LocalDate) {
-        val previousDay = _studyDays.value[date] ?: createDaySnapshot(date)
+    private fun refreshedDay(
+        date: LocalDate,
+        previousDay: StudyDay = _studyDays.value[date] ?: createDaySnapshot(date)
+    ): StudyDay {
         val activeTopic = getActiveTopicValue()
         val studiedMinutes = getStudiedMinutesForDate(date)
         val dailyGoalMinutes = _settings.value.dailyGoalMinutes
-        val isFreeDay = isFreeDay(date, previousDay)
+        val freeDay = isFreeDay(date, previousDay)
 
-        val updatedDay = previousDay.copy(
+        return previousDay.copy(
             date = date,
             status = calculateDayStatus(
                 date = date,
                 studiedMinutes = studiedMinutes,
                 dailyGoalMinutes = dailyGoalMinutes,
-                isFreeDay = isFreeDay,
+                isFreeDay = freeDay,
                 isFinishedManually = previousDay.isFinishedManually
             ),
             studiedMinutes = studiedMinutes,
@@ -846,21 +848,28 @@ class StudyRepository(
             activeTopicIdSnapshot = previousDay.activeTopicIdSnapshot ?: activeTopic?.id,
             activeTopicNameSnapshot = previousDay.activeTopicNameSnapshot ?: activeTopic?.name
         )
+    }
 
-        _studyDays.value = _studyDays.value + (date to updatedDay)
+    private fun refreshDay(date: LocalDate) {
+        _studyDays.value = _studyDays.value + (date to refreshedDay(date))
         persist()
     }
 
     private fun refreshAllStudyDays() {
         val dates = (_studyDays.value.keys + LocalDate.now()).toSet()
+        val refreshed = _studyDays.value.toMutableMap()
 
         dates.forEach { date ->
-            refreshDay(date)
+            refreshed[date] = refreshedDay(
+                date = date,
+                previousDay = refreshed[date] ?: createDaySnapshot(date)
+            )
         }
 
-        if (dates.isEmpty()) {
-            persist()
-        }
+        _studyDays.value = refreshed
+        // Cambios globales (objetivo diario/días libres) se persisten una sola vez.
+        // Antes se escribía SharedPreferences y se actualizaban widgets por cada día histórico.
+        persist()
     }
 
     private fun createDaySnapshot(date: LocalDate): StudyDay {
