@@ -273,11 +273,22 @@ class QuestionRepository(
         val duplicatedStatementImage = imageManager.duplicatePhysicalImage(question.explanationImageUri)
         val duplicatedCorrectionImage = imageManager.duplicatePhysicalImage(question.correctionImageUri)
 
+        val answerIdMap = question.answers.associate { answer ->
+            answer.id to UUID.randomUUID().toString()
+        }
+        val duplicatedAnswers = question.answers.map { answer ->
+            answer.copy(id = answerIdMap[answer.id] ?: UUID.randomUUID().toString())
+        }
+
         addQuestion(
             topicId = topicId,
             question = question.copy(
                 id = UUID.randomUUID().toString(),
                 text = question.text + " copia",
+                answers = duplicatedAnswers,
+                correctAnswerId = answerIdMap[question.correctAnswerId]
+                    ?: duplicatedAnswers.firstOrNull()?.id.orEmpty(),
+                stats = com.example.testario.data.model.QuestionStats(),
                 explanationImageUri = duplicatedStatementImage,
                 correctionImageUri = duplicatedCorrectionImage
             )
