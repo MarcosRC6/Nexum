@@ -44,8 +44,6 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation(libs.androidx.junit.ktx)
-    implementation(libs.androidx.material3)
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation("androidx.navigation:navigation-compose:2.8.9")
@@ -53,4 +51,5 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit.ktx)
 }
