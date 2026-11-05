@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: nexum-audit-fix-home-ux
+  group: nexum-audit-final-v2
   cancel-in-progress: true
 
 jobs:
