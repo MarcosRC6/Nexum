@@ -1,6 +1,7 @@
 package com.example.testario.domain
 
 import android.content.Context
+import com.example.testario.data.local.MigrationManager
 import com.example.testario.data.local.TestarioLocalStore
 import com.example.testario.data.model.Answer
 import com.example.testario.data.model.DatabaseSchema
@@ -58,7 +59,8 @@ class ImportManager(private val context: Context, private val localStore: Testar
     }
 
     fun restoreBackup(rawJson: String) {
-        val backup = json.decodeFromString<TestarioDatabase>(rawJson)
+        val migratedJson = MigrationManager.migrate(rawJson)
+        val backup = json.decodeFromString<TestarioDatabase>(migratedJson)
         localStore.saveDatabase(
             backup.copy(
                 version = DatabaseSchema.CURRENT_VERSION,
