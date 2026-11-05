@@ -11,14 +11,55 @@ import com.example.planario.data.local.StudyLocalDataSource
 import com.example.planario.data.repository.StudyRepository
 import com.example.planario.domain.timer.StudyTimerController
 import com.example.planario.domain.timer.StudyTimerForegroundService
+import com.example.planario.domain.timer.StudyTimerState
+import java.time.LocalDate
 
 object PlanarioDependencies {
 
     private lateinit var appContext: Context
 
     fun init(context: Context) {
-        if (!::appContext.isInitialized) {
-            appContext = context.applicationContext
+        if (::appContext.isInitialized) return
+
+        appContext = context.applicationContext
+        studyTimerController.attachContext(appContext)
+
+        val trackedSnapshot = studyRepository.getActiveStudyTimerSnapshot()
+        val recoveredPreviousDay = studyTimerController.recoverPendingStudyTimerIfNeeded()
+
+        when {
+            recoveredPreviousDay != null -> {
+                studyRepository.clearActiveStudyTimerTracking()
+                if (recoveredPreviousDay.minutes > 0) {
+                    studyRepository.addTimerTime(
+                        minutes = recoveredPreviousDay.minutes,
+                        date = recoveredPreviousDay.date
+                    )
+                }
+            }
+
+            studyTimerController.state.value.studyTimerState == StudyTimerState.PAUSED -> {
+                studyRepository.restorePausedActiveStudyTimerTracking(
+                    date = LocalDate.now(),
+                    elapsedSeconds = studyTimerController.state.value.studyElapsedSeconds
+                )
+            }
+
+            studyTimerController.state.value.studyTimerState == StudyTimerState.STOPPED &&
+                trackedSnapshot.isActive &&
+                trackedSnapshot.date != null -> {
+                // Fallback defensivo para instalaciones antiguas en las que existiera
+                // el snapshot del widget pero no el estado del controlador.
+                val elapsedSeconds = trackedSnapshot.elapsedSeconds()
+                studyTimerController.restorePausedStudyTimer(
+                    date = trackedSnapshot.date,
+                    elapsedSeconds = elapsedSeconds
+                )
+                studyRepository.restorePausedActiveStudyTimerTracking(
+                    date = trackedSnapshot.date,
+                    elapsedSeconds = elapsedSeconds
+                )
+            }
         }
     }
 
