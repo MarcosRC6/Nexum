@@ -127,6 +127,30 @@ class StudyTimerController {
         return null
     }
 
+    fun restorePausedStudyTimer(
+        date: LocalDate,
+        elapsedSeconds: Long
+    ) {
+        studyTickerJob?.cancel()
+        studyTickerJob = null
+
+        val safeElapsedSeconds = elapsedSeconds.coerceAtLeast(0L)
+        studyDate = date
+        studyAccumulatedSecondsBeforeRun = safeElapsedSeconds
+        studyStartedAtElapsedRealtimeMillis = null
+        studyStartedAtWallMillis = null
+
+        _state.value = _state.value.copy(
+            studyElapsedSeconds = safeElapsedSeconds,
+            studyTimerState = StudyTimerState.PAUSED
+        )
+
+        persistStudyTimerNow(
+            state = StudyTimerState.PAUSED,
+            elapsedSeconds = safeElapsedSeconds
+        )
+    }
+
     fun persistCurrentStudyTimerNow() {
         val currentState = _state.value.studyTimerState
 
