@@ -144,6 +144,11 @@ class UnifiedDataManager(private val context: Context) {
         // Solo después de validar todos los componentes empezamos a modificar el estado.
         if (!extractQuestionImages(bytes)) return false
 
+        // Una sesión antigua no debe sobrevivir a una restauración de Planario.
+        PlanarioDependencies.studyTimerController.discardStudyTimer()
+        PlanarioDependencies.studyRepository.clearActiveStudyTimerTracking()
+        PlanarioDependencies.stopStudyTimerForegroundService()
+
         runCatching { ImportManager(context, localStore).restoreBackup(dbRaw) }.getOrElse { return false }
 
         if (planRaw != null && !PlanarioDependencies.studyRepository.importBackupJson(planRaw)) {
