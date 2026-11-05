@@ -54,6 +54,8 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
+    fun toggleQuestionFlag(questionId: String): Boolean = questionRepo.toggleQuestionFlag(questionId)
+
     fun deleteQuestion(topicId: String, questionId: String) = questionRepo.deleteQuestion(topicId, questionId)
 
     fun deleteQuestions(topicId: String, questionIds: Set<String>): Int =
