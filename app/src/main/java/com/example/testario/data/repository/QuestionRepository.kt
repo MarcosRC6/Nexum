@@ -52,6 +52,28 @@ class QuestionRepository(
         )
     }
 
+    fun toggleQuestionFlag(questionId: String): Boolean {
+        val db = localStore.database.value
+        if (db.topics.none { topic -> topic.questions.any { it.id == questionId } }) return false
+
+        localStore.saveDatabase(
+            db.copy(
+                topics = db.topics.map { topic ->
+                    topic.copy(
+                        questions = topic.questions.map { question ->
+                            if (question.id == questionId) {
+                                question.copy(flagged = !question.flagged)
+                            } else {
+                                question
+                            }
+                        }
+                    )
+                }
+            )
+        )
+        return true
+    }
+
     fun deleteQuestion(topicId: String, questionId: String) {
         val db = localStore.database.value
         val topic = db.topics.firstOrNull { it.id == topicId }
