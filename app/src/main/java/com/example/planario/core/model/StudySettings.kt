@@ -24,11 +24,12 @@ data class StudySettings(
 ) {
     val hasAnyNotificationEnabled: Boolean
         get() {
-            return notificationsEnabled ||
-                    studyReminderEnabled ||
+            return notificationsEnabled && (
+                studyReminderEnabled ||
                     fixedObjectivesReminderEnabled ||
                     restDayNotificationEnabled ||
                     dailySummaryEnabled
+                )
         }
 
     fun isDefaultFreeDay(dayOfWeekValue: Int): Boolean {
