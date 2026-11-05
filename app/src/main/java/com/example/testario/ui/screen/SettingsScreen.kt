@@ -1122,7 +1122,16 @@ fun SettingsScreen(
             confirmButton = {
                 Button(onClick = {
                     val raw = pendingPlanJson
-                    val ok = raw != null && PlanarioDependencies.studyRepository.importBackupJson(raw)
+                    val ok = if (raw != null) {
+                        // No dejamos que una sesión previa siga corriendo sobre el plan restaurado.
+                        PlanarioDependencies.studyTimerController.discardStudyTimer()
+                        PlanarioDependencies.studyRepository.clearActiveStudyTimerTracking()
+                        PlanarioDependencies.stopStudyTimerForegroundService()
+                        PlanarioDependencies.studyRepository.importBackupJson(raw)
+                    } else {
+                        false
+                    }
+
                     if (ok) {
                         PlanarioDependencies.schedulePlanarioNotifications()
                         message = "Planificación importada correctamente."
