@@ -7,15 +7,16 @@ import org.json.JSONObject
 object MigrationManager {
 
     fun migrate(rawJson: String): String {
-        if (rawJson.isBlank()) return "{ \"version\": ${DatabaseSchema.CURRENT_VERSION}, \"topics\": [], \"groups\": [], \"testTemplates\": [] }"
-
-        val jsonObject = try {
-            JSONObject(rawJson)
-        } catch (_: Exception) {
+        if (rawJson.isBlank()) {
             return "{ \"version\": ${DatabaseSchema.CURRENT_VERSION}, \"topics\": [], \"groups\": [], \"testTemplates\": [] }"
         }
 
+        val jsonObject = JSONObject(rawJson)
         var currentVersion = jsonObject.optInt("version", 0)
+
+        require(currentVersion <= DatabaseSchema.CURRENT_VERSION) {
+            "La base de datos pertenece a una versión más reciente de NEXUM."
+        }
 
         if (currentVersion < 1) {
             currentVersion = 1
