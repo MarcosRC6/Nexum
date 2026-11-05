@@ -107,6 +107,7 @@ fun SettingsScreen(
 
     val coroutineScope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
+    var uiScaleDraft by remember(themeViewModel.uiScale) { mutableStateOf(themeViewModel.uiScale) }
 
     var exportMode by remember { mutableStateOf(ExportMode.COMPLETE) }
     var exportScope by remember { mutableStateOf(ExportScope.ALL) }
@@ -400,14 +401,17 @@ fun SettingsScreen(
                         Text("Tamaño de la interfaz", style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(4.dp))
 
-                        val percentage = (themeViewModel.uiScale * 100).roundToInt()
+                        val percentage = (uiScaleDraft * 100).roundToInt()
                         Text("Escala actual: $percentage%", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
 
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                             Text("A-", color = TestarioText, style = MaterialTheme.typography.bodyMedium)
                             Slider(
-                                value = themeViewModel.uiScale,
-                                onValueChange = { themeViewModel.changeUiScale(it) },
+                                value = uiScaleDraft,
+                                onValueChange = { uiScaleDraft = it },
+                                onValueChangeFinished = {
+                                    themeViewModel.changeUiScale(uiScaleDraft)
+                                },
                                 valueRange = 0.65f..1.35f,
                                 modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
                                 colors = SliderDefaults.colors(
@@ -419,9 +423,12 @@ fun SettingsScreen(
                             Text("A+", color = TestarioText, style = MaterialTheme.typography.titleMedium)
                         }
 
-                        if (themeViewModel.uiScale != 1.0f) {
+                        if (uiScaleDraft != 1.0f) {
                             TextButton(
-                                onClick = { themeViewModel.changeUiScale(1.0f) },
+                                onClick = {
+                                    uiScaleDraft = 1.0f
+                                    themeViewModel.changeUiScale(1.0f)
+                                },
                                 modifier = Modifier.align(Alignment.End)
                             ) {
                                 Text("Restaurar (100%)", color = TestarioPrimary)
