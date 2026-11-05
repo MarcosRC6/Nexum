@@ -227,7 +227,7 @@ fun TestConfigScreen(
             .filter { it.groupId in validGroupIds }
             .distinctBy { it.groupId }
         questionCountText = template.questionCount.coerceAtLeast(0).toString()
-        difficulty = template.difficulty
+        difficulty = if (template.difficultyFilterEnabled) null else template.difficulty
         pointsCorrectText = template.pointsCorrect.toString()
         penaltyText = template.penaltyWrong.toString()
         timerEnabled = template.timerEnabled
@@ -484,10 +484,25 @@ fun TestConfigScreen(
 
             SectionTitle("Dificultad")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                DifficultyChip("Todas", difficulty == null, TestarioPrimary, Modifier.weight(1f)) { difficulty = null; error = null }
-                DifficultyChip("Fácil", difficulty == 1, TestarioGreen, Modifier.weight(1f)) { difficulty = 1; error = null }
-                DifficultyChip("Medio", difficulty == 2, TestarioYellow, Modifier.weight(1f)) { difficulty = 2; error = null }
-                DifficultyChip("Difícil", difficulty == 3, TestarioRed, Modifier.weight(1f)) { difficulty = 3; error = null }
+                DifficultyChip("Todas", difficulty == null, TestarioPrimary, Modifier.weight(1f)) {
+                    difficulty = null
+                    error = null
+                }
+                DifficultyChip("Fácil", difficulty == 1, TestarioGreen, Modifier.weight(1f)) {
+                    difficulty = 1
+                    difficultyFilterEnabled = false
+                    error = null
+                }
+                DifficultyChip("Medio", difficulty == 2, TestarioYellow, Modifier.weight(1f)) {
+                    difficulty = 2
+                    difficultyFilterEnabled = false
+                    error = null
+                }
+                DifficultyChip("Difícil", difficulty == 3, TestarioRed, Modifier.weight(1f)) {
+                    difficulty = 3
+                    difficultyFilterEnabled = false
+                    error = null
+                }
             }
 
             SettingsLikeCard {
@@ -510,7 +525,11 @@ fun TestConfigScreen(
                     }
                     Switch(
                         checked = difficultyFilterEnabled,
-                        onCheckedChange = { difficultyFilterEnabled = it; error = null },
+                        onCheckedChange = { enabled ->
+                            difficultyFilterEnabled = enabled
+                            if (enabled) difficulty = null
+                            error = null
+                        },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = TestarioPrimary,
