@@ -410,10 +410,17 @@ class StudyRepository(
         label: String,
         date: LocalDate = LocalDate.now()
     ) {
-        addManualTime(
+        if (minutes <= 0) return
+
+        val entry = TimeEntry(
+            date = date,
             minutes = minutes,
-            date = date
+            type = TimeEntryType.MANUAL,
+            label = label.trim().ifBlank { "Estudio" }
         )
+
+        _timeEntries.value = _timeEntries.value + entry
+        refreshDay(date)
     }
 
     fun addTimerTime(
