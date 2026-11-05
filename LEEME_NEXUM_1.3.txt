@@ -1,0 +1,64 @@
+NEXUM 1.3 — CONSTRUCCIÓN COMPLETA
+=================================
+
+Identidad Android:
+- Nombre visible: NEXUM
+- applicationId: com.example.estudario
+  (se conserva deliberadamente para actualizar la instalación de Estudario/NEXUM que ya estás probando sin perder sus datos)
+- versionCode: 4
+- versionName: 1.3
+
+INCLUYE TODO LO ACUMULADO HASTA ESTA VERSIÓN
+--------------------------------------------
+- Fusión completa de Testario + Planario en una app independiente.
+- Navegación principal: Inicio · Biblioteca · Test · Plan · Estadísticas.
+- Ajustes mediante icono de controles/deslizadores.
+- Inicio personalizable.
+- Ajustes de Inicio y Planificación/Notificaciones desplegables y compactos con scroll propio.
+- Comportamiento de tests desplegable.
+- Biblioteca y Plan mantienen sus temas independientes.
+- Vínculo opcional Plan -> uno o varios bancos de Biblioteca para Test rápido.
+- Exportar único con elección posterior Biblioteca / Plan.
+- Copia global e importación compatible con formatos heredados.
+- Borrado de estadísticas dentro de Estadísticas.
+- Sincronizar correcciones retirado.
+
+IDENTIDAD NEXUM — OPCIÓN 2
+--------------------------
+- Logo N + check + trayectoria de progreso.
+- Icono adaptativo Android nuevo.
+- Icono de notificación nuevo.
+- Splash del sistema oscuro + introducción NEXUM.
+- Logo NEXUM en cabeceras.
+- Notificaciones como ajuste rápido junto a Ajustes en las pantallas principales.
+- Fondo global con marca de agua NEXUM.
+- Tarjetas, barras y superficies translúcidas para dejar ver sutilmente la marca.
+- Widgets Android con fondo translúcido y marca NEXUM.
+- Tema oscuro azul-negro/violeta y tema claro equivalente.
+- BRANDING_NEXUM_OPCION_2.png incluido como referencia visual.
+
+REORDENACIÓN DE WIDGETS DE INICIO
+---------------------------------
+- Scroll normal: desliza inmediatamente; no reorganiza.
+- Entrar en modo organizar: mantener pulsado ~0,76 s sin mover.
+- Los widgets tiemblan para indicar modo edición.
+- En modo edición, mantener un widget ~0,22 s y arrastrar.
+- Widget agarrado: fondo violeta translúcido + borde violeta + elevación.
+- El movimiento mientras arrastras es 1:1 con el dedo, sin retraso artificial.
+- Los demás elementos se recolocan con animación.
+- Auto-scroll superior/inferior rápido y proporcional a la cercanía al borde.
+- La tarjeta se mantiene visualmente pegada al dedo durante el auto-scroll.
+- Botón "Listo" para salir del modo organizar.
+
+APLICACIÓN
+----------
+Este ZIP es el proyecto completo. No es un parche.
+Puedes abrir directamente la carpeta NEXUM en Android Studio.
+Si reemplazas tu proyecto actual, conserva una copia por seguridad.
+
+VALIDACIÓN
+----------
+- XML de recursos comprobados estructuralmente.
+- Balance sintáctico de los Kotlin modificados comprobado.
+- No se ha podido ejecutar Gradle dentro del entorno de generación porque el wrapper requiere descargar Gradle 9.1.0 y el entorno no tiene acceso a services.gradle.org.
+- La compilación definitiva debe hacerla Android Studio en tu PC.

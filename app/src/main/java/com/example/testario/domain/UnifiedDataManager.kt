@@ -1,0 +1,238 @@
+package com.example.testario.domain
+
+import android.content.Context
+import com.example.planario.app.PlanarioDependencies
+import com.example.testario.data.local.QuickTestLinkManager
+import com.example.testario.data.local.TestarioLocalStore
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import org.json.JSONObject
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.OutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+
+class UnifiedDataManager(private val context: Context) {
+    enum class ImportKind { GLOBAL_BACKUP, TESTARIO_BACKUP, PLAN_BACKUP, LIBRARY_DATA, UNKNOWN }
+
+    data class Detection(val kind: ImportKind, val text: String? = null)
+
+    private val json = Json { prettyPrint = true; ignoreUnknownKeys = true; encodeDefaults = true }
+    private val localStore = TestarioLocalStore.get(context)
+    private val imagesDir = File(context.filesDir, "question_images")
+
+    fun detect(bytes: ByteArray, fileName: String?): Detection {
+        val isZip = fileName?.endsWith(".zip", true) == true || bytes.take(2) == listOf(0x50.toByte(), 0x4b.toByte())
+        if (isZip) {
+            val entries = readZipTextEntries(bytes, setOf("manifest.json", "testario_database.json", "planario_backup.json"))
+            val manifest = entries["manifest.json"]
+            if (manifest != null) {
+                val format = runCatching { JSONObject(manifest).optString("format") }.getOrDefault("")
+                if (format == GLOBAL_FORMAT) return Detection(ImportKind.GLOBAL_BACKUP)
+            }
+            val testarioDatabase = entries["testario_database.json"]
+            if (testarioDatabase != null) {
+                val normalizedName = fileName.orEmpty().lowercase()
+                val backupByName = "backup" in normalizedName || "copia" in normalizedName
+                val backupByContent = looksLikeTestarioBackup(testarioDatabase)
+                return Detection(
+                    if (backupByName || backupByContent) ImportKind.TESTARIO_BACKUP
+                    else ImportKind.LIBRARY_DATA
+                )
+            }
+            return Detection(ImportKind.UNKNOWN)
+        }
+
+        val text = bytes.toString(Charsets.UTF_8)
+        val trimmed = text.trimStart()
+        if (trimmed.startsWith("{")) {
+            val root = runCatching { JSONObject(text) }.getOrNull()
+            if (root != null) {
+                val looksPlan = root.has("fixedObjectives") && root.has("studyDays") && root.has("settings")
+                if (looksPlan) return Detection(ImportKind.PLAN_BACKUP, text)
+                if (root.has("topics")) return Detection(ImportKind.LIBRARY_DATA, text)
+            }
+        }
+        if (trimmed.startsWith("[") || text.contains(';')) {
+            return Detection(ImportKind.LIBRARY_DATA, text)
+        }
+        return Detection(ImportKind.UNKNOWN, text)
+    }
+
+    fun restoreTestarioBackup(bytes: ByteArray): Boolean {
+        var databaseJson: String? = null
+        if (!imagesDir.exists()) imagesDir.mkdirs()
+        val canonicalImages = imagesDir.canonicalPath + File.separator
+
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->
+            var entry = zis.nextEntry
+            while (entry != null) {
+                when {
+                    entry.name == "testario_database.json" -> {
+                        databaseJson = String(zis.readBytes(), Charsets.UTF_8)
+                    }
+                    entry.name.startsWith("question_images/") && !entry.isDirectory -> {
+                        val name = entry.name.substringAfter("question_images/")
+                        if (name.isBlank() || name.contains('/') || name.contains('\\')) return false
+                        val dest = File(imagesDir, name)
+                        if (!dest.canonicalPath.startsWith(canonicalImages)) return false
+                        dest.outputStream().use { zis.copyTo(it) }
+                    }
+                }
+                zis.closeEntry()
+                entry = zis.nextEntry
+            }
+        }
+
+        val raw = databaseJson ?: return false
+        return runCatching {
+            ImportManager(context, localStore).restoreBackup(raw)
+            true
+        }.getOrDefault(false)
+    }
+
+    fun exportGlobalBackup(outputStream: OutputStream) {
+        val databaseJson = json.encodeToString(localStore.database.value)
+        val planJson = PlanarioDependencies.studyRepository.exportBackupJson()
+        val quickLinksJson = QuickTestLinkManager(context).exportJson()
+        val settingsJson = exportTestarioSettings()
+
+        ZipOutputStream(outputStream).use { zos ->
+            writeText(zos, "manifest.json", JSONObject().apply {
+                put("format", GLOBAL_FORMAT)
+                put("version", 1)
+                put("createdAt", System.currentTimeMillis())
+            }.toString(2))
+            writeText(zos, "testario_database.json", databaseJson)
+            writeText(zos, "planario_backup.json", planJson)
+            writeText(zos, "quick_test_links.json", quickLinksJson)
+            writeText(zos, "testario_settings.json", settingsJson)
+
+            if (imagesDir.exists()) {
+                imagesDir.listFiles()?.filter { it.isFile }?.forEach { file ->
+                    zos.putNextEntry(ZipEntry("question_images/${file.name}"))
+                    file.inputStream().use { it.copyTo(zos) }
+                    zos.closeEntry()
+                }
+            }
+        }
+    }
+
+    fun restoreGlobalBackup(bytes: ByteArray): Boolean {
+        val textEntries = linkedMapOf<String, String>()
+        if (!imagesDir.exists()) imagesDir.mkdirs()
+        val canonicalImages = imagesDir.canonicalPath + File.separator
+
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->
+            var entry = zis.nextEntry
+            while (entry != null) {
+                when {
+                    entry.name in setOf("manifest.json", "testario_database.json", "planario_backup.json", "quick_test_links.json", "testario_settings.json") -> {
+                        textEntries[entry.name] = String(zis.readBytes(), Charsets.UTF_8)
+                    }
+                    entry.name.startsWith("question_images/") && !entry.isDirectory -> {
+                        val name = entry.name.substringAfter("question_images/")
+                        val dest = File(imagesDir, name)
+                        if (!dest.canonicalPath.startsWith(canonicalImages)) return false
+                        dest.outputStream().use { zis.copyTo(it) }
+                    }
+                }
+                zis.closeEntry()
+                entry = zis.nextEntry
+            }
+        }
+
+        val manifest = textEntries["manifest.json"] ?: return false
+        if (runCatching { JSONObject(manifest).optString("format") }.getOrDefault("") != GLOBAL_FORMAT) return false
+
+        val dbRaw = textEntries["testario_database.json"] ?: return false
+        runCatching { ImportManager(context, localStore).restoreBackup(dbRaw) }.getOrElse { return false }
+
+        textEntries["planario_backup.json"]?.let {
+            if (!PlanarioDependencies.studyRepository.importBackupJson(it)) return false
+        }
+        textEntries["quick_test_links.json"]?.let { runCatching { QuickTestLinkManager(context).importJson(it) } }
+        textEntries["testario_settings.json"]?.let { restoreTestarioSettings(it) }
+        return true
+    }
+
+    private fun exportTestarioSettings(): String {
+        val prefs = context.getSharedPreferences("testario_settings", Context.MODE_PRIVATE)
+        val root = JSONObject()
+        prefs.all.forEach { (key, value) -> root.put(key, value) }
+        return root.toString(2)
+    }
+
+    private fun restoreTestarioSettings(raw: String) {
+        val root = JSONObject(raw)
+        val prefs = context.getSharedPreferences("testario_settings", Context.MODE_PRIVATE)
+        val editor = prefs.edit().clear()
+        root.keys().forEach { key ->
+            when (val value = root.get(key)) {
+                is Boolean -> editor.putBoolean(key, value)
+                is Int -> editor.putInt(key, value)
+                is Long -> editor.putLong(key, value)
+                is Double -> if (key == "ui_scale") editor.putFloat(key, value.toFloat()) else editor.putFloat(key, value.toFloat())
+                is String -> editor.putString(key, value)
+            }
+        }
+        editor.apply()
+    }
+
+    private fun looksLikeTestarioBackup(raw: String): Boolean {
+        return runCatching {
+            val root = JSONObject(raw)
+            if (root.optInt("testsDone", 0) > 0) return@runCatching true
+            if (root.optInt("totalTrainingMinutes", 0) > 0) return@runCatching true
+            if ((root.optJSONArray("testHistory")?.length() ?: 0) > 0) return@runCatching true
+
+            val topics = root.optJSONArray("topics") ?: return@runCatching false
+            for (i in 0 until topics.length()) {
+                val topic = topics.optJSONObject(i) ?: continue
+                if (topic.optBoolean("isPinned", false)) return@runCatching true
+                val questions = topic.optJSONArray("questions") ?: continue
+                for (j in 0 until questions.length()) {
+                    val question = questions.optJSONObject(j) ?: continue
+                    if (question.optBoolean("favorite", false)) return@runCatching true
+                    val stats = question.optJSONObject("stats") ?: continue
+                    if (stats.optInt("timesAnswered", 0) > 0 ||
+                        stats.optInt("timesCorrect", 0) > 0 ||
+                        stats.optInt("timesWrong", 0) > 0 ||
+                        stats.optInt("timesBlank", 0) > 0 ||
+                        stats.optBoolean("inFailures", false) ||
+                        stats.optLong("totalTimeSpentSeconds", 0L) > 0L
+                    ) return@runCatching true
+                }
+            }
+            false
+        }.getOrDefault(false)
+    }
+
+    private fun writeText(zos: ZipOutputStream, name: String, text: String) {
+        zos.putNextEntry(ZipEntry(name))
+        zos.write(text.toByteArray(Charsets.UTF_8))
+        zos.closeEntry()
+    }
+
+    private fun readZipTextEntries(bytes: ByteArray, wanted: Set<String>): Map<String, String> {
+        val result = linkedMapOf<String, String>()
+        ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->
+            var entry = zis.nextEntry
+            while (entry != null) {
+                if (entry.name in wanted && !entry.isDirectory) {
+                    result[entry.name] = String(zis.readBytes(), Charsets.UTF_8)
+                }
+                zis.closeEntry()
+                entry = zis.nextEntry
+            }
+        }
+        return result
+    }
+
+    companion object {
+        const val GLOBAL_FORMAT = "testario_planario_global"
+    }
+}

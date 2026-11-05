@@ -1,0 +1,455 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widgetCalendarRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:id="@+id/widgetCalendarHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widgetCalendarTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Calendario de estudio"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widgetCalendarSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Hoy"
+                android:textSize="11sp" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/widgetCalendarStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:paddingStart="9dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="9dp"
+            android:paddingBottom="4dp"
+            android:text="En curso"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widgetCalendarTodaySection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="9dp"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/widgetCalendarTodayTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Hoy"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widgetCalendarTodayProgress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="0 min / 6 h"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <ProgressBar
+            android:id="@+id/widgetCalendarTodayProgressBar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:layout_marginTop="6dp"
+            android:max="100"
+            android:progress="0" />
+
+        <TextView
+            android:id="@+id/widgetCalendarTodayMeta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Aún sin registrar tiempo"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widgetCalendarWeekSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/widgetCalendarWeekTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Semana actual"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widgetCalendarWeekSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="0 min esta semana"
+            android:textSize="11sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/calendarWeekLabel0"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="L"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekLabel1"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="M"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekLabel2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="X"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekLabel3"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="J"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekLabel4"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="V"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekLabel5"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="S"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekLabel6"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="D"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/calendarWeekCell0"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="3dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="1"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekCell1"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="3dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="2"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekCell2"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="3dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="3"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekCell3"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="3dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="4"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekCell4"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="3dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="5"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekCell5"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="3dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="6"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/calendarWeekCell6"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="7"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widgetCalendarMonthSection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/widgetCalendarMonthTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Junio 2026"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/calendarMonthRow0"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:layout_marginTop="7dp"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/calendarMonthCell00" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell01" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell02" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell03" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell04" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell05" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell06" style="@style/WidgetCalendarMonthCellNoMargin" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/calendarMonthRow1"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:layout_marginTop="3dp"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/calendarMonthCell10" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell11" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell12" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell13" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell14" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell15" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell16" style="@style/WidgetCalendarMonthCellNoMargin" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/calendarMonthRow2"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:layout_marginTop="3dp"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/calendarMonthCell20" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell21" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell22" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell23" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell24" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell25" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell26" style="@style/WidgetCalendarMonthCellNoMargin" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/calendarMonthRow3"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:layout_marginTop="3dp"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/calendarMonthCell30" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell31" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell32" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell33" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell34" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell35" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell36" style="@style/WidgetCalendarMonthCellNoMargin" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/calendarMonthRow4"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:layout_marginTop="3dp"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/calendarMonthCell40" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell41" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell42" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell43" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell44" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell45" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell46" style="@style/WidgetCalendarMonthCellNoMargin" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/calendarMonthRow5"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:layout_marginTop="3dp"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/calendarMonthCell50" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell51" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell52" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell53" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell54" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell55" style="@style/WidgetCalendarMonthCell" />
+            <TextView android:id="@+id/calendarMonthCell56" style="@style/WidgetCalendarMonthCellNoMargin" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widgetCalendarActionsRow"
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/widgetCalendarHomeButton"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_marginEnd="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_today_action_button"
+            android:gravity="center"
+            android:text="Inicio"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widgetCalendarOpenButton"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_today_action_button"
+            android:gravity="center"
+            android:text="Plan"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+</LinearLayout>
