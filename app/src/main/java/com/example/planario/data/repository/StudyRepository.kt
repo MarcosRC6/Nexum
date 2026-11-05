@@ -529,6 +529,16 @@ class StudyRepository(
         localDataSource.clearActiveStudyTimerTracking()
     }
 
+    fun restorePausedActiveStudyTimerTracking(
+        date: LocalDate,
+        elapsedSeconds: Long
+    ) {
+        localDataSource.restorePausedActiveStudyTimerTracking(
+            date = date,
+            elapsedSeconds = elapsedSeconds
+        )
+    }
+
     fun getActiveStudyTimerSnapshot() =
         localDataSource.loadActiveStudyTimerSnapshot()
 
