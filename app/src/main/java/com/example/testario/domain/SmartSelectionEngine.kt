@@ -4,7 +4,7 @@ import com.example.testario.data.model.Question
 import com.example.testario.data.model.TestConfig
 import com.example.testario.data.model.TestGroupAllocation
 import com.example.testario.data.model.TestMode
-import kotlin.math.roundToInt
+import kotlin.math.floor
 
 class SmartSelectionEngine {
 
@@ -22,9 +22,12 @@ class SmartSelectionEngine {
         if (config.difficultyFilterEnabled) {
             val sum = config.easyPercent + config.mediumPercent + config.hardPercent
             if (sum > 0) {
-                val easyNeeded = ((totalNeeded * config.easyPercent) / sum.toDouble()).roundToInt()
-                val mediumNeeded = ((totalNeeded * config.mediumPercent) / sum.toDouble()).roundToInt()
-                val hardNeeded = maxOf(0, totalNeeded - easyNeeded - mediumNeeded)
+                val (easyNeeded, mediumNeeded, hardNeeded) = exactDifficultyCounts(
+                    total = totalNeeded,
+                    easyPercent = config.easyPercent,
+                    mediumPercent = config.mediumPercent,
+                    hardPercent = config.hardPercent
+                )
 
                 val easyByTopic = availableByTopic.mapValues { (_, qs) -> qs.filter { it.difficulty == 1 } }
                 val mediumByTopic = availableByTopic.mapValues { (_, qs) -> qs.filter { it.difficulty == 2 } }
@@ -112,6 +115,40 @@ class SmartSelectionEngine {
         val matchedIds = matchGroupSlots(allocations, rankedIdsByAllocation) ?: return emptyList()
         val result = matchedIds.mapNotNull(allQuestionsById::get)
         return if (config.randomOrder) result.shuffled() else result
+    }
+
+    private fun exactDifficultyCounts(
+        total: Int,
+        easyPercent: Int,
+        mediumPercent: Int,
+        hardPercent: Int
+    ): Triple<Int, Int, Int> {
+        if (total <= 0) return Triple(0, 0, 0)
+
+        val weights = listOf(
+            easyPercent.coerceAtLeast(0),
+            mediumPercent.coerceAtLeast(0),
+            hardPercent.coerceAtLeast(0)
+        )
+        val weightSum = weights.sum()
+        if (weightSum <= 0) return Triple(0, 0, total)
+
+        val raw = weights.map { total * it.toDouble() / weightSum.toDouble() }
+        val counts = raw.map { floor(it).toInt() }.toMutableList()
+        var remaining = total - counts.sum()
+
+        val order = raw.indices.sortedWith(
+            compareByDescending<Int> { raw[it] - floor(raw[it]) }
+                .thenBy { it }
+        )
+        var index = 0
+        while (remaining > 0) {
+            counts[order[index % order.size]]++
+            remaining--
+            index++
+        }
+
+        return Triple(counts[0], counts[1], counts[2])
     }
 
     private fun questionsForTopics(
