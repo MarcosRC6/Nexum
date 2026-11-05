@@ -178,13 +178,13 @@ fun TestScreen(
         val res = remember { sessionViewModel.finish() }
         LaunchedEffect(Unit) {
             if (!registeredFinalStats) {
-                var secSum = 0L
-                questions.forEach {
-                    statsViewModel.registerAnswer(it.question.id, it.selectedAnswerId, it.timeSpentSeconds)
-                    secSum += it.timeSpentSeconds
-                }
+                val secSum = questions.sumOf { it.timeSpentSeconds }
                 val elapsedMins = maxOf(1, (secSum / 60).toInt())
-                statsViewModel.saveTestResult(res, elapsedMins)
+                statsViewModel.registerTestResults(
+                    results = questions,
+                    finalTestResult = res,
+                    totalTimeSpentMinutes = elapsedMins
+                )
                 registeredFinalStats = true
             }
         }
@@ -459,7 +459,12 @@ fun TestScreen(
                                 }
                             }) { Text("✏️") }
 
-                            IconButton(onClick = { sessionViewModel.toggleFlag(current.question.id) }) {
+                            IconButton(
+                                onClick = {
+                                    sessionViewModel.toggleFlag(current.question.id)
+                                    libraryViewModel.toggleQuestionFlag(current.question.id)
+                                }
+                            ) {
                                 Text(if (current.question.flagged) "🚩" else "🏳️")
                             }
                         }
