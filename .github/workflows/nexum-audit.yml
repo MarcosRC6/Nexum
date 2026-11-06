@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/home-ux-20261105
+      - audit/nexum-final-20261106
   workflow_dispatch:
 
 concurrency:
@@ -35,3 +36,15 @@ jobs:
 
       - name: Lint
         run: ./gradlew lintDebug --stacktrace
+
+      - name: Package audited source snapshot
+        if: always()
+        run: git archive --format=zip --output=NEXUM_AUDIT_SOURCE.zip HEAD
+
+      - name: Upload source snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUM_AUDIT_SOURCE
+          path: NEXUM_AUDIT_SOURCE.zip
+          retention-days: 14
