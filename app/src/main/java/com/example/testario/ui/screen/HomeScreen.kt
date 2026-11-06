@@ -49,6 +49,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.Question
 import com.example.testario.data.model.Topic
+import com.example.testario.ui.theme.TestarioNeonSurface
+import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioMutedText
 import com.example.testario.ui.theme.TestarioPrimary
@@ -829,8 +831,8 @@ private fun GlobalQuestionSearchCard(
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioPrimaryDark else TestarioSurface),
-        border = BorderStroke(1.dp, if (selected) TestarioPrimary else TestarioSurfaceLight)
+        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface),
+        border = BorderStroke(1.4.dp, TestarioPrimary)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
