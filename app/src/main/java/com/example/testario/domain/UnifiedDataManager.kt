@@ -31,7 +31,7 @@ class UnifiedDataManager(private val context: Context) {
     fun detect(bytes: ByteArray, fileName: String?): Detection {
         val isZip = fileName?.endsWith(".zip", true) == true || bytes.take(2) == listOf(0x50.toByte(), 0x4b.toByte())
         if (isZip) {
-            val entries = readZipTextEntries(bytes, setOf("manifest.json", "testario_database.json", "planario_backup.json"))
+            val entries = runCatching { readZipTextEntries(bytes, setOf("manifest.json", "testario_database.json", "planario_backup.json")) }.getOrElse { return Detection(ImportKind.UNKNOWN) }
             val manifest = entries["manifest.json"]
             if (manifest != null) {
                 val format = runCatching { JSONObject(manifest).optString("format") }.getOrDefault("")
@@ -313,11 +313,27 @@ class UnifiedDataManager(private val context: Context) {
 
     private fun readZipTextEntries(bytes: ByteArray, wanted: Set<String>): Map<String, String> {
         val result = linkedMapOf<String, String>()
+        var totalBytes = 0L
         ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->
             var entry = zis.nextEntry
+            val buffer = ByteArray(8192)
             while (entry != null) {
                 if (entry.name in wanted && !entry.isDirectory) {
-                    result[entry.name] = String(zis.readBytes(), Charsets.UTF_8)
+                    require(entry.name !in result) { "Entrada JSON duplicada en la copia." }
+                    val output = ByteArrayOutputStream()
+                    var entryBytes = 0L
+                    while (true) {
+                        val count = zis.read(buffer)
+                        if (count < 0) break
+                        entryBytes += count
+                        totalBytes += count
+                        require(entryBytes <= MAX_IMPORT_JSON_ENTRY_BYTES &&
+                            totalBytes <= MAX_IMPORT_JSON_TOTAL_BYTES) {
+                            "La copia de seguridad contiene un JSON excesivamente grande."
+                        }
+                        output.write(buffer, 0, count)
+                    }
+                    result[entry.name] = output.toString(Charsets.UTF_8.name())
                 }
                 zis.closeEntry()
                 entry = zis.nextEntry
@@ -330,5 +346,7 @@ class UnifiedDataManager(private val context: Context) {
         const val GLOBAL_FORMAT = "testario_planario_global"
         private const val MAX_IMPORT_IMAGE_BYTES = 64L * 1024L * 1024L
         private const val MAX_IMPORT_IMAGE_TOTAL_BYTES = 512L * 1024L * 1024L
+        private const val MAX_IMPORT_JSON_ENTRY_BYTES = 128L * 1024L * 1024L
+        private const val MAX_IMPORT_JSON_TOTAL_BYTES = 192L * 1024L * 1024L
     }
 }
