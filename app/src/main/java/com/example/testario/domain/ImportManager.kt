@@ -31,8 +31,19 @@ class ImportManager(private val context: Context, private val localStore: Testar
     fun extractPayload(inputStream: InputStream, fileName: String?): String {
         pendingImageStage?.deleteRecursively()
         pendingImageStage = null
-        if (fileName?.endsWith(".zip", ignoreCase = true) != true) {
-            return inputStream.bufferedReader().use { it.readText() }
+        // Android OpenDocument puede devolver un URI opaco sin extensión.
+        // Detectamos el ZIP por su cabecera además del nombre visible.
+        val buffered = inputStream.buffered()
+        buffered.mark(4)
+        val signature = ByteArray(4)
+        val bytesRead = buffered.read(signature)
+        buffered.reset()
+        val hasZipSignature = bytesRead == 4 &&
+            signature[0] == 0x50.toByte() && signature[1] == 0x4b.toByte() &&
+            (signature[2] == 0x03.toByte() || signature[2] == 0x05.toByte() ||
+                signature[2] == 0x07.toByte())
+        if (!hasZipSignature && fileName?.endsWith(".zip", ignoreCase = true) != true) {
+            return buffered.bufferedReader().use { it.readText() }
         }
 
         val stage = File(context.cacheDir, "nexum-import-${UUID.randomUUID()}")
@@ -44,7 +55,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
             var totalImageBytes = 0L
             val buffer = ByteArray(8192)
 
-            ZipInputStream(inputStream).use { zis ->
+            ZipInputStream(buffered).use { zis ->
                 var entry = zis.nextEntry
                 while (entry != null) {
                     when {
