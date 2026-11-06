@@ -1276,6 +1276,6 @@ private fun NotificationTimeField(
     )
 }
 
-@Composable private fun ThemeOption(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, m.height(46.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = if (s) TestarioPrimaryDark else TestarioSurfaceLight, contentColor = TestarioText), border = if (s) BorderStroke(1.dp, TestarioPrimary) else null) { Text(t) }
-@Composable private fun JsonModeButton(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, m.height(46.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = if (s) TestarioPrimaryDark else TestarioSurfaceLight, contentColor = TestarioText), border = if (s) BorderStroke(1.dp, TestarioPrimary) else null) { Text(t) }
-@Composable private fun ScopeButton(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, shape = RoundedCornerShape(10.dp), modifier = m.height(38.dp), colors = ButtonDefaults.buttonColors(containerColor = if (s) TestarioPrimary else TestarioSurfaceLight, contentColor = TestarioText)) { Text(t, style = MaterialTheme.typography.bodySmall) }
+@Composable private fun ThemeOption(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, m.height(46.dp), shape = RoundedCornerShape(12.dp), selected = s) { Text(t) }
+@Composable private fun JsonModeButton(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, m.height(46.dp), shape = RoundedCornerShape(12.dp), selected = s) { Text(t) }
+@Composable private fun ScopeButton(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, shape = RoundedCornerShape(10.dp), modifier = m.height(38.dp), selected = s) { Text(t, style = MaterialTheme.typography.bodySmall) }
