@@ -33,6 +33,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import com.example.testario.ui.theme.NeonLinearProgressIndicator as LinearProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -292,8 +293,8 @@ fun HomeScreen(
                                         Spacer(Modifier.height(6.dp))
                                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                             Text("Objetivos diarios", style = MaterialTheme.typography.titleMedium, color = TestarioText, modifier = Modifier.weight(1f))
-                                            TextButton(onClick = { homeObjectivesExpanded = !homeObjectivesExpanded }) {
-                                                Text(if (homeObjectivesExpanded) "Ocultar ▲" else "Ver ▼")
+                                            IconButton(onClick = { homeObjectivesExpanded = !homeObjectivesExpanded }) {
+                                                Text(if (homeObjectivesExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                                             }
                                         }
                                         if (homeObjectivesExpanded) {
@@ -344,8 +345,8 @@ fun HomeScreen(
                                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                             Text("Tema activo", style = MaterialTheme.typography.titleMedium, color = TestarioText, modifier = Modifier.weight(1f))
-                                            TextButton(onClick = { homeTopicExpanded = !homeTopicExpanded }) {
-                                                Text(if (homeTopicExpanded) "Ocultar ▲" else "Ver ▼")
+                                            IconButton(onClick = { homeTopicExpanded = !homeTopicExpanded }) {
+                                                Text(if (homeTopicExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                                             }
                                         }
                                         if (homeTopicExpanded) {
@@ -412,8 +413,8 @@ fun HomeScreen(
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Resumen", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
-                                        TextButton(onClick = { homeSummaryExpanded = !homeSummaryExpanded }) {
-                                            Text(if (homeSummaryExpanded) "Ocultar ▲" else "Ver ▼")
+                                        IconButton(onClick = { homeSummaryExpanded = !homeSummaryExpanded }) {
+                                            Text(if (homeSummaryExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                                         }
                                     }
                                     if (homeSummaryExpanded) {
@@ -456,8 +457,8 @@ fun HomeScreen(
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Plantillas", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
-                                        TextButton(onClick = { homeTemplatesExpanded = !homeTemplatesExpanded }, enabled = database.testTemplates.isNotEmpty()) {
-                                            Text(if (homeTemplatesExpanded) "Ocultar ▲" else "Ver ▼")
+                                        IconButton(onClick = { homeTemplatesExpanded = !homeTemplatesExpanded }, enabled = database.testTemplates.isNotEmpty()) {
+                                            Text(if (homeTemplatesExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                                         }
                                     }
                                     if (database.testTemplates.isEmpty()) {
@@ -502,8 +503,8 @@ fun HomeScreen(
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Accesos rápidos", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
-                                        TextButton(onClick = { homeQuickAccessExpanded = !homeQuickAccessExpanded }) {
-                                            Text(if (homeQuickAccessExpanded) "Ocultar ▲" else "Ver ▼")
+                                        IconButton(onClick = { homeQuickAccessExpanded = !homeQuickAccessExpanded }) {
+                                            Text(if (homeQuickAccessExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                                         }
                                     }
                                     if (homeQuickAccessExpanded) {
