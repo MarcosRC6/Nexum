@@ -557,7 +557,7 @@ fun HomeScreen(
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text("Organizar Inicio", color = TestarioText, style = MaterialTheme.typography.titleMedium)
-                            Text("Arrastra los bloques. Al acercarte a un borde, la pantalla se desplazará sola.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                            Text("Desliza para bajar o subir. Mantén pulsado un bloque para moverlo.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                         }
                         OutlinedButton(
                             onClick = {
@@ -782,8 +782,11 @@ private fun ReorderableHomeBlock(
                     val pointerId = down.id
                     val start = down.position
                     var last = start
-                    // Once editing, immediate drag rather than a second delay.
-                    val holdMillis = if (latestReorderMode) 0L else 520L
+                    // Swipes must remain available even while cards wobble in
+                    // edit mode. A nonzero long-press disambiguates a scroll
+                    // from an intentional widget drag, then movement beyond
+                    // touchSlop cancels the drag and lets LazyColumn scroll.
+                    val holdMillis = if (latestReorderMode) 280L else 520L
 
                     val interrupted = withTimeoutOrNull(holdMillis) {
                         while (true) {
