@@ -25,9 +25,9 @@ android {
     buildTypes {
         getByName("debug") {
             if (nexumPreviewBuild) {
-                applicationIdSuffix = ".preview"
-                versionNameSuffix = "-preview"
-                manifestPlaceholders["nexumAppLabel"] = "NEXUM Prueba"
+                applicationIdSuffix = ".neon"
+                versionNameSuffix = "-neon-preview"
+                manifestPlaceholders["nexumAppLabel"] = "NEXUM Neón"
             }
         }
     }
