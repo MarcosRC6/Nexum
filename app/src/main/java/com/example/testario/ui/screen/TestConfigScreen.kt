@@ -68,6 +68,8 @@ import com.example.testario.data.model.Topic
 import com.example.testario.data.model.TopicGroup
 import com.example.testario.domain.GroupHierarchy
 import com.example.testario.domain.SmartSelectionEngine
+import com.example.testario.ui.theme.TestarioNeonSurface
+import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioMutedText
@@ -900,8 +902,8 @@ fun SelectableBigCard(title: String, subtitle: String, selected: Boolean, modifi
     Card(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioPrimaryDark else TestarioSurface),
-        border = if (selected) BorderStroke(1.dp, TestarioPrimary) else null
+        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface),
+        border = BorderStroke(1.4.dp, TestarioPrimary)
     ) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = if (selected) TestarioPrimary else TestarioText)
@@ -917,10 +919,7 @@ fun CompactScopeButton(text: String, selected: Boolean, modifier: Modifier = Mod
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
         modifier = modifier.height(44.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) TestarioPrimary else TestarioSurface,
-            contentColor = if (selected) TestarioBackground else TestarioText
-        )
+        selected = selected
     ) { Text(text, style = MaterialTheme.typography.bodyMedium) }
 }
 
@@ -947,12 +946,10 @@ fun DifficultyChip(text: String, selected: Boolean, color: Color, modifier: Modi
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         modifier = modifier.height(38.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) color.copy(alpha = 0.2f) else TestarioSurface,
-            contentColor = if (selected) color else TestarioText
-        ),
+        selected = selected,
+        border = BorderStroke(1.4.dp, TestarioPrimary),
         contentPadding = PaddingValues(0.dp)
-    ) { Text(text, style = MaterialTheme.typography.bodySmall) }
+    ) { Text(text, style = MaterialTheme.typography.bodySmall, color = if (selected) color else TestarioText) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
