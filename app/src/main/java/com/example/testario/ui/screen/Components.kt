@@ -24,7 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.IconButton
+import com.example.testario.ui.theme.NeonIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -358,13 +358,13 @@ fun LibrarySectionTabs(
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
     ) {
         if (topicsSelected) {
-            androidx.compose.material3.Button(
+            com.example.testario.ui.theme.NeonButton(
                 onClick = onTopics,
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(14.dp)
             ) { Text("Temas") }
         } else {
-            androidx.compose.material3.OutlinedButton(
+            com.example.testario.ui.theme.NeonOutlinedButton(
                 onClick = onTopics,
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(14.dp)
@@ -372,13 +372,13 @@ fun LibrarySectionTabs(
         }
 
         if (!topicsSelected) {
-            androidx.compose.material3.Button(
+            com.example.testario.ui.theme.NeonButton(
                 onClick = onGroups,
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(14.dp)
             ) { Text("Grupos") }
         } else {
-            androidx.compose.material3.OutlinedButton(
+            com.example.testario.ui.theme.NeonOutlinedButton(
                 onClick = onGroups,
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(14.dp)
