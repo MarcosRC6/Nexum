@@ -9,6 +9,7 @@ object Routes {
     const val GROUPS = "groups"
     const val TEST_SCREEN = "testScreen"
     const val PLAN = "plan/{tab}"
+    const val CALENDAR = "calendar"
     const val STATS = "stats"
     const val SETTINGS = "settings"
     const val SETTINGS_HOME = "settingsHome"
