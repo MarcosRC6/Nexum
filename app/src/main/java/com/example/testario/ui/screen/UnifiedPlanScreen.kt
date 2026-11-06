@@ -39,6 +39,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.unit.dp
 import com.example.planario.app.PlanarioDependencies
+import com.example.planario.features.calendar.CalendarScreen
 import com.example.planario.features.plan.PlanScreen
 import com.example.planario.features.timer.TimerScreen
 import com.example.testario.data.local.QuickTestLinkManager
@@ -50,7 +51,7 @@ import com.example.testario.ui.theme.TestarioSurface
 import com.example.testario.ui.theme.TestarioText
 import com.example.testario.viewmodel.LibraryViewModel
 
-private enum class PlanTab { PLAN, TIMER }
+private enum class PlanTab { PLAN, TIMER, CALENDAR }
 
 @Composable
 fun UnifiedPlanScreen(
@@ -70,7 +71,13 @@ fun UnifiedPlanScreen(
     val linkManager = remember { QuickTestLinkManager(context.applicationContext) }
 
     var selectedTab by remember(initialTab) {
-        mutableStateOf(if (initialTab == "timer") PlanTab.TIMER else PlanTab.PLAN)
+        mutableStateOf(
+            when (initialTab) {
+                "timer" -> PlanTab.TIMER
+                "calendar" -> PlanTab.CALENDAR
+                else -> PlanTab.PLAN
+            }
+        )
     }
     var showLinkDialog by remember { mutableStateOf(false) }
 
@@ -115,6 +122,11 @@ fun UnifiedPlanScreen(
                     Button(onClick = {}, modifier = Modifier.weight(1f)) { Text("Reloj") }
                 } else {
                     OutlinedButton(onClick = { selectedTab = PlanTab.TIMER }, modifier = Modifier.weight(1f)) { Text("Reloj") }
+                }
+                if (selectedTab == PlanTab.CALENDAR) {
+                    Button(onClick = {}, modifier = Modifier.weight(1f)) { Text("Calendario") }
+                } else {
+                    OutlinedButton(onClick = { selectedTab = PlanTab.CALENDAR }, modifier = Modifier.weight(1f)) { Text("Calendario") }
                 }
             }
 
@@ -167,9 +179,13 @@ fun UnifiedPlanScreen(
                 Column(Modifier.weight(1f)) {
                     PlanScreen()
                 }
-            } else {
+            } else if (selectedTab == PlanTab.TIMER) {
                 Column(Modifier.weight(1f)) {
                     TimerScreen()
+                }
+            } else {
+                Column(Modifier.weight(1f)) {
+                    CalendarScreen()
                 }
             }
         }
