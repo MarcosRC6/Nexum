@@ -37,6 +37,37 @@ jobs:
       - name: Lint
         run: ./gradlew lintDebug --stacktrace
 
+      - name: Summarize actual lint findings
+        if: always()
+        run: |
+          if [ -f app/build/reports/lint-results-debug.xml ]; then
+            python3 - <<'PY'
+          import collections
+          import xml.etree.ElementTree as ET
+          path = "app/build/reports/lint-results-debug.xml"
+          issues = ET.parse(path).getroot().findall("issue")
+          counts = collections.Counter((i.get("severity"), i.get("id")) for i in issues)
+          print("LINT_REPORT_COUNT", len(issues))
+          for (severity, issue_id), total in counts.most_common(35):
+              print(f"LINT_SUMMARY {severity} {issue_id}: {total}")
+          for issue in issues:
+              if issue.get("severity") == "Error":
+                  location = issue.find("location")
+                  print("LINT_ERROR", issue.get("id"), issue.get("message"), location.attrib if location is not None else "")
+          PY
+          fi
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUM_LINT_REPORT
+          path: |
+            app/build/reports/lint-results-debug.xml
+            app/build/reports/lint-results-debug.html
+          retention-days: 14
+          if-no-files-found: ignore
+
       - name: Package audited source snapshot
         if: always()
         run: git archive --format=zip --output=NEXUM_AUDIT_SOURCE.zip HEAD
