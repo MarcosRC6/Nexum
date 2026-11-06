@@ -151,14 +151,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
             val updatedQuestions = currentTopic.questions.map { myQuestion ->
                 val normalizedText = normalizeText(myQuestion.text)
                 val candidates = externalQuestionsMap[normalizedText].orEmpty()
-                val externalMatch = when {
-                    candidates.isEmpty() -> null
-                    candidates.size == 1 -> candidates.first()
-                    else -> candidates.firstOrNull { it.id == myQuestion.id }
-                        ?: candidates.maxByOrNull { candidate ->
-                            answerSimilarityScore(myQuestion, candidate)
-                        }
-                }
+                val externalMatch = QuestionSyncMatcher.findCompatible(myQuestion, candidates)
 
                 if (externalMatch != null && hasSyncDifferences(myQuestion, externalMatch)) {
                     updatedCount++
@@ -228,15 +221,6 @@ class ImportManager(private val context: Context, private val localStore: Testar
             finalTopics.add(cleanTopic.copy(name = finalName))
         }
         localStore.saveDatabase(db.copy(topics = finalTopics))
-    }
-
-    private fun answerSimilarityScore(
-        current: Question,
-        candidate: Question
-    ): Int {
-        val currentAnswers = current.answers
-            .mapTo(hashSetOf()) { normalizeText(it.text) }
-        return candidate.answers.count { normalizeText(it.text) in currentAnswers }
     }
 
     private fun createQuestionFingerprint(question: Question): String {
