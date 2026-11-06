@@ -1,5 +1,6 @@
 package com.example.testario.ui.screen
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -41,11 +42,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
@@ -123,6 +130,7 @@ fun HomeScreen(
     val visibleWidgetIds = homeSettingsViewModel.widgetOrder.filter(::isWidgetVisible)
     val homeListState = rememberLazyListState()
     var draggedWidgetId by remember { mutableStateOf<String?>(null) }
+    var listTopInRoot by remember { mutableFloatStateOf(0f) }
 
     Scaffold(
         containerColor = TestarioBackground,
@@ -145,7 +153,9 @@ fun HomeScreen(
         ) {
             LazyColumn(
                 state = homeListState,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().onGloballyPositioned {
+                    listTopInRoot = it.positionInRoot().y
+                },
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -177,11 +187,12 @@ fun HomeScreen(
                     key = { it }
                 ) { widgetId ->
                     ReorderableHomeBlock(
-                        modifier = if (draggedWidgetId == widgetId) Modifier else Modifier.animateItem(),
+                        modifier = if (draggedWidgetId != null) Modifier else Modifier.animateItem(),
                         widgetId = widgetId,
                         reorderKey = visibleWidgetIds.joinToString("|"),
                         reorderMode = isReorderMode,
                         listState = homeListState,
+                        listTopInRoot = listTopInRoot,
                         visibleWidgetIds = visibleWidgetIds,
                         isDragging = draggedWidgetId == widgetId,
                         onDragStateChange = { dragging ->
@@ -512,6 +523,7 @@ fun HomeScreen(
                         OutlinedButton(
                             onClick = {
                                 draggedWidgetId = null
+                                homeSettingsViewModel.persistWidgetOrder()
                                 isReorderMode = false
                             }
                         ) { Text("Listo") }
@@ -572,6 +584,7 @@ private fun ReorderableHomeBlock(
     reorderKey: String,
     reorderMode: Boolean,
     listState: LazyListState,
+    listTopInRoot: Float,
     visibleWidgetIds: List<String>,
     isDragging: Boolean,
     onDragStateChange: (Boolean) -> Unit,
@@ -579,32 +592,55 @@ private fun ReorderableHomeBlock(
     onMove: (Int) -> Unit,
     content: @Composable () -> Unit
 ) {
-    var dragOffset by remember(widgetId) { mutableStateOf(0f) }
-    var autoScrollSpeedPx by remember(widgetId) { mutableStateOf(0f) }
+    // Anchor the dragged card in viewport coordinates, not in its ever-changing
+    // LazyColumn slot. After a reorder, the slot moves but the card stays under
+    // the finger instead of jumping by the neighboring card's estimated height.
+    var desiredTopPx by remember(widgetId) { mutableFloatStateOf(0f) }
+    var fingerYInViewport by remember(widgetId) { mutableFloatStateOf(0f) }
+    var grabOffsetPx by remember(widgetId) { mutableFloatStateOf(0f) }
+    var autoScrollStepPx by remember(widgetId) { mutableFloatStateOf(0f) }
     var waitingForReorderFrame by remember(widgetId) { mutableStateOf(false) }
+    var itemCoordinates by remember(widgetId) { mutableStateOf<LayoutCoordinates?>(null) }
     val latestVisibleIds by rememberUpdatedState(visibleWidgetIds)
     val latestOnMove by rememberUpdatedState(onMove)
     val latestReorderMode by rememberUpdatedState(reorderMode)
+    val latestListTopInRoot by rememberUpdatedState(listTopInRoot)
     val density = LocalDensity.current
-    val spacingPx = with(density) { 14.dp.toPx() }
-    val edgeZonePx = with(density) { 112.dp.toPx() }
-    val minAutoScrollPx = with(density) { 18.dp.toPx() }
-    val maxAutoScrollPx = with(density) { 36.dp.toPx() }
-    val shadowPx = with(density) { 18.dp.toPx() }
+    val edgeZonePx = with(density) { 88.dp.toPx() }
+    val minAutoScrollPx = with(density) { 2.dp.toPx() }
+    val maxAutoScrollPx = with(density) { 11.dp.toPx() }
+    val shadowPx = with(density) { 13.dp.toPx() }
 
+    val draggedInfo = if (isDragging) {
+        listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == widgetId }
+    } else null
+    val targetTranslation = if (isDragging && draggedInfo != null) {
+        desiredTopPx - draggedInfo.offset
+    } else 0f
     val displayedOffset by animateFloatAsState(
-        targetValue = if (isDragging) dragOffset else 0f,
-        animationSpec = if (isDragging) snap() else tween(durationMillis = 135),
+        targetValue = targetTranslation,
+        animationSpec = if (isDragging) snap() else tween(durationMillis = 130),
         label = "homeDragTranslation"
     )
     val dragScale by animateFloatAsState(
-        targetValue = if (isDragging) 1.022f else 1f,
-        animationSpec = tween(durationMillis = 105),
+        targetValue = if (isDragging) 1.012f else 1f,
+        animationSpec = tween(durationMillis = 100),
         label = "homeDragScale"
     )
 
-    LaunchedEffect(reorderKey) {
-        waitingForReorderFrame = false
+    // Restore the original "edit mode" wobble. Each widget has its own phase;
+    // the selected widget stops wobbling while following the user's finger.
+    val wobble = remember(widgetId) { Animatable(0f) }
+    LaunchedEffect(reorderMode, isDragging) {
+        if (reorderMode && !isDragging) {
+            var direction = if ((widgetId.hashCode() and 1) == 0) 1f else -1f
+            while (true) {
+                wobble.animateTo(direction * 0.8f, tween(durationMillis = 155))
+                direction = -direction
+            }
+        } else {
+            wobble.snapTo(0f)
+        }
     }
 
     fun maybeReorder() {
@@ -613,22 +649,22 @@ private fun ReorderableHomeBlock(
         val currentIndex = ids.indexOf(widgetId)
         if (currentIndex < 0) return
         val info = listState.layoutInfo.visibleItemsInfo
-        val draggedInfo = info.firstOrNull { it.key == widgetId } ?: return
-        val draggedCenter = draggedInfo.offset + dragOffset + (draggedInfo.size / 2f)
+        val currentInfo = info.firstOrNull { it.key == widgetId } ?: return
+        val draggedCenter = desiredTopPx + currentInfo.size / 2f
 
-        val nextId = ids.getOrNull(currentIndex + 1)
-        val nextInfo = nextId?.let { id -> info.firstOrNull { it.key == id } }
-        if (nextInfo != null && draggedCenter > nextInfo.offset + (nextInfo.size / 2f)) {
-            dragOffset -= nextInfo.size + spacingPx
+        val nextInfo = ids.getOrNull(currentIndex + 1)?.let { id ->
+            info.firstOrNull { it.key == id }
+        }
+        if (nextInfo != null && draggedCenter > nextInfo.offset + nextInfo.size / 2f) {
             waitingForReorderFrame = true
             latestOnMove(1)
             return
         }
 
-        val previousId = ids.getOrNull(currentIndex - 1)
-        val previousInfo = previousId?.let { id -> info.firstOrNull { it.key == id } }
-        if (previousInfo != null && draggedCenter < previousInfo.offset + (previousInfo.size / 2f)) {
-            dragOffset += previousInfo.size + spacingPx
+        val previousInfo = ids.getOrNull(currentIndex - 1)?.let { id ->
+            info.firstOrNull { it.key == id }
+        }
+        if (previousInfo != null && draggedCenter < previousInfo.offset + previousInfo.size / 2f) {
             waitingForReorderFrame = true
             latestOnMove(-1)
         }
@@ -636,49 +672,52 @@ private fun ReorderableHomeBlock(
 
     fun updateAutoScroll() {
         val layout = listState.layoutInfo
-        val draggedInfo = layout.visibleItemsInfo.firstOrNull { it.key == widgetId } ?: run {
-            autoScrollSpeedPx = 0f
-            return
-        }
-        val draggedCenter = draggedInfo.offset + dragOffset + (draggedInfo.size / 2f)
-        val topEdge = layout.viewportStartOffset.toFloat()
-        val bottomEdge = layout.viewportEndOffset.toFloat()
-        val topTrigger = topEdge + edgeZonePx
-        val bottomTrigger = bottomEdge - edgeZonePx
-
-        autoScrollSpeedPx = when {
-            draggedCenter < topTrigger -> {
-                val ratio = ((topTrigger - draggedCenter) / edgeZonePx).coerceIn(0f, 1f)
-                -(minAutoScrollPx + (maxAutoScrollPx - minAutoScrollPx) * ratio)
+        val topTrigger = layout.viewportStartOffset + edgeZonePx
+        val bottomTrigger = layout.viewportEndOffset - edgeZonePx
+        val finger = fingerYInViewport
+        autoScrollStepPx = when {
+            finger < topTrigger -> {
+                val depth = ((topTrigger - finger) / edgeZonePx).coerceIn(0f, 1f)
+                -(minAutoScrollPx + (maxAutoScrollPx - minAutoScrollPx) * depth)
             }
-            draggedCenter > bottomTrigger -> {
-                val ratio = ((draggedCenter - bottomTrigger) / edgeZonePx).coerceIn(0f, 1f)
-                minAutoScrollPx + (maxAutoScrollPx - minAutoScrollPx) * ratio
+            finger > bottomTrigger -> {
+                val depth = ((finger - bottomTrigger) / edgeZonePx).coerceIn(0f, 1f)
+                minAutoScrollPx + (maxAutoScrollPx - minAutoScrollPx) * depth
             }
             else -> 0f
         }
     }
 
-    LaunchedEffect(isDragging, autoScrollSpeedPx, reorderKey) {
-        while (isDragging && autoScrollSpeedPx != 0f) {
-            val consumed = listState.scrollBy(autoScrollSpeedPx)
-            if (kotlin.math.abs(consumed) < 0.5f) {
-                autoScrollSpeedPx = 0f
-                break
-            }
-            // Compensa el movimiento de la lista para que la tarjeta siga pegada al dedo.
-            dragOffset += consumed
+    // Wait for the NEW slot geometry before testing another crossing. Never
+    // compensate by estimated heights while Compose animates a different slot.
+    LaunchedEffect(reorderKey) {
+        if (waitingForReorderFrame) {
+            withFrameNanos { }
+            waitingForReorderFrame = false
             maybeReorder()
-            updateAutoScroll()
-            delay(16L)
         }
     }
 
     LaunchedEffect(isDragging) {
-        if (!isDragging) {
-            autoScrollSpeedPx = 0f
-            delay(150L)
-            dragOffset = 0f
+        if (isDragging) {
+            while (true) {
+                val step = autoScrollStepPx
+                if (step != 0f) {
+                    val consumed = listState.scrollBy(step)
+                    if (kotlin.math.abs(consumed) < 0.5f) {
+                        autoScrollStepPx = 0f
+                    } else {
+                        // desiredTopPx stays fixed in the viewport. The real
+                        // slot offset is read again every frame by the layer.
+                        maybeReorder()
+                        updateAutoScroll()
+                    }
+                }
+                delay(16L)
+            }
+        } else {
+            autoScrollStepPx = 0f
+            waitingForReorderFrame = false
         }
     }
 
@@ -690,9 +729,11 @@ private fun ReorderableHomeBlock(
                 translationY = displayedOffset
                 scaleX = dragScale
                 scaleY = dragScale
+                rotationZ = if (reorderMode && !isDragging) wobble.value else 0f
                 shadowElevation = if (isDragging) shadowPx else 0f
                 alpha = if (isDragging) 0.985f else 1f
             }
+            .onGloballyPositioned { itemCoordinates = it }
             .pointerInput(widgetId) {
                 awaitEachGesture {
                     val down = awaitFirstDown(
@@ -702,7 +743,8 @@ private fun ReorderableHomeBlock(
                     val pointerId = down.id
                     val start = down.position
                     var last = start
-                    val holdMillis = if (latestReorderMode) 90L else 520L
+                    // Once editing, immediate drag rather than a second delay.
+                    val holdMillis = if (latestReorderMode) 0L else 520L
 
                     val interrupted = withTimeoutOrNull(holdMillis) {
                         while (true) {
@@ -712,7 +754,6 @@ private fun ReorderableHomeBlock(
                             if (!change.pressed) return@withTimeoutOrNull true
                             last = change.position
                             if ((change.position - start).getDistance() > viewConfiguration.touchSlop) {
-                                // Movimiento rápido = scroll normal, no reorganización.
                                 return@withTimeoutOrNull true
                             }
                         }
@@ -720,31 +761,43 @@ private fun ReorderableHomeBlock(
                         false
                     }
 
-                    // null significa que se cumplió el tiempo de pulsación sin cancelar.
                     if (interrupted == null) {
-                        dragOffset = 0f
-                        autoScrollSpeedPx = 0f
-                        onEnterReorderMode()
-                        onDragStateChange(true)
+                        val info = listState.layoutInfo.visibleItemsInfo
+                            .firstOrNull { it.key == widgetId }
+                        if (info != null) {
+                            grabOffsetPx = last.y
+                            fingerYInViewport = info.offset + last.y
+                            desiredTopPx = info.offset.toFloat()
+                            autoScrollStepPx = 0f
+                            onEnterReorderMode()
+                            onDragStateChange(true)
 
-                        try {
-                            while (true) {
-                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                                val change = event.changes.firstOrNull { it.id == pointerId } ?: break
-                                val current = change.position
-                                val deltaY = current.y - last.y
-                                change.consume()
-                                if (!change.pressed) break
-                                if (deltaY != 0f) {
-                                    dragOffset += deltaY
-                                    maybeReorder()
-                                    updateAutoScroll()
+                            try {
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    val change = event.changes.firstOrNull { it.id == pointerId }
+                                        ?: break
+                                    if (!change.pressed) {
+                                        change.consume()
+                                        break
+                                    }
+                                    change.consume()
+                                    // localToRoot includes the moved node's layer
+                                    // transform; subtracting the list origin gives
+                                    // a stable physical finger position after swaps.
+                                    val fingerInRoot = itemCoordinates
+                                        ?.localToRoot(change.position)?.y
+                                    if (fingerInRoot != null) {
+                                        fingerYInViewport = fingerInRoot - latestListTopInRoot
+                                        desiredTopPx = fingerYInViewport - grabOffsetPx
+                                        maybeReorder()
+                                        updateAutoScroll()
+                                    }
                                 }
-                                last = current
+                            } finally {
+                                autoScrollStepPx = 0f
+                                onDragStateChange(false)
                             }
-                        } finally {
-                            autoScrollSpeedPx = 0f
-                            onDragStateChange(false)
                         }
                     }
                 }
