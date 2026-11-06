@@ -410,7 +410,13 @@ fun HomeScreen(
                                 colors = CardDefaults.cardColors(containerColor = TestarioSurface)
                             ) {
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Text("Resumen", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Resumen", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
+                                        TextButton(onClick = { homeSummaryExpanded = !homeSummaryExpanded }) {
+                                            Text(if (homeSummaryExpanded) "Ocultar ▲" else "Ver ▼")
+                                        }
+                                    }
+                                    if (homeSummaryExpanded) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         DashboardMetric(database.topics.size.toString(), "Temas", Modifier.weight(1f))
                                         DashboardMetric(allQuestions.size.toString(), "Preguntas", Modifier.weight(1f))
@@ -418,6 +424,7 @@ fun HomeScreen(
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         DashboardMetric(failures.toString(), "En fallos", Modifier.weight(1f))
                                         DashboardMetric("$accuracy%", "Acierto", Modifier.weight(1f))
+                                    }
                                     }
                                 }
                             }
@@ -447,17 +454,23 @@ fun HomeScreen(
                                 colors = CardDefaults.cardColors(containerColor = TestarioSurface)
                             ) {
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Plantillas", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Plantillas", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
+                                        TextButton(onClick = { homeTemplatesExpanded = !homeTemplatesExpanded }, enabled = database.testTemplates.isNotEmpty()) {
+                                            Text(if (homeTemplatesExpanded) "Ocultar ▲" else "Ver ▼")
+                                        }
+                                    }
                                     if (database.testTemplates.isEmpty()) {
                                         Text("Aún no tienes plantillas", color = TestarioText, style = MaterialTheme.typography.titleMedium)
                                         Text("Configura un test y guárdalo como plantilla para reutilizarlo desde aquí.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                                         OutlinedButton(onClick = onCreateTest, modifier = Modifier.fillMaxWidth()) { Text("Configurar un test") }
-                                    } else {
-                                        database.testTemplates.take(3).forEach { template ->
+                                    } else if (homeTemplatesExpanded) {
+                                        FourItemDropdown(items = database.testTemplates) { _, template ->
                                             Card(
                                                 modifier = Modifier.fillMaxWidth().clickable { onOpenTemplate(template.id) },
                                                 shape = RoundedCornerShape(16.dp),
-                                                colors = CardDefaults.cardColors(containerColor = TestarioSurfaceLight)
+                                                colors = CardDefaults.cardColors(containerColor = TestarioSurfaceLight),
+                                                border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.85f))
                                             ) {
                                                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                                     Column(Modifier.weight(1f)) {
@@ -467,9 +480,6 @@ fun HomeScreen(
                                                     Text("›", style = MaterialTheme.typography.headlineMedium, color = TestarioPrimary)
                                                 }
                                             }
-                                        }
-                                        if (database.testTemplates.size > 3) {
-                                            OutlinedButton(onClick = onCreateTest, modifier = Modifier.fillMaxWidth()) { Text("Ver todas las plantillas") }
                                         }
                                     }
                                 }
@@ -490,7 +500,13 @@ fun HomeScreen(
                                 border = BorderStroke(1.dp, TestarioOutline)
                             ) {
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Text("Accesos rápidos", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Accesos rápidos", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
+                                        TextButton(onClick = { homeQuickAccessExpanded = !homeQuickAccessExpanded }) {
+                                            Text(if (homeQuickAccessExpanded) "Ocultar ▲" else "Ver ▼")
+                                        }
+                                    }
+                                    if (homeQuickAccessExpanded) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         quickAccesses.forEach { item ->
                                             Card(
@@ -509,6 +525,7 @@ fun HomeScreen(
                                                 }
                                             }
                                         }
+                                    }
                                     }
                                 }
                             }
