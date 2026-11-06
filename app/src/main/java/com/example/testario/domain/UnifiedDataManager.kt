@@ -170,33 +170,92 @@ class UnifiedDataManager(private val context: Context) {
         return true
     }
 
+    /**
+     * Extrae las imágenes en dos fases: primero valida y descomprime todo en
+     * caché; únicamente después modifica los ficheros en uso. Si falla una
+     * escritura, restaura las imágenes anteriores.
+     */
     private fun extractQuestionImages(bytes: ByteArray): Boolean {
-        if (!imagesDir.exists() && !imagesDir.mkdirs()) return false
-        val canonicalImages = imagesDir.canonicalPath + File.separator
+        val operationId = java.util.UUID.randomUUID().toString()
+        val stageDir = File(context.cacheDir, "nexum-images-stage-$" + "{operationId}")
+        val rollbackDir = File(context.cacheDir, "nexum-images-rollback-$" + "{operationId}")
+        val installed = mutableListOf<File>()
+        val names = linkedSetOf<String>()
 
-        return runCatching {
+        try {
+            require(stageDir.mkdirs() && rollbackDir.mkdirs()) {
+                "No se pudo preparar el espacio temporal para restaurar las imágenes."
+            }
+
+            var totalBytes = 0L
             ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->
                 var entry = zis.nextEntry
+                val buffer = ByteArray(8192)
                 while (entry != null) {
                     if (entry.name.startsWith("question_images/") && !entry.isDirectory) {
-                        val name = entry.name.substringAfter("question_images/")
-                        if (name.isBlank() || name.contains('/') || name.contains('\\')) {
-                            return false
+                        val name = entry.name.removePrefix("question_images/")
+                        require(name.isNotBlank() && !name.contains('/') && !name.contains('\\')) {
+                            "Nombre de imagen no válido en la copia de seguridad."
                         }
+                        require(names.add(name)) { "La copia contiene una imagen duplicada." }
 
-                        val dest = File(imagesDir, name)
-                        if (!dest.canonicalPath.startsWith(canonicalImages)) {
-                            return false
+                        val stagedFile = File(stageDir, name)
+                        var fileBytes = 0L
+                        stagedFile.outputStream().use { output ->
+                            while (true) {
+                                val count = zis.read(buffer)
+                                if (count < 0) break
+                                fileBytes += count
+                                totalBytes += count
+                                require(fileBytes <= MAX_IMPORT_IMAGE_BYTES &&
+                                    totalBytes <= MAX_IMPORT_IMAGE_TOTAL_BYTES) {
+                                    "La copia excede el tamaño máximo de imágenes permitido."
+                                }
+                                output.write(buffer, 0, count)
+                            }
                         }
-
-                        dest.outputStream().use { zis.copyTo(it) }
                     }
                     zis.closeEntry()
                     entry = zis.nextEntry
                 }
             }
-            true
-        }.getOrDefault(false)
+
+            require(imagesDir.isDirectory || imagesDir.mkdirs()) {
+                "No se pudo crear la carpeta de imágenes."
+            }
+            val canonicalImages = imagesDir.canonicalPath + File.separator
+            names.forEach { name ->
+                val target = File(imagesDir, name)
+                require(target.canonicalPath.startsWith(canonicalImages)) {
+                    "Ruta de imagen fuera del almacenamiento permitido."
+                }
+                if (target.exists()) {
+                    target.copyTo(File(rollbackDir, name), overwrite = false)
+                }
+                // Registrar antes de copiar, pues una copia incompleta también debe revertirse.
+                installed.add(target)
+                File(stageDir, name).copyTo(target, overwrite = true)
+            }
+            return true
+        } catch (_: Exception) {
+            // No dejar imágenes nuevas/incompletas ni sobrescribir las anteriores.
+            installed.asReversed().forEach { target ->
+                val previous = File(rollbackDir, target.name)
+                runCatching {
+                    if (previous.isFile) previous.copyTo(target, overwrite = true)
+                    else target.delete()
+                }
+            }
+            return false
+        } finally {
+            stageDir.deleteRecursively()
+            rollbackDir.deleteRecursively()
+        }
+    }
+
+    private companion object {
+        const val MAX_IMPORT_IMAGE_BYTES = 64L * 1024L * 1024L
+        const val MAX_IMPORT_IMAGE_TOTAL_BYTES = 512L * 1024L * 1024L
     }
 
     private fun exportTestarioSettings(): String {
