@@ -32,7 +32,25 @@ class ExportManager(private val context: Context, private val localStore: Testar
                 }
             )
         }
-        val jsonString = json.encodeToString(TestarioDatabase(topics = cleanTopics, testsDone = 0))
+        // La exportación de biblioteca conserva la organización, aunque nunca
+        // exporta estadísticas, favoritos ni sesiones de examen.
+        val exportedTopicIds = cleanTopics.mapTo(hashSetOf()) { it.id }
+        val exportedGroups = db.groups.map { group ->
+            group.copy(topicIds = group.topicIds.filter { it in exportedTopicIds })
+        }
+        val exportedTemplates = db.testTemplates.map { template ->
+            template.copy(
+                selectedTopicIds = template.selectedTopicIds.filter { it in exportedTopicIds },
+                selectedFailureTopicIds = template.selectedFailureTopicIds.filter { it in exportedTopicIds }
+            )
+        }
+        val jsonString = json.encodeToString(
+            TestarioDatabase(
+                topics = cleanTopics,
+                groups = exportedGroups,
+                testTemplates = exportedTemplates
+            )
+        )
         val referencedImageNames = cleanTopics
             .asSequence()
             .flatMap { it.questions.asSequence() }
