@@ -100,6 +100,7 @@ fun SettingsScreen(
     statsViewModel: StatsViewModel,
     libraryViewModel: LibraryViewModel,
     onBack: () -> Unit,
+    onStats: () -> Unit,
     openHomeSettingsInitially: Boolean = false
 ) {
     val context = LocalContext.current
@@ -947,6 +948,32 @@ fun SettingsScreen(
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
+                        }
+                    }
+                }
+
+                // Statistics lives after Data; the Home quick-access option remains available.
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = TestarioSurface)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("Estadísticas", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                        Text(
+                            "Consulta tu rendimiento, aciertos, errores y progreso de estudio.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TestarioMutedText
+                        )
+                        OutlinedButton(
+                            onClick = onStats,
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text("Abrir estadísticas")
                         }
                     }
                 }
