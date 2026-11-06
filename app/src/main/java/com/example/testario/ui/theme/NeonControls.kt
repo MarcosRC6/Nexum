@@ -1,6 +1,7 @@
 package com.example.testario.ui.theme
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -186,7 +187,11 @@ fun NeonIconButton(
     val shape = RoundedCornerShape(12.dp)
     MaterialIconButton(
         onClick = onClick,
-        modifier = glowModifier(modifier, enabled, shape),
+        modifier = glowModifier(modifier, enabled, shape).border(
+            width = 1.4.dp,
+            color = if (enabled) TestarioPrimary else TestarioOutline.copy(alpha = 0.42f),
+            shape = shape
+        ),
         enabled = enabled,
         colors = IconButtonDefaults.iconButtonColors(
             containerColor = TestarioNeonSurface,
