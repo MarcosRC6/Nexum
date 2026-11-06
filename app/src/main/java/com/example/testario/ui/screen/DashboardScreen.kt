@@ -457,11 +457,11 @@ fun HomeScreen(
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Plantillas", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
-                                        IconButton(onClick = { homeTemplatesExpanded = !homeTemplatesExpanded }, enabled = database.testTemplates.isNotEmpty()) {
+                                        IconButton(onClick = { homeTemplatesExpanded = !homeTemplatesExpanded }) {
                                             Text(if (homeTemplatesExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                                         }
                                     }
-                                    if (database.testTemplates.isEmpty()) {
+                                    if (homeTemplatesExpanded && database.testTemplates.isEmpty()) {
                                         Text("Aún no tienes plantillas", color = TestarioText, style = MaterialTheme.typography.titleMedium)
                                         Text("Configura un test y guárdalo como plantilla para reutilizarlo desde aquí.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                                         OutlinedButton(onClick = onCreateTest, modifier = Modifier.fillMaxWidth()) { Text("Configurar un test") }
