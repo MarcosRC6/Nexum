@@ -23,44 +23,131 @@ class ImportManager(private val context: Context, private val localStore: Testar
     private val json = Json { ignoreUnknownKeys = true }
     private val imagesDir = File(context.filesDir, "question_images")
 
+    // Las imágenes de un ZIP permanecen en caché hasta que se confirma la operación.
+    // Leer una vista previa o cancelar el diálogo nunca toca imágenes del usuario.
+    private var pendingImageStage: File? = null
+
+    @Synchronized
     fun extractPayload(inputStream: InputStream, fileName: String?): String {
+        pendingImageStage?.deleteRecursively()
+        pendingImageStage = null
         if (fileName?.endsWith(".zip", ignoreCase = true) != true) {
             return inputStream.bufferedReader().use { it.readText() }
         }
 
-        var jsonContent = ""
-        if (!imagesDir.exists()) imagesDir.mkdirs()
+        val stage = File(context.cacheDir, "nexum-import-${UUID.randomUUID()}")
+        require(stage.mkdirs()) { "No se pudo preparar la importación." }
 
-        val canonicalImagesDir = imagesDir.canonicalPath + File.separator
+        return try {
+            val names = hashSetOf<String>()
+            var rawJson: String? = null
+            var totalImageBytes = 0L
+            val buffer = ByteArray(8192)
 
-        ZipInputStream(inputStream).use { zis ->
-            var entry = zis.nextEntry
-            while (entry != null) {
-                if (entry.name == "testario_database.json") {
-                    jsonContent = String(zis.readBytes())
-                } else if (entry.name.startsWith("question_images/") && !entry.isDirectory) {
-                    val imgName = entry.name.substringAfter("question_images/")
-                    if (imgName.isBlank() || imgName.contains('/') || imgName.contains('\\')) {
-                        throw SecurityException("Ruta de imagen no válida en el ZIP: ${entry.name}")
+            ZipInputStream(inputStream).use { zis ->
+                var entry = zis.nextEntry
+                while (entry != null) {
+                    when {
+                        entry.name == "testario_database.json" && !entry.isDirectory -> {
+                            require(rawJson == null) { "La copia contiene varias bases de datos." }
+                            val output = java.io.ByteArrayOutputStream()
+                            var jsonBytes = 0L
+                            while (true) {
+                                val count = zis.read(buffer)
+                                if (count < 0) break
+                                jsonBytes += count
+                                require(jsonBytes <= 128L * 1024L * 1024L) {
+                                    "La base de datos comprimida excede el tamaño permitido."
+                                }
+                                output.write(buffer, 0, count)
+                            }
+                            rawJson = output.toString(Charsets.UTF_8.name())
+                        }
+                        entry.name.startsWith("question_images/") && !entry.isDirectory -> {
+                            val name = entry.name.removePrefix("question_images/")
+                            require(name.isNotBlank() && name != "." && name != ".." &&
+                                !name.contains('/') && !name.contains('\\')) {
+                                "Ruta de imagen no válida en el ZIP."
+                            }
+                            require(names.add(name)) { "Imagen duplicada en el ZIP." }
+                            val stagedFile = File(stage, name)
+                            var fileBytes = 0L
+                            stagedFile.outputStream().use { output ->
+                                while (true) {
+                                    val count = zis.read(buffer)
+                                    if (count < 0) break
+                                    fileBytes += count
+                                    totalImageBytes += count
+                                    require(fileBytes <= 64L * 1024L * 1024L &&
+                                        totalImageBytes <= 512L * 1024L * 1024L) {
+                                        "El ZIP contiene imágenes demasiado grandes."
+                                    }
+                                    output.write(buffer, 0, count)
+                                }
+                            }
+                        }
                     }
-
-                    val destFile = File(imagesDir, imgName)
-                    if (!destFile.canonicalPath.startsWith(canonicalImagesDir)) {
-                        throw SecurityException("Vulnerabilidad Zip Slip detectada en el archivo: ${entry.name}")
-                    }
-
-                    destFile.outputStream().use { output -> zis.copyTo(output) }
+                    zis.closeEntry()
+                    entry = zis.nextEntry
                 }
-                zis.closeEntry()
-                entry = zis.nextEntry
             }
+
+            val validJson = requireNotNull(rawJson) { "Falta testario_database.json en el ZIP." }
+            // No se acepta un ZIP dañado o incompatible antes de mostrar la vista previa.
+            json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(validJson))
+            pendingImageStage = stage
+            validJson
+        } catch (error: Exception) {
+            stage.deleteRecursively()
+            throw error
         }
-        return jsonContent
+    }
+
+    /**
+     * Confirmación transaccional de imágenes: conserva una copia de cada imagen
+     * sustituida para revertir una copia fallida, sin modificar la biblioteca
+     * durante la lectura o previsualización del ZIP.
+     */
+    @Synchronized
+    private fun commitPendingImages() {
+        val stage = pendingImageStage ?: return
+        val rollback = File(context.cacheDir, "nexum-import-undo-${UUID.randomUUID()}")
+        val changed = mutableListOf<File>()
+        try {
+            require(imagesDir.isDirectory || imagesDir.mkdirs()) {
+                "No se pudo abrir el almacenamiento de imágenes."
+            }
+            require(rollback.mkdirs()) { "No se pudo preparar la recuperación de imágenes." }
+            val canonicalImages = imagesDir.canonicalPath + File.separator
+            stage.listFiles()?.filter { it.isFile }?.forEach { staged ->
+                val target = File(imagesDir, staged.name)
+                require(target.canonicalPath.startsWith(canonicalImages)) {
+                    "Ruta de imagen no autorizada."
+                }
+                if (target.exists()) target.copyTo(File(rollback, target.name))
+                changed.add(target)
+                staged.copyTo(target, overwrite = true)
+            }
+            pendingImageStage = null
+        } catch (error: Exception) {
+            changed.asReversed().forEach { target ->
+                runCatching {
+                    val original = File(rollback, target.name)
+                    if (original.isFile) original.copyTo(target, overwrite = true)
+                    else target.delete()
+                }
+            }
+            throw error
+        } finally {
+            if (pendingImageStage == null) stage.deleteRecursively()
+            rollback.deleteRecursively()
+        }
     }
 
     fun restoreBackup(rawJson: String) {
         val migratedJson = MigrationManager.migrate(rawJson)
         val backup = json.decodeFromString<TestarioDatabase>(migratedJson)
+        commitPendingImages()
         localStore.saveDatabase(
             backup.copy(
                 version = DatabaseSchema.CURRENT_VERSION,
@@ -71,6 +158,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
 
     fun importAllJson(rawJson: String) {
         val imported = json.decodeFromString<TestarioDatabase>(rawJson)
+        commitPendingImages()
         val topicIdMap = imported.topics.associate { it.id to UUID.randomUUID().toString() }
         val regeneratedTopics = imported.topics.map { topic ->
             regenerateTopicIds(topic, topicIdMap[topic.id] ?: UUID.randomUUID().toString())
@@ -185,7 +273,8 @@ class ImportManager(private val context: Context, private val localStore: Testar
         }
 
         if (updatedCount > 0) {
-            localStore.saveDatabase(db.copy(topics = finalTopics))
+            commitPendingImages()
+            localStore.saveDatabase(db.copy(topics = finalTopics.map(::resolveTopicImagePaths)))
         }
         return updatedCount
     }
@@ -201,7 +290,8 @@ class ImportManager(private val context: Context, private val localStore: Testar
         }
 
         if (uniqueNewQuestions.isEmpty()) return
-        val cleanTopic = topic.copy(questions = uniqueNewQuestions)
+        commitPendingImages()
+        val cleanTopic = resolveTopicImagePaths(topic.copy(questions = uniqueNewQuestions))
         val existingIndex = finalTopics.indexOfFirst { it.name.equals(cleanTopic.name, ignoreCase = true) }
 
         if (existingIndex >= 0) {
