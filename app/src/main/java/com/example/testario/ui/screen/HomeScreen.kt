@@ -897,7 +897,7 @@ private fun TopicCard(
 
             if (!isDeleteMode) {
                 Box {
-                    IconButton(onClick = { menuExpanded = true }) { Text("⋮", color = TestarioText, style = MaterialTheme.typography.titleLarge) }
+                    androidx.compose.material3.IconButton(onClick = { menuExpanded = true }) { Text("⋮", color = TestarioText, style = MaterialTheme.typography.titleLarge) }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(text = { Text(if (topic.isPinned) "Desfijar tema" else "Fijar tema") }, onClick = { menuExpanded = false; onTogglePin() })
                         DropdownMenuItem(text = { Text("Editar nombre") }, onClick = { menuExpanded = false; showRenameDialog = true })
