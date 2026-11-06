@@ -37,6 +37,12 @@ class StudyLocalDataSource(
             val root = JSONObject(rawJson)
             jsonObjectToStoredStudyData(root)
         } catch (_: Exception) {
+            // Nunca descartamos el JSON dañado: el siguiente guardado podría
+            // reemplazarlo por una base vacía. Guardamos la copia de recuperación
+            // antes de devolver el estado predeterminado a la interfaz.
+            if (!preferences.contains(KEY_RECOVERY_DATA)) {
+                preferences.edit().putString(KEY_RECOVERY_DATA, rawJson).commit()
+            }
             StoredStudyData()
         }
     }
@@ -182,6 +188,7 @@ class StudyLocalDataSource(
 
     companion object {
         private const val KEY_DATA = "study_data"
+        private const val KEY_RECOVERY_DATA = "study_data_corrupt_recovery"
 
         private const val KEY_ACTIVE_TIMER_STATE = "active_timer_state"
         private const val KEY_ACTIVE_TIMER_DATE = "active_timer_date"
