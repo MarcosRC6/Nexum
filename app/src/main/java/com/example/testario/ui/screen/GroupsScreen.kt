@@ -435,7 +435,7 @@ private fun GroupTreeNode(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                IconButton(onClick = { menuExpanded = true }) {
+                androidx.compose.material3.IconButton(onClick = { menuExpanded = true }) {
                     Text("⋮", color = TestarioText, style = MaterialTheme.typography.titleLarge)
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
