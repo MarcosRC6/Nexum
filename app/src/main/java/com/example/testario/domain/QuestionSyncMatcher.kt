@@ -52,9 +52,14 @@ internal object QuestionSyncMatcher {
         val localIds = local.answers.mapTo(mutableSetOf()) { it.id }
         val claimed = mutableSetOf<String>()
         val answers = external.answers.map { incoming ->
-            val existing = local.answers.firstOrNull { it.id == incoming.id && it.id !in claimed }
-                ?: local.answers.firstOrNull { it.id !in claimed &&
-                    normalizeAnswer(it.text) == normalizeAnswer(incoming.text) }
+            // Primero coincidencia de CONTENIDO: algunos orígenes reutilizan IDs
+            // por posición aunque las opciones se reordenen. La coincidencia
+            // exacta de ID solo desempata textos iguales o conserva una opción editada.
+            val sameText = local.answers.filter { it.id !in claimed &&
+                normalizeAnswer(it.text) == normalizeAnswer(incoming.text) }
+            val existing = sameText.firstOrNull { it.id == incoming.id }
+                ?: sameText.firstOrNull()
+                ?: local.answers.firstOrNull { it.id == incoming.id && it.id !in claimed }
             val stableId = existing?.id ?: generateUniqueId(localIds, claimed)
             claimed.add(stableId)
             incoming.copy(id = stableId)
