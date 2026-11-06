@@ -429,9 +429,10 @@ private fun AnswerEditorRow(
 private fun DifficultyButton(text: String, selected: Boolean, color: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Button(
         onClick = onClick, modifier = modifier.height(46.dp), shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = if (selected) color.copy(alpha = 0.22f) else TestarioSurfaceLight, contentColor = if (selected) color else TestarioText),
-        border = if (selected) BorderStroke(1.dp, color) else null, contentPadding = PaddingValues(horizontal = 6.dp)
-    ) { Text(text) }
+        selected = selected,
+        border = BorderStroke(1.4.dp, TestarioPrimary),
+        contentPadding = PaddingValues(horizontal = 6.dp)
+    ) { Text(text, color = if (selected) color else TestarioText) }
 }
 
 private fun validateQuestion(questionText: String, answers: List<Answer>, correctAnswerId: String): String? {
