@@ -294,7 +294,7 @@ fun LibraryTopicsScreen(
                         }
 
                         Box {
-                            IconButton(
+                            androidx.compose.material3.IconButton(
                                 enabled = !isDeleteMode,
                                 onClick = { searchModeMenuExpanded = true }
                             ) {
