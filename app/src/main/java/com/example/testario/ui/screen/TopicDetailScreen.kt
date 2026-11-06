@@ -53,6 +53,7 @@ import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioMutedText
 import com.example.testario.ui.theme.TestarioPrimary
+import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioPrimaryDark
 import com.example.testario.ui.theme.TestarioRed
 import com.example.testario.ui.theme.TestarioSurface
@@ -900,7 +901,7 @@ private fun QuestionCard(
             ),
         shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) TestarioPrimaryDark else TestarioSurface
+            containerColor = if (selected) TestarioNeonSelected else TestarioSurface
         ),
         border = cardBorder
     ) {
