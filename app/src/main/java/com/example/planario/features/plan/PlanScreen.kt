@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.planario.core.model.FixedObjective
 import com.example.testario.ui.theme.FourItemDropdown
+import com.example.testario.ui.theme.TestarioPrimary
 import com.example.planario.core.model.StudyTopic
 import kotlinx.coroutines.launch
 
