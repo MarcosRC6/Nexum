@@ -47,6 +47,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.example.testario.ui.theme.TestarioNeonSurface
+import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioPrimary
 import com.example.testario.ui.theme.TestarioPrimaryDark
@@ -325,13 +327,10 @@ private fun MainBottomNavigationItem(
     Column(
         modifier = modifier
             .background(
-                color = if (selected) TestarioPrimaryDark else Color.Transparent,
+                color = if (selected) TestarioNeonSelected else TestarioNeonSurface,
                 shape = RoundedCornerShape(16.dp)
             )
-            .then(
-                if (selected) Modifier.border(1.dp, TestarioPrimary.copy(alpha = 0.28f), RoundedCornerShape(16.dp))
-                else Modifier
-            )
+            .border(1.2.dp, TestarioPrimary, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(vertical = 7.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -353,37 +352,22 @@ fun LibrarySectionTabs(
     onGroups: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = modifier,
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
     ) {
-        if (topicsSelected) {
-            com.example.testario.ui.theme.NeonButton(
-                onClick = onTopics,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("Temas") }
-        } else {
-            com.example.testario.ui.theme.NeonOutlinedButton(
-                onClick = onTopics,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("Temas") }
-        }
-
-        if (!topicsSelected) {
-            com.example.testario.ui.theme.NeonButton(
-                onClick = onGroups,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("Grupos") }
-        } else {
-            com.example.testario.ui.theme.NeonOutlinedButton(
-                onClick = onGroups,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("Grupos") }
-        }
+        com.example.testario.ui.theme.NeonButton(
+            onClick = onTopics,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(14.dp),
+            selected = topicsSelected
+        ) { Text("Temas") }
+        com.example.testario.ui.theme.NeonButton(
+            onClick = onGroups,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(14.dp),
+            selected = !topicsSelected
+        ) { Text("Grupos") }
     }
 }
 
