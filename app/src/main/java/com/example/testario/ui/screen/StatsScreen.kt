@@ -100,17 +100,7 @@ fun StatsScreen(
 
     Scaffold(
         containerColor = TestarioBackground,
-        topBar = { TestarioMainTopBar("Estadísticas", onSettings) },
-        bottomBar = {
-            MainBottomNavigation(
-                selected = MainSection.STATS,
-                onHome = onHome,
-                onLibrary = onLibrary,
-                onTest = onCreateTest,
-                onPlan = onPlan,
-                onStats = {}
-            )
-        }
+        topBar = { TestarioTopBar("Estadísticas", onBack) }
     ) { padding ->
         Column(
             modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize().verticalScroll(rememberScrollState()),
