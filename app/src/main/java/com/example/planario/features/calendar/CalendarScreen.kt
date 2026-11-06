@@ -693,7 +693,8 @@ private fun ExpandableCardHeader(
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
             .clickable(onClick = onClick)
-            .padding(vertical = 2.dp),
+            // Extra inset avoids glyph clipping on narrow displays and large fonts.
+            .padding(start = 9.dp, end = 3.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
@@ -715,7 +716,7 @@ private fun ExpandableCardHeader(
         }
 
         Text(
-            text = if (expanded) "Ocultar" else "Ver",
+            text = if (expanded) "⌃" else "⌄",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
