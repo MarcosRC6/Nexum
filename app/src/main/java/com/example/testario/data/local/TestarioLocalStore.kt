@@ -1,6 +1,7 @@
 package com.example.testario.data.local
 
 import android.content.Context
+import android.util.AtomicFile
 import com.example.testario.data.model.TestarioDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ class TestarioLocalStore private constructor(context: Context) {
     }
     private val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val file = File(context.filesDir, "testario_database.json")
+    private val atomicFile = AtomicFile(file)
 
     // Aquí vive la verdad absoluta de tu app
     private val _database = MutableStateFlow(loadDatabase())
@@ -30,11 +32,11 @@ class TestarioLocalStore private constructor(context: Context) {
 
     private fun loadDatabase(): TestarioDatabase {
         return try {
-            if (!file.exists()) {
+            if (!file.exists() && !File("${file.absolutePath}.bak").exists()) {
                 TestarioDatabase()
             } else {
                 // 1. Leemos el texto crudo guardado en el dispositivo
-                val rawText = file.readText()
+                val rawText = atomicFile.openRead().bufferedReader().use { it.readText() }
 
                 // 2. Pasamos el texto por el filtro de migraciones (actualiza datos viejos)
                 val migratedText = MigrationManager.migrate(rawText)
@@ -45,7 +47,7 @@ class TestarioLocalStore private constructor(context: Context) {
                 // 4. Si el gestor tuvo que alterar el JSON antiguo, guardamos los cambios
                 // para que no tenga que volver a migrarlo en el siguiente inicio.
                 if (rawText != migratedText) {
-                    file.writeText(json.encodeToString(db))
+                    writeDatabaseAtomically(db)
                 }
 
                 db
@@ -78,11 +80,24 @@ class TestarioLocalStore private constructor(context: Context) {
                     // Persistimos siempre el estado más reciente, no la copia capturada
                     // cuando se lanzó esta coroutine, para impedir regresiones en disco.
                     val latestDb = _database.value
-                    file.writeText(json.encodeToString(latestDb))
+                    writeDatabaseAtomically(latestDb)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
             }
+        }
+    }
+
+    /** Escribe mediante AtomicFile para recuperar la versión previa si el proceso muere a mitad de escritura. */
+    private fun writeDatabaseAtomically(db: TestarioDatabase) {
+        val bytes = json.encodeToString(db).toByteArray(Charsets.UTF_8)
+        val output = atomicFile.startWrite()
+        try {
+            output.write(bytes)
+            atomicFile.finishWrite(output)
+        } catch (error: Exception) {
+            atomicFile.failWrite(output)
+            throw error
         }
     }
 
