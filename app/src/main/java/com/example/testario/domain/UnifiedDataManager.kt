@@ -177,8 +177,8 @@ class UnifiedDataManager(private val context: Context) {
      */
     private fun extractQuestionImages(bytes: ByteArray): Boolean {
         val operationId = java.util.UUID.randomUUID().toString()
-        val stageDir = File(context.cacheDir, "nexum-images-stage-$" + "{operationId}")
-        val rollbackDir = File(context.cacheDir, "nexum-images-rollback-$" + "{operationId}")
+        val stageDir = File(context.cacheDir, "nexum-images-stage-${operationId}")
+        val rollbackDir = File(context.cacheDir, "nexum-images-rollback-${operationId}")
         val installed = mutableListOf<File>()
         val names = linkedSetOf<String>()
 
@@ -251,11 +251,6 @@ class UnifiedDataManager(private val context: Context) {
             stageDir.deleteRecursively()
             rollbackDir.deleteRecursively()
         }
-    }
-
-    private companion object {
-        const val MAX_IMPORT_IMAGE_BYTES = 64L * 1024L * 1024L
-        const val MAX_IMPORT_IMAGE_TOTAL_BYTES = 512L * 1024L * 1024L
     }
 
     private fun exportTestarioSettings(): String {
@@ -333,5 +328,7 @@ class UnifiedDataManager(private val context: Context) {
 
     companion object {
         const val GLOBAL_FORMAT = "testario_planario_global"
+        private const val MAX_IMPORT_IMAGE_BYTES = 64L * 1024L * 1024L
+        private const val MAX_IMPORT_IMAGE_TOTAL_BYTES = 512L * 1024L * 1024L
     }
 }
