@@ -16,7 +16,7 @@ import com.example.testario.ui.theme.NeonButton as Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.example.testario.ui.theme.NeonTonalButton as FilledTonalButton
-import androidx.compose.material3.LinearProgressIndicator
+import com.example.testario.ui.theme.NeonLinearProgressIndicator as LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.Surface
