@@ -41,7 +41,7 @@ private fun neonSurface(selected: Boolean): Color =
 @Composable
 private fun neonActionColors(selected: Boolean): ButtonColors = ButtonDefaults.buttonColors(
     containerColor = neonSurface(selected),
-    contentColor = TestarioText,
+    contentColor = if (selected) TestarioPrimary else TestarioText,
     disabledContainerColor = TestarioNeonSurface.copy(alpha = 0.50f),
     disabledContentColor = TestarioMutedText.copy(alpha = 0.67f)
 )
