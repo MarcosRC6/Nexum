@@ -68,6 +68,7 @@ import com.example.testario.data.model.Topic
 import com.example.testario.data.model.TopicGroup
 import com.example.testario.domain.GroupHierarchy
 import com.example.testario.domain.SmartSelectionEngine
+import com.example.testario.ui.theme.FourItemDropdown
 import com.example.testario.ui.theme.TestarioNeonSurface
 import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioBackground
@@ -774,6 +775,7 @@ private fun GroupAllocationEditor(
     requestedCount: Int,
     onAllocationsChanged: (List<GroupQuestionAllocation>) -> Unit
 ) {
+    var groupAllocationsExpanded by remember { mutableStateOf(true) }
     SettingsLikeCard {
         Text("Reparto por grupos", style = MaterialTheme.typography.titleLarge, color = TestarioText)
         Spacer(Modifier.height(6.dp))
@@ -787,7 +789,17 @@ private fun GroupAllocationEditor(
         if (groups.isEmpty()) {
             Text("No hay grupos creados. Créelos desde la pestaña Grupos.", color = TestarioRed)
         } else {
-            allocations.forEachIndexed { index, allocation ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("${allocations.size} grupos configurados", color = TestarioMutedText, modifier = Modifier.weight(1f))
+                TextButton(onClick = { groupAllocationsExpanded = !groupAllocationsExpanded }, enabled = allocations.isNotEmpty()) {
+                    Text(if (groupAllocationsExpanded) "Ocultar ▲" else "Ver ▼")
+                }
+            }
+            if (groupAllocationsExpanded) {
+            FourItemDropdown(items = allocations, rowSpacing = 10.dp) { index, allocation ->
                 val topicIds = GroupHierarchy.resolveTopicIds(allGroups, allocation.groupId)
                 val availableCount = topicIds.asSequence()
                     .flatMap { availableByTopic[it].orEmpty().asSequence() }
@@ -808,7 +820,7 @@ private fun GroupAllocationEditor(
                     },
                     onRemove = { onAllocationsChanged(allocations.filterIndexed { i, _ -> i != index }) }
                 )
-                if (index != allocations.lastIndex) Spacer(Modifier.height(10.dp))
+            }
             }
 
             val unused = groups.firstOrNull { candidate -> allocations.none { it.groupId == candidate.id } }
