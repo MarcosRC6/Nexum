@@ -1,6 +1,8 @@
 package com.example.testario.domain
 
+import com.example.testario.data.model.Answer
 import com.example.testario.data.model.Question
+import java.util.UUID
 import java.text.Normalizer
 
 /**
@@ -22,6 +24,57 @@ internal object QuestionSyncMatcher {
         val matches = candidates.filter { answerFingerprint(it) == localAnswers }
         return matches.singleOrNull()
     }
+
+
+    /**
+     * Reasigna cada respuesta del banco externo a un ID inequívoco sin perder
+     * las respuestas históricas que todavía existen.
+     *
+     * Un correctAnswerId externo inexistente o repetido invalida la sincronización
+     * de esa pregunta; nunca se cambia silenciosamente la respuesta correcta.
+     */
+    data class RemappedAnswers(
+        val answers: List<Answer>,
+        val correctAnswerId: String,
+        val previousLastAnswerId: String?
+    )
+
+    fun remapAnswers(local: Question, external: Question): RemappedAnswers? {
+        if (external.answers.isEmpty() ||
+            external.correctAnswerId.isBlank() ||
+            external.answers.any { it.id.isBlank() } ||
+            external.answers.map { it.id }.toSet().size != external.answers.size
+        ) return null
+
+        val correctIndex = external.answers.indexOfFirst { it.id == external.correctAnswerId }
+        if (correctIndex < 0) return null
+
+        val localIds = local.answers.mapTo(mutableSetOf()) { it.id }
+        val claimed = mutableSetOf<String>()
+        val answers = external.answers.map { incoming ->
+            val existing = local.answers.firstOrNull { it.id == incoming.id && it.id !in claimed }
+                ?: local.answers.firstOrNull { it.id !in claimed &&
+                    normalizeAnswer(it.text) == normalizeAnswer(incoming.text) }
+            val stableId = existing?.id ?: generateUniqueId(localIds, claimed)
+            claimed.add(stableId)
+            incoming.copy(id = stableId)
+        }
+        val correctAnswerId = answers[correctIndex].id
+        val lastAnswer = local.stats.lastAnswerId?.takeIf { it in claimed }
+        return RemappedAnswers(answers, correctAnswerId, lastAnswer)
+    }
+
+    private fun generateUniqueId(localIds: Set<String>, claimed: Set<String>): String {
+        while (true) {
+            val candidate = UUID.randomUUID().toString()
+            if (candidate !in localIds && candidate !in claimed) return candidate
+        }
+    }
+
+    private fun normalizeAnswer(text: String): String =
+        Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD)
+            .replace(combiningMarks, "")
+            .replace(nonAlphanumeric, "")
 
     private fun answerFingerprint(question: Question): List<String> =
         question.answers.map { answer ->
