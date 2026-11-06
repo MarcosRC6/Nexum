@@ -7,8 +7,10 @@ import org.json.JSONObject
 object MigrationManager {
 
     fun migrate(rawJson: String): String {
-        if (rawJson.isBlank()) {
-            return "{ \"version\": ${DatabaseSchema.CURRENT_VERSION}, \"topics\": [], \"groups\": [], \"testTemplates\": [] }"
+        // Un JSON existente pero vacío indica corrupción o truncado. No lo
+        // migramos a una base vacía, pues se perdería la posibilidad de recuperar datos.
+        require(rawJson.isNotBlank()) {
+            "La base de datos está vacía o truncada; se requiere recuperación."
         }
 
         val jsonObject = JSONObject(rawJson)
