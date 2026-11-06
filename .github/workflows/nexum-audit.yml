@@ -3,6 +3,7 @@ name: NEXUM audit
 on:
   push:
     branches:
+      - main
       - fix/home-ux-20261105
       - audit/nexum-final-20261106
   workflow_dispatch:
