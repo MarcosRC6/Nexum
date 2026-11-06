@@ -558,7 +558,7 @@ private fun TopicQueueRow(
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(
+                        androidx.compose.material3.TextButton(
                             onClick = onMoveUpClick,
                             enabled = canMoveUp
                         ) {
@@ -568,7 +568,7 @@ private fun TopicQueueRow(
                             )
                         }
 
-                        TextButton(
+                        androidx.compose.material3.TextButton(
                             onClick = onMoveDownClick,
                             enabled = canMoveDown
                         ) {
@@ -664,8 +664,12 @@ private fun FixedObjectivesSection(
                     )
                 }
 
-                TextButton(onClick = { listExpanded = !listExpanded }, enabled = objectives.isNotEmpty()) {
-                    Text(if (listExpanded) "Ocultar ▲" else "Ver ▼")
+                IconButton(onClick = { listExpanded = !listExpanded }, enabled = objectives.isNotEmpty()) {
+                    Text(
+                        if (listExpanded) "⌃" else "⌄",
+                        color = TestarioPrimary,
+                        style = MaterialTheme.typography.titleLarge
+                    )
                 }
                 TextButton(onClick = onAddObjectiveClick) {
                     Text(text = "Añadir")
