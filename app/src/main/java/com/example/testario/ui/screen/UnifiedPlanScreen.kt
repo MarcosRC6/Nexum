@@ -113,21 +113,21 @@ fun UnifiedPlanScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (selectedTab == PlanTab.PLAN) {
-                    Button(onClick = {}, modifier = Modifier.weight(1f)) { Text("Plan") }
-                } else {
-                    OutlinedButton(onClick = { selectedTab = PlanTab.PLAN }, modifier = Modifier.weight(1f)) { Text("Plan") }
-                }
-                if (selectedTab == PlanTab.TIMER) {
-                    Button(onClick = {}, modifier = Modifier.weight(1f)) { Text("Reloj") }
-                } else {
-                    OutlinedButton(onClick = { selectedTab = PlanTab.TIMER }, modifier = Modifier.weight(1f)) { Text("Reloj") }
-                }
-                if (selectedTab == PlanTab.CALENDAR) {
-                    Button(onClick = {}, modifier = Modifier.weight(1f)) { Text("Calendario") }
-                } else {
-                    OutlinedButton(onClick = { selectedTab = PlanTab.CALENDAR }, modifier = Modifier.weight(1f)) { Text("Calendario") }
-                }
+                Button(
+                    onClick = { selectedTab = PlanTab.PLAN },
+                    modifier = Modifier.weight(1f),
+                    selected = selectedTab == PlanTab.PLAN
+                ) { Text("Plan") }
+                Button(
+                    onClick = { selectedTab = PlanTab.TIMER },
+                    modifier = Modifier.weight(1f),
+                    selected = selectedTab == PlanTab.TIMER
+                ) { Text("Reloj") }
+                Button(
+                    onClick = { selectedTab = PlanTab.CALENDAR },
+                    modifier = Modifier.weight(1f),
+                    selected = selectedTab == PlanTab.CALENDAR
+                ) { Text("Calendario") }
             }
 
             if (selectedTab == PlanTab.PLAN) {
