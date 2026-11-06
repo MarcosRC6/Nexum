@@ -66,6 +66,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.planario.features.home.HomeViewModel
 import com.example.planario.domain.timer.StudyTimerState
 import com.example.testario.data.local.QuickTestLinkManager
+import com.example.testario.ui.theme.FourItemDropdown
+import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioMutedText
 import com.example.testario.ui.theme.TestarioPrimary
@@ -100,6 +102,11 @@ fun HomeScreen(
     val quickTestLinks = remember { QuickTestLinkManager(context.applicationContext) }
     var isReorderMode by remember { mutableStateOf(false) }
     var showRestartStudyDialog by remember { mutableStateOf(false) }
+    var homeObjectivesExpanded by remember { mutableStateOf(true) }
+    var homeTopicExpanded by remember { mutableStateOf(true) }
+    var homeTemplatesExpanded by remember { mutableStateOf(true) }
+    var homeSummaryExpanded by remember { mutableStateOf(true) }
+    var homeQuickAccessExpanded by remember { mutableStateOf(true) }
 
     val allQuestions = database.topics.flatMap { it.questions }
     val failures = allQuestions.count { it.stats.inFailures }
@@ -283,8 +290,14 @@ fun HomeScreen(
 
                                     if (homeSettingsViewModel.showStudyObjectives && studyState.fixedObjectives.isNotEmpty()) {
                                         Spacer(Modifier.height(6.dp))
-                                        Text("Objetivos diarios", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                                        studyState.fixedObjectives.forEach { objective ->
+                                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                            Text("Objetivos diarios", style = MaterialTheme.typography.titleMedium, color = TestarioText, modifier = Modifier.weight(1f))
+                                            TextButton(onClick = { homeObjectivesExpanded = !homeObjectivesExpanded }) {
+                                                Text(if (homeObjectivesExpanded) "Ocultar ▲" else "Ver ▼")
+                                            }
+                                        }
+                                        if (homeObjectivesExpanded) {
+                                        FourItemDropdown(items = studyState.fixedObjectives, rowSpacing = 4.dp) { _, objective ->
                                             val checked = studyState.isFixedObjectiveCompleted(objective.id)
                                             Row(
                                                 modifier = Modifier
@@ -313,6 +326,7 @@ fun HomeScreen(
                                                 )
                                             }
                                         }
+                                        }
                                     }
                                 }
                             }
@@ -328,7 +342,13 @@ fun HomeScreen(
                                     border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.35f))
                                 ) {
                                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text("Tema activo", style = MaterialTheme.typography.titleMedium, color = TestarioText)
+                                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                            Text("Tema activo", style = MaterialTheme.typography.titleMedium, color = TestarioText, modifier = Modifier.weight(1f))
+                                            TextButton(onClick = { homeTopicExpanded = !homeTopicExpanded }) {
+                                                Text(if (homeTopicExpanded) "Ocultar ▲" else "Ver ▼")
+                                            }
+                                        }
+                                        if (homeTopicExpanded) {
                                         Text(topic.name, style = MaterialTheme.typography.headlineSmall, color = TestarioText)
                                         Text("Vuelta ${topic.round}", color = TestarioMutedText)
                                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -346,6 +366,7 @@ fun HomeScreen(
                                             ) {
                                                 Text(if (activeLinkedTopics.isEmpty()) "Vincular test" else "Test rápido")
                                             }
+                                        }
                                         }
                                     }
                                 }
