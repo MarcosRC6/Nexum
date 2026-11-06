@@ -251,26 +251,17 @@ class ImportManager(private val context: Context, private val localStore: Testar
                 val normalizedText = normalizeText(myQuestion.text)
                 val candidates = externalQuestionsMap[normalizedText].orEmpty()
                 val externalMatch = QuestionSyncMatcher.findCompatible(myQuestion, candidates)
+                val remapped = externalMatch?.let {
+                    QuestionSyncMatcher.remapAnswers(myQuestion, it)
+                }
 
-                if (externalMatch != null && hasSyncDifferences(myQuestion, externalMatch)) {
+                if (externalMatch != null && remapped != null &&
+                    hasSyncDifferences(myQuestion, externalMatch)) {
                     updatedCount++
-                    val updatedAnswers = externalMatch.answers.map { extAns ->
-                        val existingAns = myQuestion.answers.firstOrNull {
-                            normalizeText(it.text) == normalizeText(extAns.text)
-                        }
-                        extAns.copy(id = existingAns?.id ?: extAns.id)
-                    }
-                    val externalCorrectText = externalMatch.answers
-                        .firstOrNull { it.id == externalMatch.correctAnswerId }
-                        ?.text
-                    val updatedCorrectId = updatedAnswers
-                        .firstOrNull { normalizeText(it.text) == normalizeText(externalCorrectText.orEmpty()) }
-                        ?.id
-                        ?: updatedAnswers.firstOrNull()?.id.orEmpty()
-
                     myQuestion.copy(
-                        answers = updatedAnswers,
-                        correctAnswerId = updatedCorrectId,
+                        answers = remapped.answers,
+                        correctAnswerId = remapped.correctAnswerId,
+                        stats = myQuestion.stats.copy(lastAnswerId = remapped.previousLastAnswerId),
                         explanation = externalMatch.explanation,
                         difficulty = externalMatch.difficulty,
                         explanationImageUri = resolveImportedImagePath(externalMatch.explanationImageUri),
