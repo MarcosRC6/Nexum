@@ -13,6 +13,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.planario.app.PlanarioDependencies
+import com.example.planario.features.calendar.CalendarScreen
 import com.example.testario.data.model.TestConfig
 import com.example.testario.data.model.TestMode
 import com.example.testario.ui.screen.GroupsScreen
@@ -127,7 +128,7 @@ fun TestarioApp(
         when (requestedDestinationRoute) {
             "plan" -> goPlan("plan")
             "timer" -> goPlan("timer")
-            "calendar" -> goHome()
+            "calendar" -> navController.navigate(Routes.CALENDAR) { launchSingleTop = true }
             "settings" -> goSettings()
             "home" -> goHome()
         }
@@ -286,6 +287,10 @@ fun TestarioApp(
                         navController.navigate(Routes.TEST_SCREEN)
                     }
                 )
+            }
+
+            composable(Routes.CALENDAR) {
+                CalendarScreen()
             }
 
             composable(Routes.STATS) {
