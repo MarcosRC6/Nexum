@@ -32,6 +32,7 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -794,7 +795,7 @@ private fun GroupAllocationEditor(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("${allocations.size} grupos configurados", color = TestarioMutedText, modifier = Modifier.weight(1f))
-                TextButton(onClick = { groupAllocationsExpanded = !groupAllocationsExpanded }, enabled = allocations.isNotEmpty()) {
+                IconButton(onClick = { groupAllocationsExpanded = !groupAllocationsExpanded }, enabled = allocations.isNotEmpty()) {
                     Text(if (groupAllocationsExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                 }
             }
