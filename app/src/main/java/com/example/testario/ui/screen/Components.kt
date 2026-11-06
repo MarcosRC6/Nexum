@@ -24,7 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import com.example.testario.ui.theme.NeonIconButton as IconButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -311,7 +311,6 @@ fun MainBottomNavigation(
         MainBottomNavigationItem(EstudarioIconKind.LIBRARY, "Biblioteca", selected == MainSection.LIBRARY, onLibrary, Modifier.weight(1f))
         MainBottomNavigationItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest, Modifier.weight(1f))
         MainBottomNavigationItem(EstudarioIconKind.PLAN, "Plan", selected == MainSection.PLAN, onPlan, Modifier.weight(1f))
-        MainBottomNavigationItem(EstudarioIconKind.STATS, "Estadísticas", selected == MainSection.STATS, onStats, Modifier.weight(1f))
     }
 }
 
@@ -327,10 +326,13 @@ private fun MainBottomNavigationItem(
     Column(
         modifier = modifier
             .background(
-                color = if (selected) TestarioNeonSelected else TestarioNeonSurface,
+                color = if (selected) TestarioPrimaryDark else Color.Transparent,
                 shape = RoundedCornerShape(16.dp)
             )
-            .border(1.2.dp, TestarioPrimary, RoundedCornerShape(16.dp))
+            .then(
+                if (selected) Modifier.border(1.dp, TestarioPrimary.copy(alpha = 0.28f), RoundedCornerShape(16.dp))
+                else Modifier
+            )
             .clickable(onClick = onClick)
             .padding(vertical = 7.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally
