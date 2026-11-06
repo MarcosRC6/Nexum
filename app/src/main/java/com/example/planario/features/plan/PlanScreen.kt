@@ -22,6 +22,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import com.example.testario.ui.theme.NeonTonalButton as FilledTonalButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.SnackbarHost
@@ -311,8 +312,8 @@ private fun ActiveTopicSection(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                TextButton(onClick = { topicExpanded = !topicExpanded }) {
-                    Text(if (topicExpanded) "Ocultar ▲" else "Ver ▼")
+                IconButton(onClick = { topicExpanded = !topicExpanded }) {
+                    Text(if (topicExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                 }
             }
 
@@ -423,8 +424,8 @@ private fun TopicQueueSection(
                     )
                 }
 
-                TextButton(onClick = { listExpanded = !listExpanded }, enabled = topics.isNotEmpty()) {
-                    Text(if (listExpanded) "Ocultar ▲" else "Ver ▼")
+                IconButton(onClick = { listExpanded = !listExpanded }, enabled = topics.isNotEmpty()) {
+                    Text(if (listExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                 }
                 TextButton(onClick = onAddTopicClick) {
                     Text(text = "Añadir")
