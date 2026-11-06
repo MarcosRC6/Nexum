@@ -961,7 +961,7 @@ fun DifficultyChip(text: String, selected: Boolean, color: Color, modifier: Modi
         selected = selected,
         border = BorderStroke(1.4.dp, TestarioPrimary),
         contentPadding = PaddingValues(0.dp)
-    ) { Text(text, style = MaterialTheme.typography.bodySmall, color = if (selected) color else TestarioText) }
+    ) { Text(text, style = MaterialTheme.typography.bodySmall, color = if (selected) TestarioPrimary else TestarioText) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
