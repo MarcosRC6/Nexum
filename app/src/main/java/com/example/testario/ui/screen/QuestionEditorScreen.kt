@@ -432,7 +432,7 @@ private fun DifficultyButton(text: String, selected: Boolean, color: Color, modi
         selected = selected,
         border = BorderStroke(1.4.dp, TestarioPrimary),
         contentPadding = PaddingValues(horizontal = 6.dp)
-    ) { Text(text, color = if (selected) color else TestarioText) }
+    ) { Text(text, color = if (selected) TestarioPrimary else TestarioText) }
 }
 
 private fun validateQuestion(questionText: String, answers: List<Answer>, correctAnswerId: String): String? {
