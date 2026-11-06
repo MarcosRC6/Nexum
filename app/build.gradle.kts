@@ -18,6 +18,7 @@ android {
         versionCode = 4
         versionName = "1.3"
         manifestPlaceholders["nexumAppLabel"] = "@string/app_name"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     // A separate debug-only install for device testing. The release package
@@ -67,4 +68,6 @@ dependencies {
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit.ktx)
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core:1.6.1")
 }
