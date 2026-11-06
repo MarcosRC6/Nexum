@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/neon-ui-light-dark-20261106
       - fix/home-ux-20261105
       - audit/nexum-final-20261106
       - feature/neon-ui-light-dark-20261106
