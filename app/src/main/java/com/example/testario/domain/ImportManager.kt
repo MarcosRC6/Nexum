@@ -302,7 +302,9 @@ class ImportManager(private val context: Context, private val localStore: Testar
 
         if (uniqueNewQuestions.isEmpty()) return
         commitPendingImages()
-        val cleanTopic = resolveTopicImagePaths(topic.copy(questions = uniqueNewQuestions))
+        // Una importación de biblioteca añade entidades NUEVAS. Nunca reutiliza IDs
+        // de tema, pregunta o respuesta de otra base, aunque sus huellas difieran.
+        val cleanTopic = regenerateTopicIds(topic.copy(questions = uniqueNewQuestions))
         val existingIndex = finalTopics.indexOfFirst { it.name.equals(cleanTopic.name, ignoreCase = true) }
 
         if (existingIndex >= 0) {
