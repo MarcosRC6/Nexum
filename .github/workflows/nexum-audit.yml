@@ -43,6 +43,18 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+      - name: Assemble safe parallel preview APK
+        run: ./gradlew assembleDebug -PnexumPreview=true --stacktrace
+
+      - name: Upload parallel preview APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUM_ANDROID_PARALLEL_PREVIEW
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Lint
         run: ./gradlew lintDebug --stacktrace
 
