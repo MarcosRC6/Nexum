@@ -313,7 +313,7 @@ fun TestConfigScreen(
                 title = "Configurar test",
                 onBack = onBack,
                 actions = {
-                    com.example.testario.ui.theme.NeonIconButton(
+                    androidx.compose.material3.IconButton(
                         onClick = {
                             if (studySettings.notificationsEnabled) {
                                 PlanarioDependencies.studyRepository.setNotificationsEnabled(false)
@@ -342,7 +342,7 @@ fun TestConfigScreen(
                             if (studySettings.notificationsEnabled) TestarioPrimary else TestarioMutedText
                         )
                     }
-                    com.example.testario.ui.theme.NeonIconButton(onClick = onSettings) {
+                    androidx.compose.material3.IconButton(onClick = onSettings) {
                         EstudarioIcon(EstudarioIconKind.SETTINGS, TestarioText)
                     }
                 }
@@ -795,7 +795,7 @@ private fun GroupAllocationEditor(
             ) {
                 Text("${allocations.size} grupos configurados", color = TestarioMutedText, modifier = Modifier.weight(1f))
                 TextButton(onClick = { groupAllocationsExpanded = !groupAllocationsExpanded }, enabled = allocations.isNotEmpty()) {
-                    Text(if (groupAllocationsExpanded) "Ocultar ▲" else "Ver ▼")
+                    Text(if (groupAllocationsExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                 }
             }
             if (groupAllocationsExpanded) {
