@@ -32,9 +32,10 @@
             </intent-filter>
         </receiver>
 
+        <!-- Solo el sistema y los PendingIntent de la propia app necesitan activar este receptor. -->
         <receiver
             android:name="com.example.planario.app.notifications.PlanarioNotificationReceiver"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.example.planario.action.SCHEDULED_NOTIFICATION" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
