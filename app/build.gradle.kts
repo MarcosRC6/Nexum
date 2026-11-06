@@ -5,6 +5,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+val nexumPreviewBuild = providers.gradleProperty("nexumPreview").orNull == "true"
+
 android {
     namespace = "com.example.testario"
     compileSdk = 35
@@ -15,6 +17,19 @@ android {
         targetSdk = 35
         versionCode = 4
         versionName = "1.3"
+        manifestPlaceholders["nexumAppLabel"] = "@string/app_name"
+    }
+
+    // A separate debug-only install for device testing. The release package
+    // remains com.example.estudario and keeps its original identity.
+    buildTypes {
+        getByName("debug") {
+            if (nexumPreviewBuild) {
+                applicationIdSuffix = ".preview"
+                versionNameSuffix = "-preview"
+                manifestPlaceholders["nexumAppLabel"] = "NEXUM Prueba"
+            }
+        }
     }
 
     buildFeatures {
