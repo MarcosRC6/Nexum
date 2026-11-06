@@ -70,6 +70,7 @@ import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioMutedText
 import com.example.testario.ui.theme.TestarioPrimary
+import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioPrimaryDark
 import com.example.testario.ui.theme.TestarioRed
 import com.example.testario.ui.theme.TestarioRedDark
@@ -409,7 +410,7 @@ private fun AnswerEditorRow(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = if (isCorrect) TestarioPrimaryDark else TestarioSurface),
+        colors = CardDefaults.cardColors(containerColor = if (isCorrect) TestarioNeonSelected else TestarioSurface),
         border = BorderStroke(width = 1.dp, color = if (isCorrect) TestarioPrimary else TestarioSurfaceLight)
     ) {
         Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
