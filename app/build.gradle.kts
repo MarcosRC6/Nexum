@@ -22,13 +22,6 @@ android {
         buildConfig = true
     }
 
-    lint {
-        // AndroidX Lifecycle lint crashes against the current Kotlin analysis API.
-        // NEXUM does not use MutableLiveData; keep every other lint check enabled.
-        disable += "NullSafeMutableLiveData"
-        disable += "RememberInComposition"
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
