@@ -177,7 +177,10 @@ fun UnifiedPlanScreen(
                 }
 
                 Column(Modifier.weight(1f)) {
-                    PlanScreen()
+                    PlanScreen(
+                        libraryTopics = database.topics,
+                        onStartLinkedTest = onStartQuickTest
+                    )
                 }
             } else if (selectedTab == PlanTab.TIMER) {
                 Column(Modifier.weight(1f)) {
@@ -216,7 +219,7 @@ fun UnifiedPlanScreen(
 }
 
 @Composable
-private fun QuickTestLinkDialog(
+internal fun QuickTestLinkDialog(
     planTopicName: String,
     libraryTopics: List<Topic>,
     initialSelectedIds: Set<String>,
