@@ -4,7 +4,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.testario.update.NexumRelease
+import com.example.testario.update.NexumUpdateManager
+import com.example.testario.update.NexumUpdateResult
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,7 +60,19 @@ fun TestarioApp(
     val sessionViewModel: TestSessionViewModel = viewModel()
 
     val navController = rememberNavController()
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val context = LocalContext.current
+    var announcedRelease by remember { mutableStateOf<NexumRelease?>(null) }
+    var dismissedUpdateNotice by remember { mutableStateOf(false) }
     val systemDark = isSystemInDarkTheme()
+
+    // One quiet network check on startup. Never interrupt Test or Plan screens.
+    LaunchedEffect(Unit) {
+        val result = NexumUpdateManager.check(context.applicationContext)
+        if (result is NexumUpdateResult.Available) {
+            announcedRelease = result.release
+        }
+    }
 
     val darkTheme = when (themeViewModel.themeMode) {
         ThemeViewModel.ThemeMode.LIGHT -> false
@@ -343,6 +366,33 @@ fun TestarioApp(
                 )
             }
             }
+        }
+
+        val update = announcedRelease
+        if (update != null &&
+            !dismissedUpdateNotice &&
+            currentBackStackEntry?.destination?.route == Routes.HOME
+        ) {
+            AlertDialog(
+                onDismissRequest = { dismissedUpdateNotice = true },
+                title = { Text("Nueva versión de NEXUM") },
+                text = {
+                    Text("Ya está disponible NEXUM ${update.version}. Descarga la actualización oficial desde Ajustes sin borrar tus datos.")
+                },
+                confirmButton = {
+                    com.example.testario.ui.theme.NeonButton(
+                        onClick = {
+                            dismissedUpdateNotice = true
+                            goSettings()
+                        }
+                    ) { Text("Ver actualización") }
+                },
+                dismissButton = {
+                    com.example.testario.ui.theme.NeonTextButton(
+                        onClick = { dismissedUpdateNotice = true }
+                    ) { Text("Más tarde") }
+                }
+            )
         }
     }
 }
