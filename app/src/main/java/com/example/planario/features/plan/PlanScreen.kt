@@ -661,6 +661,9 @@ private fun TopicQueueRow(
 @Composable
 private fun FixedObjectivesSection(
     objectives: List<FixedObjective>,
+    availableTopics: List<Topic>,
+    onLinkObjectiveClick: (FixedObjective) -> Unit,
+    onStartLinkedTest: (List<String>, Int) -> Unit,
     onAddObjectiveClick: () -> Unit,
     onEditObjectiveClick: (FixedObjective) -> Unit,
     onDeleteObjectiveClick: (FixedObjective) -> Unit,
@@ -721,6 +724,9 @@ private fun FixedObjectivesSection(
                 FourItemDropdown(items = objectives) { _, objective ->
                     FixedObjectiveRow(
                         objective = objective,
+                        availableTopics = availableTopics,
+                        onLinkClick = { onLinkObjectiveClick(objective) },
+                        onStartLinkedTest = onStartLinkedTest,
                         onEditClick = { onEditObjectiveClick(objective) },
                         onDeleteClick = { onDeleteObjectiveClick(objective) },
                         onEnabledChange = { enabled ->
@@ -748,6 +754,9 @@ private fun FixedObjectivesSection(
 @Composable
 private fun FixedObjectiveRow(
     objective: FixedObjective,
+    availableTopics: List<Topic>,
+    onLinkClick: () -> Unit,
+    onStartLinkedTest: (List<String>, Int) -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onEnabledChange: (Boolean) -> Unit
@@ -799,6 +808,13 @@ private fun FixedObjectiveRow(
                         }
                     )
 
+                    TextButton(onClick = onLinkClick) {
+                        Text(
+                            if (objective.linkedTestTopicIds.isEmpty()) "Vincular test"
+                            else "Configurar test · ${objective.linkedTestTopicIds.size} tema(s)"
+                        )
+                    }
+
                     Text(
                         text = "${objective.targetMinutes.toHourMinuteText()} · ${if (objective.isEnabled) "Activo" else "Inactivo"}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -815,6 +831,18 @@ private fun FixedObjectiveRow(
                     checked = objective.isEnabled,
                     onCheckedChange = onEnabledChange
                 )
+            }
+
+            val validLinkedIds = availableTopics
+                .filter { it.id in objective.linkedTestTopicIds }
+                .map { it.id }
+            if (validLinkedIds.isNotEmpty()) {
+                Button(
+                    onClick = { onStartLinkedTest(validLinkedIds, objective.linkedTestQuestionCount) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Iniciar test · ${objective.linkedTestQuestionCount} preguntas")
+                }
             }
 
             Row(
