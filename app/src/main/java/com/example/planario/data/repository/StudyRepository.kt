@@ -282,7 +282,7 @@ class StudyRepository(
         refreshDay(LocalDate.now())
     }
 
-    fun addFixedObjective(name: String, targetMinutes: Int) {
+    fun addFixedObjective(name: String, targetMinutes: Int, linkedTestTopicIds: Set<String> = emptySet(), linkedTestQuestionCount: Int = 25) {
         val cleanName = name.trim()
         if (cleanName.isBlank()) return
         if (targetMinutes <= 0) return
@@ -294,7 +294,9 @@ class StudyRepository(
             name = cleanName,
             targetMinutes = targetMinutes,
             isEnabled = true,
-            order = nextOrder
+            order = nextOrder,
+            linkedTestTopicIds = linkedTestTopicIds,
+            linkedTestQuestionCount = linkedTestQuestionCount.coerceIn(1, 500)
         )
 
         _fixedObjectives.value = currentObjectives + newObjective
@@ -304,7 +306,9 @@ class StudyRepository(
     fun updateFixedObjective(
         objectiveId: String,
         name: String,
-        targetMinutes: Int
+        targetMinutes: Int,
+        linkedTestTopicIds: Set<String>? = null,
+        linkedTestQuestionCount: Int? = null
     ) {
         val cleanName = name.trim()
         if (cleanName.isBlank()) return
@@ -314,7 +318,9 @@ class StudyRepository(
             if (objective.id == objectiveId) {
                 objective.copy(
                     name = cleanName,
-                    targetMinutes = targetMinutes
+                    targetMinutes = targetMinutes,
+                    linkedTestTopicIds = linkedTestTopicIds ?: objective.linkedTestTopicIds,
+                    linkedTestQuestionCount = (linkedTestQuestionCount ?: objective.linkedTestQuestionCount).coerceIn(1, 500)
                 )
             } else {
                 objective

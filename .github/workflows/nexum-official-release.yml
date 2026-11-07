@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: "Publicar GitHub Release v1.0 (false = compilar APK firmada para comprobar)"
+        description: "Publicar GitHub Release de la versión actual (false = solo compilar APK)"
         type: boolean
         required: true
         default: false
@@ -81,50 +81,56 @@ jobs:
           test -x "$BUILD_TOOLS/apksigner"
           test -x "$BUILD_TOOLS/aapt"
           "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK"
-          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.example.estudario' versionCode='5' versionName='1.0'"
+          EXPECTED_VERSION="$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)"
+          EXPECTED_CODE="$(sed -nE 's/^[[:space:]]*versionCode = ([0-9]+).*/\1/p' app/build.gradle.kts | head -n 1)"
+          test -n "$EXPECTED_VERSION"
+          test -n "$EXPECTED_CODE"
+          echo "$EXPECTED_VERSION" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$'
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.example.estudario' versionCode='$EXPECTED_CODE' versionName='$EXPECTED_VERSION'"
+          echo "NEXUM_VERSION=$EXPECTED_VERSION" >> "$GITHUB_ENV"
           mkdir -p dist
-          cp "$APK" dist/NEXUM-v1.0.apk
-          sha256sum dist/NEXUM-v1.0.apk
+          cp "$APK" "dist/NEXUM-v$EXPECTED_VERSION.apk"
+          sha256sum "dist/NEXUM-v$EXPECTED_VERSION.apk"
 
       - name: Upload signed APK for private installation tests
         uses: actions/upload-artifact@v4
         with:
-          name: NEXUM_v1_0_OFICIAL_FIRMADA
-          path: dist/NEXUM-v1.0.apk
+          name: NEXUM_OFICIAL_FIRMADA
+          path: dist/NEXUM-v*.apk
           retention-days: 30
           if-no-files-found: error
 
-      - name: Publish v1.0 on GitHub Releases only when explicitly requested
+      - name: Publish new version on GitHub Releases only when explicitly requested
         if: inputs.publish_release == true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if gh release view v1.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "GitHub Release v1.0 ya existe. No se sobreescribe."
+          TAG="v$NEXUM_VERSION"
+          APK="dist/NEXUM-$TAG.apk"
+          test -s "$APK"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "GitHub Release $TAG ya existe. No se sobreescribe."
             exit 1
           fi
-          if git ls-remote --tags origin refs/tags/v1.0 | grep -q .; then
-            echo "La etiqueta v1.0 ya existe. Publicación detenida para evitar sustituirla."
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            echo "La etiqueta $TAG ya existe. Publicación detenida para evitar sustituirla."
             exit 1
           fi
-          cat > "$RUNNER_TEMP/nexum-release-notes.txt" <<'NOTES'
-          # NEXUM 1.0
+          cat > "$RUNNER_TEMP/nexum-release-notes.txt" <<NOTES
+          # NEXUM $NEXUM_VERSION
 
-          Primera versión oficial de NEXUM, integrando Testario y Planario.
-          Incluye los temas claro y oscuro, los controles de estilo neón,
-          estadísticas, navegación de cuatro secciones, calendario y
-          reorganización de widgets con desplazamiento independiente.
+          Esta versión oficial de NEXUM incluye las mejoras integradas en main.
+          El APK está firmado con la clave permanente de NEXUM y se puede
+          instalar encima de la versión oficial anterior conservando los datos.
 
-          La aplicación utiliza una firma digital permanente.
-          Para actualizar, instala nuevas versiones con la misma firma y
-          un versionCode superior. Antes de migrar desde una APK debug
-          de firma diferente, realiza una copia de seguridad.
+          NEXUM 1.1 añade la búsqueda de actualizaciones en GitHub Releases y
+          la vinculación de tests con objetivos diarios de Planario.
           NOTES
-          gh release create v1.0 "dist/NEXUM-v1.0.apk#NEXUM-v1.0.apk" \
+          gh release create "$TAG" "$APK#NEXUM-$TAG.apk" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "NEXUM 1.0" \
+            --title "NEXUM $NEXUM_VERSION" \
             --notes-file "$RUNNER_TEMP/nexum-release-notes.txt"
 
       - name: Remove temporary private keystore

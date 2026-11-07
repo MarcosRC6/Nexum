@@ -300,6 +300,8 @@ private fun fixedObjectivesToJsonArray(objectives: List<FixedObjective>): JSONAr
                 put("targetMinutes", objective.targetMinutes)
                 put("isEnabled", objective.isEnabled)
                 put("order", objective.order)
+                put("linkedTestTopicIds", JSONArray(objective.linkedTestTopicIds.toList()))
+                put("linkedTestQuestionCount", objective.linkedTestQuestionCount.coerceIn(1, 500))
             }
         )
     }
@@ -326,7 +328,17 @@ private fun jsonArrayToFixedObjectives(array: JSONArray?): List<FixedObjective> 
                 name = name,
                 targetMinutes = item.optInt("targetMinutes", 1).coerceAtLeast(1),
                 isEnabled = item.optBoolean("isEnabled", true),
-                order = item.optInt("order", 0)
+                order = item.optInt("order", 0),
+                linkedTestTopicIds = buildSet {
+                    val ids = item.optJSONArray("linkedTestTopicIds")
+                    if (ids != null) {
+                        for (index in 0 until ids.length()) {
+                            val id = ids.optString(index).trim()
+                            if (id.isNotEmpty()) add(id)
+                        }
+                    }
+                },
+                linkedTestQuestionCount = item.optInt("linkedTestQuestionCount", 25).coerceIn(1, 500)
             )
         )
     }

@@ -48,6 +48,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.planario.core.model.FixedObjective
+import com.example.testario.data.model.Topic
+import com.example.testario.ui.screen.QuickTestLinkDialog
 import com.example.testario.ui.theme.FourItemDropdown
 import com.example.testario.ui.theme.TestarioPrimary
 import com.example.planario.core.model.StudyTopic
@@ -55,12 +57,16 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun PlanScreen(
+    libraryTopics: List<Topic> = emptyList(),
+    onStartLinkedTest: (List<String>, Int) -> Unit = { _, _ -> },
     viewModel: PlanViewModel = viewModel(factory = PlanViewModel.factory())
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     PlanContent(
         uiState = uiState,
+        libraryTopics = libraryTopics,
+        onStartLinkedTest = onStartLinkedTest,
         onAddTopic = viewModel::addTopic,
         onUpdateTopic = viewModel::updateTopicName,
         onActivateTopic = viewModel::activateTopic,
@@ -78,6 +84,8 @@ fun PlanScreen(
 @Composable
 private fun PlanContent(
     uiState: PlanUiState,
+    libraryTopics: List<Topic>,
+    onStartLinkedTest: (List<String>, Int) -> Unit,
     onAddTopic: (String) -> Unit,
     onUpdateTopic: (topicId: String, newName: String) -> Unit,
     onActivateTopic: (String) -> Unit,
@@ -85,8 +93,8 @@ private fun PlanContent(
     onMoveTopicDown: (String) -> Unit,
     onArchiveTopic: (String) -> Unit,
     onCompleteActiveTopic: () -> Unit,
-    onAddFixedObjective: (name: String, targetMinutes: Int) -> Unit,
-    onUpdateFixedObjective: (objectiveId: String, name: String, targetMinutes: Int) -> Unit,
+    onAddFixedObjective: (name: String, targetMinutes: Int, topicIds: Set<String>, questionCount: Int) -> Unit,
+    onUpdateFixedObjective: (objectiveId: String, name: String, targetMinutes: Int, topicIds: Set<String>, questionCount: Int) -> Unit,
     onSetFixedObjectiveEnabled: (objectiveId: String, enabled: Boolean) -> Unit,
     onDeleteFixedObjective: (String) -> Unit
 ) {
@@ -107,6 +115,7 @@ private fun PlanContent(
     var showAddObjectiveDialog by remember { mutableStateOf(false) }
     var objectiveToEdit by remember { mutableStateOf<FixedObjective?>(null) }
     var objectiveToDelete by remember { mutableStateOf<FixedObjective?>(null) }
+    var objectiveToLink by remember { mutableStateOf<FixedObjective?>(null) }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -153,6 +162,9 @@ private fun PlanContent(
 
                 FixedObjectivesSection(
                     objectives = uiState.fixedObjectives,
+                    availableTopics = libraryTopics,
+                    onLinkObjectiveClick = { objectiveToLink = it },
+                    onStartLinkedTest = onStartLinkedTest,
                     onAddObjectiveClick = { showAddObjectiveDialog = true },
                     onEditObjectiveClick = { objectiveToEdit = it },
                     onDeleteObjectiveClick = { objectiveToDelete = it },
@@ -233,9 +245,12 @@ private fun PlanContent(
             title = "Crear objetivo fijo",
             initialName = "",
             initialMinutes = 60,
+            libraryTopics = libraryTopics,
+            initialLinkedTopicIds = emptySet(),
+            initialQuestionCount = 25,
             onDismiss = { showAddObjectiveDialog = false },
-            onConfirm = { name, minutes ->
-                onAddFixedObjective(name, minutes)
+            onConfirm = { name, minutes, topicIds, questionCount ->
+                onAddFixedObjective(name, minutes, topicIds, questionCount)
                 showAddObjectiveDialog = false
                 showMessage("Objetivo fijo creado.")
             }
@@ -247,15 +262,35 @@ private fun PlanContent(
             title = "Editar objetivo fijo",
             initialName = objective.name,
             initialMinutes = objective.targetMinutes,
+            libraryTopics = libraryTopics,
+            initialLinkedTopicIds = objective.linkedTestTopicIds,
+            initialQuestionCount = objective.linkedTestQuestionCount,
             onDismiss = { objectiveToEdit = null },
-            onConfirm = { name, minutes ->
+            onConfirm = { name, minutes, topicIds, questionCount ->
                 onUpdateFixedObjective(
                     objective.id,
                     name,
-                    minutes
+                    minutes,
+                    topicIds,
+                    questionCount
                 )
                 objectiveToEdit = null
                 showMessage("Objetivo fijo actualizado.")
+            }
+        )
+    }
+
+    objectiveToLink?.let { objective ->
+        QuickTestLinkDialog(
+            planTopicName = objective.name,
+            libraryTopics = libraryTopics,
+            initialSelectedIds = objective.linkedTestTopicIds,
+            initialQuestionCount = objective.linkedTestQuestionCount,
+            onDismiss = { objectiveToLink = null },
+            onSave = { topicIds, questionCount ->
+                onUpdateFixedObjective(objective.id, objective.name, objective.targetMinutes, topicIds, questionCount)
+                objectiveToLink = null
+                showMessage("Vínculo de test actualizado.")
             }
         )
     }
@@ -626,6 +661,9 @@ private fun TopicQueueRow(
 @Composable
 private fun FixedObjectivesSection(
     objectives: List<FixedObjective>,
+    availableTopics: List<Topic>,
+    onLinkObjectiveClick: (FixedObjective) -> Unit,
+    onStartLinkedTest: (List<String>, Int) -> Unit,
     onAddObjectiveClick: () -> Unit,
     onEditObjectiveClick: (FixedObjective) -> Unit,
     onDeleteObjectiveClick: (FixedObjective) -> Unit,
@@ -686,6 +724,9 @@ private fun FixedObjectivesSection(
                 FourItemDropdown(items = objectives) { _, objective ->
                     FixedObjectiveRow(
                         objective = objective,
+                        availableTopics = availableTopics,
+                        onLinkClick = { onLinkObjectiveClick(objective) },
+                        onStartLinkedTest = onStartLinkedTest,
                         onEditClick = { onEditObjectiveClick(objective) },
                         onDeleteClick = { onDeleteObjectiveClick(objective) },
                         onEnabledChange = { enabled ->
@@ -713,6 +754,9 @@ private fun FixedObjectivesSection(
 @Composable
 private fun FixedObjectiveRow(
     objective: FixedObjective,
+    availableTopics: List<Topic>,
+    onLinkClick: () -> Unit,
+    onStartLinkedTest: (List<String>, Int) -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onEnabledChange: (Boolean) -> Unit
@@ -764,6 +808,13 @@ private fun FixedObjectiveRow(
                         }
                     )
 
+                    TextButton(onClick = onLinkClick) {
+                        Text(
+                            if (objective.linkedTestTopicIds.isEmpty()) "Vincular test"
+                            else "Configurar test · ${objective.linkedTestTopicIds.size} tema(s)"
+                        )
+                    }
+
                     Text(
                         text = "${objective.targetMinutes.toHourMinuteText()} · ${if (objective.isEnabled) "Activo" else "Inactivo"}",
                         style = MaterialTheme.typography.bodyMedium,
@@ -780,6 +831,18 @@ private fun FixedObjectiveRow(
                     checked = objective.isEnabled,
                     onCheckedChange = onEnabledChange
                 )
+            }
+
+            val validLinkedIds = availableTopics
+                .filter { it.id in objective.linkedTestTopicIds }
+                .map { it.id }
+            if (validLinkedIds.isNotEmpty()) {
+                Button(
+                    onClick = { onStartLinkedTest(validLinkedIds, objective.linkedTestQuestionCount) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Iniciar test · ${objective.linkedTestQuestionCount} preguntas")
+                }
             }
 
             Row(
@@ -1023,74 +1086,87 @@ private fun AddOrEditFixedObjectiveDialog(
     title: String,
     initialName: String,
     initialMinutes: Int,
+    libraryTopics: List<Topic>,
+    initialLinkedTopicIds: Set<String>,
+    initialQuestionCount: Int,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, targetMinutes: Int) -> Unit
+    onConfirm: (name: String, targetMinutes: Int, topicIds: Set<String>, questionCount: Int) -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
-    var timeText by remember {
-        mutableStateOf(initialMinutes.toHourMinuteInputText())
-    }
+    var timeText by remember { mutableStateOf(initialMinutes.toHourMinuteInputText()) }
+    var selectedTopicIds by remember { mutableStateOf(initialLinkedTopicIds) }
+    var questionCount by remember { mutableStateOf(initialQuestionCount.coerceIn(1, 500)) }
+    var showLinkPicker by remember { mutableStateOf(false) }
 
     val totalMinutes = timeText.toMinutesFromHourMinuteInput()
     val canSave = name.trim().isNotBlank() && totalMinutes > 0
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(text = title)
-        },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Introduce el tiempo en formato HH:MM.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                TextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Nombre") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                TextField(
-                    value = timeText,
-                    onValueChange = { value ->
-                        timeText = value.toHourMinuteInput()
-                    },
-                    label = { Text("Tiempo") },
-                    placeholder = { Text("01:00") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
+    if (showLinkPicker) {
+        QuickTestLinkDialog(
+            planTopicName = name.ifBlank { "Objetivo diario" },
+            libraryTopics = libraryTopics,
+            initialSelectedIds = selectedTopicIds,
+            initialQuestionCount = questionCount,
+            onDismiss = { showLinkPicker = false },
+            onSave = { topicIds, count ->
+                selectedTopicIds = topicIds
+                questionCount = count.coerceIn(1, 500)
+                showLinkPicker = false
             }
-        },
-        confirmButton = {
-            Button(
-                enabled = canSave,
-                onClick = {
-                    onConfirm(
-                        name.trim(),
-                        totalMinutes
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(text = title) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Introduce el tiempo en formato HH:MM.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    TextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Nombre") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Requested placement: link picker between name and time.
+                    OutlinedButton(
+                        onClick = { showLinkPicker = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (selectedTopicIds.isEmpty()) "Vincular test"
+                            else "Test vinculado · ${selectedTopicIds.size} tema(s) · ${questionCount} preguntas"
+                        )
+                    }
+
+                    TextField(
+                        value = timeText,
+                        onValueChange = { value -> timeText = value.toHourMinuteInput() },
+                        label = { Text("Tiempo") },
+                        placeholder = { Text("01:00") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-            ) {
-                Text(text = "Guardar")
+            },
+            confirmButton = {
+                Button(
+                    enabled = canSave,
+                    onClick = { onConfirm(name.trim(), totalMinutes, selectedTopicIds, questionCount) }
+                ) { Text(text = "Guardar") }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) { Text(text = "Cancelar") }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = "Cancelar")
-            }
-        }
-    )
+        )
+    }
 }
 
 @Composable
