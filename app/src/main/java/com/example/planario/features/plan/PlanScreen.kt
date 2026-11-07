@@ -48,6 +48,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.planario.core.model.FixedObjective
+import com.example.testario.data.model.Topic
+import com.example.testario.ui.screen.QuickTestLinkDialog
 import com.example.testario.ui.theme.FourItemDropdown
 import com.example.testario.ui.theme.TestarioPrimary
 import com.example.planario.core.model.StudyTopic
@@ -55,12 +57,16 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun PlanScreen(
+    libraryTopics: List<Topic> = emptyList(),
+    onStartLinkedTest: (List<String>, Int) -> Unit = { _, _ -> },
     viewModel: PlanViewModel = viewModel(factory = PlanViewModel.factory())
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     PlanContent(
         uiState = uiState,
+        libraryTopics = libraryTopics,
+        onStartLinkedTest = onStartLinkedTest,
         onAddTopic = viewModel::addTopic,
         onUpdateTopic = viewModel::updateTopicName,
         onActivateTopic = viewModel::activateTopic,
@@ -78,6 +84,8 @@ fun PlanScreen(
 @Composable
 private fun PlanContent(
     uiState: PlanUiState,
+    libraryTopics: List<Topic>,
+    onStartLinkedTest: (List<String>, Int) -> Unit,
     onAddTopic: (String) -> Unit,
     onUpdateTopic: (topicId: String, newName: String) -> Unit,
     onActivateTopic: (String) -> Unit,
@@ -85,8 +93,8 @@ private fun PlanContent(
     onMoveTopicDown: (String) -> Unit,
     onArchiveTopic: (String) -> Unit,
     onCompleteActiveTopic: () -> Unit,
-    onAddFixedObjective: (name: String, targetMinutes: Int) -> Unit,
-    onUpdateFixedObjective: (objectiveId: String, name: String, targetMinutes: Int) -> Unit,
+    onAddFixedObjective: (name: String, targetMinutes: Int, topicIds: Set<String>, questionCount: Int) -> Unit,
+    onUpdateFixedObjective: (objectiveId: String, name: String, targetMinutes: Int, topicIds: Set<String>, questionCount: Int) -> Unit,
     onSetFixedObjectiveEnabled: (objectiveId: String, enabled: Boolean) -> Unit,
     onDeleteFixedObjective: (String) -> Unit
 ) {
@@ -107,6 +115,7 @@ private fun PlanContent(
     var showAddObjectiveDialog by remember { mutableStateOf(false) }
     var objectiveToEdit by remember { mutableStateOf<FixedObjective?>(null) }
     var objectiveToDelete by remember { mutableStateOf<FixedObjective?>(null) }
+    var objectiveToLink by remember { mutableStateOf<FixedObjective?>(null) }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -153,6 +162,9 @@ private fun PlanContent(
 
                 FixedObjectivesSection(
                     objectives = uiState.fixedObjectives,
+                    availableTopics = libraryTopics,
+                    onLinkObjectiveClick = { objectiveToLink = it },
+                    onStartLinkedTest = onStartLinkedTest,
                     onAddObjectiveClick = { showAddObjectiveDialog = true },
                     onEditObjectiveClick = { objectiveToEdit = it },
                     onDeleteObjectiveClick = { objectiveToDelete = it },
@@ -233,9 +245,12 @@ private fun PlanContent(
             title = "Crear objetivo fijo",
             initialName = "",
             initialMinutes = 60,
+            libraryTopics = libraryTopics,
+            initialLinkedTopicIds = emptySet(),
+            initialQuestionCount = 25,
             onDismiss = { showAddObjectiveDialog = false },
-            onConfirm = { name, minutes ->
-                onAddFixedObjective(name, minutes)
+            onConfirm = { name, minutes, topicIds, questionCount ->
+                onAddFixedObjective(name, minutes, topicIds, questionCount)
                 showAddObjectiveDialog = false
                 showMessage("Objetivo fijo creado.")
             }
@@ -247,15 +262,35 @@ private fun PlanContent(
             title = "Editar objetivo fijo",
             initialName = objective.name,
             initialMinutes = objective.targetMinutes,
+            libraryTopics = libraryTopics,
+            initialLinkedTopicIds = objective.linkedTestTopicIds,
+            initialQuestionCount = objective.linkedTestQuestionCount,
             onDismiss = { objectiveToEdit = null },
-            onConfirm = { name, minutes ->
+            onConfirm = { name, minutes, topicIds, questionCount ->
                 onUpdateFixedObjective(
                     objective.id,
                     name,
-                    minutes
+                    minutes,
+                    topicIds,
+                    questionCount
                 )
                 objectiveToEdit = null
                 showMessage("Objetivo fijo actualizado.")
+            }
+        )
+    }
+
+    objectiveToLink?.let { objective ->
+        QuickTestLinkDialog(
+            planTopicName = objective.name,
+            libraryTopics = libraryTopics,
+            initialSelectedIds = objective.linkedTestTopicIds,
+            initialQuestionCount = objective.linkedTestQuestionCount,
+            onDismiss = { objectiveToLink = null },
+            onSave = { topicIds, questionCount ->
+                onUpdateFixedObjective(objective.id, objective.name, objective.targetMinutes, topicIds, questionCount)
+                objectiveToLink = null
+                showMessage("Vínculo de test actualizado.")
             }
         )
     }
