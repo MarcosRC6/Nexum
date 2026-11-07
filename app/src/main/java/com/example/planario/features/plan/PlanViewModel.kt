@@ -60,23 +60,31 @@ class PlanViewModel(
 
     fun addFixedObjective(
         name: String,
-        targetMinutes: Int
+        targetMinutes: Int,
+        linkedTestTopicIds: Set<String> = emptySet(),
+        linkedTestQuestionCount: Int = 25
     ) {
         repository.addFixedObjective(
             name = name,
-            targetMinutes = targetMinutes
+            targetMinutes = targetMinutes,
+            linkedTestTopicIds = linkedTestTopicIds,
+            linkedTestQuestionCount = linkedTestQuestionCount
         )
     }
 
     fun updateFixedObjective(
         objectiveId: String,
         name: String,
-        targetMinutes: Int
+        targetMinutes: Int,
+        linkedTestTopicIds: Set<String>? = null,
+        linkedTestQuestionCount: Int? = null
     ) {
         repository.updateFixedObjective(
             objectiveId = objectiveId,
             name = name,
-            targetMinutes = targetMinutes
+            targetMinutes = targetMinutes,
+            linkedTestTopicIds = linkedTestTopicIds,
+            linkedTestQuestionCount = linkedTestQuestionCount
         )
     }
 
