@@ -332,7 +332,6 @@ fun HomeScreen(
                                                         style = MaterialTheme.typography.bodyMedium
                                                     )
                                                 }
-                                            }
                                                 if (linkedTopicIds.isNotEmpty()) {
                                                     TextButton(
                                                         onClick = {
