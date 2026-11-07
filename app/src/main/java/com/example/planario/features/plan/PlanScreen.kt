@@ -1086,74 +1086,87 @@ private fun AddOrEditFixedObjectiveDialog(
     title: String,
     initialName: String,
     initialMinutes: Int,
+    libraryTopics: List<Topic>,
+    initialLinkedTopicIds: Set<String>,
+    initialQuestionCount: Int,
     onDismiss: () -> Unit,
-    onConfirm: (name: String, targetMinutes: Int) -> Unit
+    onConfirm: (name: String, targetMinutes: Int, topicIds: Set<String>, questionCount: Int) -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
-    var timeText by remember {
-        mutableStateOf(initialMinutes.toHourMinuteInputText())
-    }
+    var timeText by remember { mutableStateOf(initialMinutes.toHourMinuteInputText()) }
+    var selectedTopicIds by remember { mutableStateOf(initialLinkedTopicIds) }
+    var questionCount by remember { mutableStateOf(initialQuestionCount.coerceIn(1, 500)) }
+    var showLinkPicker by remember { mutableStateOf(false) }
 
     val totalMinutes = timeText.toMinutesFromHourMinuteInput()
     val canSave = name.trim().isNotBlank() && totalMinutes > 0
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(text = title)
-        },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Introduce el tiempo en formato HH:MM.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                TextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Nombre") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                TextField(
-                    value = timeText,
-                    onValueChange = { value ->
-                        timeText = value.toHourMinuteInput()
-                    },
-                    label = { Text("Tiempo") },
-                    placeholder = { Text("01:00") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
+    if (showLinkPicker) {
+        QuickTestLinkDialog(
+            planTopicName = name.ifBlank { "Objetivo diario" },
+            libraryTopics = libraryTopics,
+            initialSelectedIds = selectedTopicIds,
+            initialQuestionCount = questionCount,
+            onDismiss = { showLinkPicker = false },
+            onSave = { topicIds, count ->
+                selectedTopicIds = topicIds
+                questionCount = count.coerceIn(1, 500)
+                showLinkPicker = false
             }
-        },
-        confirmButton = {
-            Button(
-                enabled = canSave,
-                onClick = {
-                    onConfirm(
-                        name.trim(),
-                        totalMinutes
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(text = title) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Introduce el tiempo en formato HH:MM.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    TextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Nombre") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Requested placement: link picker between name and time.
+                    OutlinedButton(
+                        onClick = { showLinkPicker = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (selectedTopicIds.isEmpty()) "Vincular test"
+                            else "Test vinculado · ${selectedTopicIds.size} tema(s) · ${questionCount} preguntas"
+                        )
+                    }
+
+                    TextField(
+                        value = timeText,
+                        onValueChange = { value -> timeText = value.toHourMinuteInput() },
+                        label = { Text("Tiempo") },
+                        placeholder = { Text("01:00") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-            ) {
-                Text(text = "Guardar")
+            },
+            confirmButton = {
+                Button(
+                    enabled = canSave,
+                    onClick = { onConfirm(name.trim(), totalMinutes, selectedTopicIds, questionCount) }
+                ) { Text(text = "Guardar") }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) { Text(text = "Cancelar") }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = "Cancelar")
-            }
-        }
-    )
+        )
+    }
 }
 
 @Composable
