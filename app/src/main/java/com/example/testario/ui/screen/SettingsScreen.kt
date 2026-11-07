@@ -978,6 +978,8 @@ fun SettingsScreen(
                     }
                 }
 
+                NexumUpdateSettingsCard()
+
                 message?.let { Card(Modifier.fillMaxWidth(), RoundedCornerShape(14.dp), CardDefaults.cardColors(containerColor = if(it.startsWith("Error")) TestarioRedDark else TestarioGreenDark)) { Text(it, Modifier.padding(12.dp), color = TestarioText) } }
             }
         }
