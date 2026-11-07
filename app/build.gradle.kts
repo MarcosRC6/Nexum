@@ -7,6 +7,16 @@ plugins {
 
 val nexumPreviewBuild = providers.gradleProperty("nexumPreview").orNull == "true"
 
+// Official APK signing credentials come only from the GitHub Actions runner.
+// No passwords, key files or Base64 signing material belong in this repository.
+val releaseStoreFile = providers.environmentVariable("NEXUM_SIGNING_STORE_FILE").orNull
+val releaseStorePassword = providers.environmentVariable("NEXUM_KEYSTORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("NEXUM_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("NEXUM_KEY_PASSWORD").orNull
+val hasReleaseSigning = listOf(
+    releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.example.testario"
     compileSdk = 35
@@ -21,9 +31,26 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // A separate debug-only install for device testing. The release package
-    // remains com.example.estudario and keeps its original identity.
+    signingConfigs {
+        create("nexumOfficial") {
+            if (hasReleaseSigning) {
+                storeType = "PKCS12"
+                storeFile = file(requireNotNull(releaseStoreFile))
+                storePassword = requireNotNull(releaseStorePassword)
+                keyAlias = requireNotNull(releaseKeyAlias)
+                keyPassword = requireNotNull(releaseKeyPassword)
+            }
+        }
+    }
+
+    // Preview builds remain separate; production keeps its original package ID.
+    // Never attach a signing config with blank credentials to the release build.
     buildTypes {
+        getByName("release") {
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("nexumOfficial")
+            }
+        }
         getByName("debug") {
             if (nexumPreviewBuild) {
                 applicationIdSuffix = ".neon"

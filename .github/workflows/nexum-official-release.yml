@@ -1,0 +1,132 @@
+name: NEXUM - APK oficial firmada
+
+on:
+  # A merge into main builds a signed APK artifact, but never publishes a release.
+  # The public GitHub Release still requires an explicit manual selection.
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'settings.gradle.kts'
+      - 'build.gradle.kts'
+      - '.github/workflows/nexum-official-release.yml'
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publicar GitHub Release v1.0 (false = compilar APK firmada para comprobar)"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexum-official-release
+  cancel-in-progress: false
+
+jobs:
+  signed-apk:
+    # Only main is trusted to access signing secrets. Pushes build artifacts; manual runs may publish.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact official commit
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Require all four private signing secrets
+        env:
+          SIGNING_BASE64: ${{ secrets.NEXUM_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASS: ${{ secrets.NEXUM_KEYSTORE_PASSWORD }}
+          SIGNING_ALIAS: ${{ secrets.NEXUM_KEY_ALIAS }}
+          SIGNING_KEY_PASS: ${{ secrets.NEXUM_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SIGNING_BASE64" || { echo "Falta secreto NEXUM_KEYSTORE_BASE64"; exit 1; }
+          test -n "$SIGNING_STORE_PASS" || { echo "Falta secreto NEXUM_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "$SIGNING_ALIAS" || { echo "Falta secreto NEXUM_KEY_ALIAS"; exit 1; }
+          test -n "$SIGNING_KEY_PASS" || { echo "Falta secreto NEXUM_KEY_PASSWORD"; exit 1; }
+          umask 077
+          printf '%s' "$SIGNING_BASE64" | base64 --decode > "$RUNNER_TEMP/nexum-official.p12"
+          test -s "$RUNNER_TEMP/nexum-official.p12"
+          echo "NEXUM_SIGNING_STORE_FILE=$RUNNER_TEMP/nexum-official.p12" >> "$GITHUB_ENV"
+
+      - name: Unit tests, lint and signed release build
+        env:
+          NEXUM_KEYSTORE_PASSWORD: ${{ secrets.NEXUM_KEYSTORE_PASSWORD }}
+          NEXUM_KEY_ALIAS: ${{ secrets.NEXUM_KEY_ALIAS }}
+          NEXUM_KEY_PASSWORD: ${{ secrets.NEXUM_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest lintDebug assembleRelease --no-daemon --stacktrace
+
+      - name: Independently verify signature, package ID and version
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          test -x "$BUILD_TOOLS/apksigner"
+          test -x "$BUILD_TOOLS/aapt"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.example.estudario' versionCode='5' versionName='1.0'"
+          mkdir -p dist
+          cp "$APK" dist/NEXUM-v1.0.apk
+          sha256sum dist/NEXUM-v1.0.apk
+
+      - name: Upload signed APK for private installation tests
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUM_v1_0_OFICIAL_FIRMADA
+          path: dist/NEXUM-v1.0.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish v1.0 on GitHub Releases only when explicitly requested
+        if: inputs.publish_release == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v1.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "GitHub Release v1.0 ya existe. No se sobreescribe."
+            exit 1
+          fi
+          if git ls-remote --tags origin refs/tags/v1.0 | grep -q .; then
+            echo "La etiqueta v1.0 ya existe. Publicación detenida para evitar sustituirla."
+            exit 1
+          fi
+          cat > "$RUNNER_TEMP/nexum-release-notes.txt" <<'NOTES'
+          # NEXUM 1.0
+
+          Primera versión oficial de NEXUM, integrando Testario y Planario.
+          Incluye los temas claro y oscuro, los controles de estilo neón,
+          estadísticas, navegación de cuatro secciones, calendario y
+          reorganización de widgets con desplazamiento independiente.
+
+          La aplicación utiliza una firma digital permanente.
+          Para actualizar, instala nuevas versiones con la misma firma y
+          un versionCode superior. Antes de migrar desde una APK debug
+          de firma diferente, realiza una copia de seguridad.
+          NOTES
+          gh release create v1.0 "dist/NEXUM-v1.0.apk#NEXUM-v1.0.apk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "NEXUM 1.0" \
+            --notes-file "$RUNNER_TEMP/nexum-release-notes.txt"
+
+      - name: Remove temporary private keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/nexum-official.p12"
