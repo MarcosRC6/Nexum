@@ -28,16 +28,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.example.testario.ui.theme.NeonButton as Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.LinearProgressIndicator
+import com.example.testario.ui.theme.NeonLinearProgressIndicator as LinearProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.example.testario.ui.theme.NeonTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -66,6 +67,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.planario.features.home.HomeViewModel
 import com.example.planario.domain.timer.StudyTimerState
 import com.example.testario.data.local.QuickTestLinkManager
+import com.example.testario.ui.theme.FourItemDropdown
+import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioMutedText
 import com.example.testario.ui.theme.TestarioPrimary
@@ -100,6 +103,11 @@ fun HomeScreen(
     val quickTestLinks = remember { QuickTestLinkManager(context.applicationContext) }
     var isReorderMode by remember { mutableStateOf(false) }
     var showRestartStudyDialog by remember { mutableStateOf(false) }
+    var homeObjectivesExpanded by remember { mutableStateOf(true) }
+    var homeTopicExpanded by remember { mutableStateOf(true) }
+    var homeTemplatesExpanded by remember { mutableStateOf(true) }
+    var homeSummaryExpanded by remember { mutableStateOf(true) }
+    var homeQuickAccessExpanded by remember { mutableStateOf(true) }
 
     val allQuestions = database.topics.flatMap { it.questions }
     val failures = allQuestions.count { it.stats.inFailures }
@@ -283,8 +291,14 @@ fun HomeScreen(
 
                                     if (homeSettingsViewModel.showStudyObjectives && studyState.fixedObjectives.isNotEmpty()) {
                                         Spacer(Modifier.height(6.dp))
-                                        Text("Objetivos diarios", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                                        studyState.fixedObjectives.forEach { objective ->
+                                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                            Text("Objetivos diarios", style = MaterialTheme.typography.titleMedium, color = TestarioText, modifier = Modifier.weight(1f))
+                                            IconButton(onClick = { homeObjectivesExpanded = !homeObjectivesExpanded }) {
+                                                Text(if (homeObjectivesExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                                            }
+                                        }
+                                        if (homeObjectivesExpanded) {
+                                        FourItemDropdown(items = studyState.fixedObjectives, rowSpacing = 4.dp) { _, objective ->
                                             val checked = studyState.isFixedObjectiveCompleted(objective.id)
                                             Row(
                                                 modifier = Modifier
@@ -313,6 +327,7 @@ fun HomeScreen(
                                                 )
                                             }
                                         }
+                                        }
                                     }
                                 }
                             }
@@ -328,7 +343,13 @@ fun HomeScreen(
                                     border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.35f))
                                 ) {
                                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text("Tema activo", style = MaterialTheme.typography.titleMedium, color = TestarioText)
+                                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                            Text("Tema activo", style = MaterialTheme.typography.titleMedium, color = TestarioText, modifier = Modifier.weight(1f))
+                                            IconButton(onClick = { homeTopicExpanded = !homeTopicExpanded }) {
+                                                Text(if (homeTopicExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                                            }
+                                        }
+                                        if (homeTopicExpanded) {
                                         Text(topic.name, style = MaterialTheme.typography.headlineSmall, color = TestarioText)
                                         Text("Vuelta ${topic.round}", color = TestarioMutedText)
                                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -346,6 +367,7 @@ fun HomeScreen(
                                             ) {
                                                 Text(if (activeLinkedTopics.isEmpty()) "Vincular test" else "Test rápido")
                                             }
+                                        }
                                         }
                                     }
                                 }
@@ -389,7 +411,13 @@ fun HomeScreen(
                                 colors = CardDefaults.cardColors(containerColor = TestarioSurface)
                             ) {
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Text("Resumen", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Resumen", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
+                                        IconButton(onClick = { homeSummaryExpanded = !homeSummaryExpanded }) {
+                                            Text(if (homeSummaryExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                                        }
+                                    }
+                                    if (homeSummaryExpanded) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         DashboardMetric(database.topics.size.toString(), "Temas", Modifier.weight(1f))
                                         DashboardMetric(allQuestions.size.toString(), "Preguntas", Modifier.weight(1f))
@@ -397,6 +425,7 @@ fun HomeScreen(
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         DashboardMetric(failures.toString(), "En fallos", Modifier.weight(1f))
                                         DashboardMetric("$accuracy%", "Acierto", Modifier.weight(1f))
+                                    }
                                     }
                                 }
                             }
@@ -426,17 +455,23 @@ fun HomeScreen(
                                 colors = CardDefaults.cardColors(containerColor = TestarioSurface)
                             ) {
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Plantillas", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                                    if (database.testTemplates.isEmpty()) {
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Plantillas", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
+                                        IconButton(onClick = { homeTemplatesExpanded = !homeTemplatesExpanded }) {
+                                            Text(if (homeTemplatesExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                                        }
+                                    }
+                                    if (homeTemplatesExpanded && database.testTemplates.isEmpty()) {
                                         Text("Aún no tienes plantillas", color = TestarioText, style = MaterialTheme.typography.titleMedium)
                                         Text("Configura un test y guárdalo como plantilla para reutilizarlo desde aquí.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                                         OutlinedButton(onClick = onCreateTest, modifier = Modifier.fillMaxWidth()) { Text("Configurar un test") }
-                                    } else {
-                                        database.testTemplates.take(3).forEach { template ->
+                                    } else if (homeTemplatesExpanded) {
+                                        FourItemDropdown(items = database.testTemplates) { _, template ->
                                             Card(
                                                 modifier = Modifier.fillMaxWidth().clickable { onOpenTemplate(template.id) },
                                                 shape = RoundedCornerShape(16.dp),
-                                                colors = CardDefaults.cardColors(containerColor = TestarioSurfaceLight)
+                                                colors = CardDefaults.cardColors(containerColor = TestarioSurfaceLight),
+                                                border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.85f))
                                             ) {
                                                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                                     Column(Modifier.weight(1f)) {
@@ -446,9 +481,6 @@ fun HomeScreen(
                                                     Text("›", style = MaterialTheme.typography.headlineMedium, color = TestarioPrimary)
                                                 }
                                             }
-                                        }
-                                        if (database.testTemplates.size > 3) {
-                                            OutlinedButton(onClick = onCreateTest, modifier = Modifier.fillMaxWidth()) { Text("Ver todas las plantillas") }
                                         }
                                     }
                                 }
@@ -469,7 +501,13 @@ fun HomeScreen(
                                 border = BorderStroke(1.dp, TestarioOutline)
                             ) {
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Text("Accesos rápidos", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Accesos rápidos", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
+                                        IconButton(onClick = { homeQuickAccessExpanded = !homeQuickAccessExpanded }) {
+                                            Text(if (homeQuickAccessExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                                        }
+                                    }
+                                    if (homeQuickAccessExpanded) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         quickAccesses.forEach { item ->
                                             Card(
@@ -488,6 +526,7 @@ fun HomeScreen(
                                                 }
                                             }
                                         }
+                                    }
                                     }
                                 }
                             }
@@ -518,7 +557,7 @@ fun HomeScreen(
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text("Organizar Inicio", color = TestarioText, style = MaterialTheme.typography.titleMedium)
-                            Text("Arrastra los bloques. Al acercarte a un borde, la pantalla se desplazará sola.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                            Text("Desliza para bajar o subir. Mantén pulsado un bloque para moverlo.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                         }
                         OutlinedButton(
                             onClick = {
@@ -743,8 +782,11 @@ private fun ReorderableHomeBlock(
                     val pointerId = down.id
                     val start = down.position
                     var last = start
-                    // Once editing, immediate drag rather than a second delay.
-                    val holdMillis = if (latestReorderMode) 0L else 520L
+                    // Swipes must remain available even while cards wobble in
+                    // edit mode. A nonzero long-press disambiguates a scroll
+                    // from an intentional widget drag, then movement beyond
+                    // touchSlop cancels the drag and lets LazyColumn scroll.
+                    val holdMillis = if (latestReorderMode) 280L else 520L
 
                     val interrupted = withTimeoutOrNull(holdMillis) {
                         while (true) {

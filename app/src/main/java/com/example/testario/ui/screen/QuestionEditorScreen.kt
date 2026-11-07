@@ -22,13 +22,13 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.example.testario.ui.theme.NeonButton as Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.IconButton
+import com.example.testario.ui.theme.NeonIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -36,7 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.example.testario.ui.theme.NeonTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -70,6 +70,7 @@ import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioMutedText
 import com.example.testario.ui.theme.TestarioPrimary
+import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioPrimaryDark
 import com.example.testario.ui.theme.TestarioRed
 import com.example.testario.ui.theme.TestarioRedDark
@@ -409,7 +410,7 @@ private fun AnswerEditorRow(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = if (isCorrect) TestarioPrimaryDark else TestarioSurface),
+        colors = CardDefaults.cardColors(containerColor = if (isCorrect) TestarioNeonSelected else TestarioSurface),
         border = BorderStroke(width = 1.dp, color = if (isCorrect) TestarioPrimary else TestarioSurfaceLight)
     ) {
         Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -429,9 +430,10 @@ private fun AnswerEditorRow(
 private fun DifficultyButton(text: String, selected: Boolean, color: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Button(
         onClick = onClick, modifier = modifier.height(46.dp), shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = if (selected) color.copy(alpha = 0.22f) else TestarioSurfaceLight, contentColor = if (selected) color else TestarioText),
-        border = if (selected) BorderStroke(1.dp, color) else null, contentPadding = PaddingValues(horizontal = 6.dp)
-    ) { Text(text) }
+        selected = selected,
+        border = BorderStroke(1.4.dp, TestarioPrimary),
+        contentPadding = PaddingValues(horizontal = 6.dp)
+    ) { Text(text, color = if (selected) TestarioPrimary else TestarioText) }
 }
 
 private fun validateQuestion(questionText: String, answers: List<Answer>, correctAnswerId: String): String? {

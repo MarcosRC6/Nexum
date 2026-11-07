@@ -23,7 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.example.testario.ui.theme.NeonButton as Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,8 +32,9 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -42,7 +43,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.example.testario.ui.theme.NeonTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -68,6 +69,9 @@ import com.example.testario.data.model.Topic
 import com.example.testario.data.model.TopicGroup
 import com.example.testario.domain.GroupHierarchy
 import com.example.testario.domain.SmartSelectionEngine
+import com.example.testario.ui.theme.FourItemDropdown
+import com.example.testario.ui.theme.TestarioNeonSurface
+import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioMutedText
@@ -772,6 +776,7 @@ private fun GroupAllocationEditor(
     requestedCount: Int,
     onAllocationsChanged: (List<GroupQuestionAllocation>) -> Unit
 ) {
+    var groupAllocationsExpanded by remember { mutableStateOf(true) }
     SettingsLikeCard {
         Text("Reparto por grupos", style = MaterialTheme.typography.titleLarge, color = TestarioText)
         Spacer(Modifier.height(6.dp))
@@ -785,7 +790,17 @@ private fun GroupAllocationEditor(
         if (groups.isEmpty()) {
             Text("No hay grupos creados. Créelos desde la pestaña Grupos.", color = TestarioRed)
         } else {
-            allocations.forEachIndexed { index, allocation ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("${allocations.size} grupos configurados", color = TestarioMutedText, modifier = Modifier.weight(1f))
+                IconButton(onClick = { groupAllocationsExpanded = !groupAllocationsExpanded }, enabled = allocations.isNotEmpty()) {
+                    Text(if (groupAllocationsExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                }
+            }
+            if (groupAllocationsExpanded) {
+            FourItemDropdown(items = allocations, rowSpacing = 10.dp) { index, allocation ->
                 val topicIds = GroupHierarchy.resolveTopicIds(allGroups, allocation.groupId)
                 val availableCount = topicIds.asSequence()
                     .flatMap { availableByTopic[it].orEmpty().asSequence() }
@@ -806,7 +821,7 @@ private fun GroupAllocationEditor(
                     },
                     onRemove = { onAllocationsChanged(allocations.filterIndexed { i, _ -> i != index }) }
                 )
-                if (index != allocations.lastIndex) Spacer(Modifier.height(10.dp))
+            }
             }
 
             val unused = groups.firstOrNull { candidate -> allocations.none { it.groupId == candidate.id } }
@@ -900,8 +915,8 @@ fun SelectableBigCard(title: String, subtitle: String, selected: Boolean, modifi
     Card(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioPrimaryDark else TestarioSurface),
-        border = if (selected) BorderStroke(1.dp, TestarioPrimary) else null
+        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface),
+        border = BorderStroke(1.4.dp, TestarioPrimary)
     ) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = if (selected) TestarioPrimary else TestarioText)
@@ -917,10 +932,7 @@ fun CompactScopeButton(text: String, selected: Boolean, modifier: Modifier = Mod
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
         modifier = modifier.height(44.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) TestarioPrimary else TestarioSurface,
-            contentColor = if (selected) TestarioBackground else TestarioText
-        )
+        selected = selected
     ) { Text(text, style = MaterialTheme.typography.bodyMedium) }
 }
 
@@ -947,12 +959,10 @@ fun DifficultyChip(text: String, selected: Boolean, color: Color, modifier: Modi
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         modifier = modifier.height(38.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) color.copy(alpha = 0.2f) else TestarioSurface,
-            contentColor = if (selected) color else TestarioText
-        ),
+        selected = selected,
+        border = BorderStroke(1.4.dp, TestarioPrimary),
         contentPadding = PaddingValues(0.dp)
-    ) { Text(text, style = MaterialTheme.typography.bodySmall) }
+    ) { Text(text, style = MaterialTheme.typography.bodySmall, color = if (selected) TestarioPrimary else TestarioText) }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

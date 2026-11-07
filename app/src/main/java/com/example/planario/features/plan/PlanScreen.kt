@@ -17,19 +17,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.example.testario.ui.theme.NeonButton as Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalButton
+import com.example.testario.ui.theme.NeonTonalButton as FilledTonalButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.example.testario.ui.theme.NeonTextButton as TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -47,6 +48,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.planario.core.model.FixedObjective
+import com.example.testario.ui.theme.FourItemDropdown
+import com.example.testario.ui.theme.TestarioPrimary
 import com.example.planario.core.model.StudyTopic
 import kotlinx.coroutines.launch
 
@@ -297,18 +300,27 @@ private fun ActiveTopicSection(
     onCompleteActiveTopicClick: () -> Unit
 ) {
     var helpExpanded by remember { mutableStateOf(false) }
+    var topicExpanded by remember { mutableStateOf(true) }
 
     CompactCard {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Tema activo",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Tema activo",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                IconButton(onClick = { topicExpanded = !topicExpanded }) {
+                    Text(if (topicExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                }
+            }
 
-            if (activeTopic == null) {
+            if (!topicExpanded) {
+                // Mantener visible la cabecera al plegar el tema activo.
+            } else if (activeTopic == null) {
                 Text(
                     text = "Todavía no hay ningún tema en la cola.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -381,7 +393,7 @@ private fun TopicQueueSection(
     onArchiveTopicClick: (StudyTopic) -> Unit
 ) {
     var helpExpanded by remember { mutableStateOf(false) }
-    val queueScrollState = rememberScrollState()
+    var listExpanded by remember { mutableStateOf(true) }
 
     CompactCard {
         Column(
@@ -413,6 +425,9 @@ private fun TopicQueueSection(
                     )
                 }
 
+                IconButton(onClick = { listExpanded = !listExpanded }, enabled = topics.isNotEmpty()) {
+                    Text(if (listExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                }
                 TextButton(onClick = onAddTopicClick) {
                     Text(text = "Añadir")
                 }
@@ -424,31 +439,20 @@ private fun TopicQueueSection(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 360.dp)
-                        .verticalScroll(queueScrollState)
-                ) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        topics.forEachIndexed { index, topic ->
-                            TopicQueueRow(
-                                position = index + 1,
-                                topic = topic,
-                                isActive = index == 0,
-                                canMoveUp = index > 1,
-                                canMoveDown = index > 0 && index < topics.lastIndex,
-                                onEditClick = { onEditTopicClick(topic) },
-                                onActivateClick = { onActivateTopicClick(topic) },
-                                onMoveUpClick = { onMoveTopicUpClick(topic) },
-                                onMoveDownClick = { onMoveTopicDownClick(topic) },
-                                onArchiveClick = { onArchiveTopicClick(topic) }
-                            )
-                        }
-                    }
+            } else if (listExpanded) {
+                FourItemDropdown(items = topics) { index, topic ->
+                    TopicQueueRow(
+                        position = index + 1,
+                        topic = topic,
+                        isActive = index == 0,
+                        canMoveUp = index > 1,
+                        canMoveDown = index > 0 && index < topics.lastIndex,
+                        onEditClick = { onEditTopicClick(topic) },
+                        onActivateClick = { onActivateTopicClick(topic) },
+                        onMoveUpClick = { onMoveTopicUpClick(topic) },
+                        onMoveDownClick = { onMoveTopicDownClick(topic) },
+                        onArchiveClick = { onArchiveTopicClick(topic) }
+                    )
                 }
             }
 
@@ -554,7 +558,7 @@ private fun TopicQueueRow(
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextButton(
+                        androidx.compose.material3.TextButton(
                             onClick = onMoveUpClick,
                             enabled = canMoveUp
                         ) {
@@ -564,7 +568,7 @@ private fun TopicQueueRow(
                             )
                         }
 
-                        TextButton(
+                        androidx.compose.material3.TextButton(
                             onClick = onMoveDownClick,
                             enabled = canMoveDown
                         ) {
@@ -628,7 +632,7 @@ private fun FixedObjectivesSection(
     onSetObjectiveEnabled: (objectiveId: String, enabled: Boolean) -> Unit
 ) {
     var helpExpanded by remember { mutableStateOf(false) }
-    val objectiveScrollState = rememberScrollState()
+    var listExpanded by remember { mutableStateOf(true) }
 
     CompactCard {
         Column(
@@ -660,6 +664,13 @@ private fun FixedObjectivesSection(
                     )
                 }
 
+                IconButton(onClick = { listExpanded = !listExpanded }, enabled = objectives.isNotEmpty()) {
+                    Text(
+                        if (listExpanded) "⌃" else "⌄",
+                        color = TestarioPrimary,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
                 TextButton(onClick = onAddObjectiveClick) {
                     Text(text = "Añadir")
                 }
@@ -671,27 +682,16 @@ private fun FixedObjectivesSection(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 360.dp)
-                        .verticalScroll(objectiveScrollState)
-                ) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        objectives.forEach { objective ->
-                            FixedObjectiveRow(
-                                objective = objective,
-                                onEditClick = { onEditObjectiveClick(objective) },
-                                onDeleteClick = { onDeleteObjectiveClick(objective) },
-                                onEnabledChange = { enabled ->
-                                    onSetObjectiveEnabled(objective.id, enabled)
-                                }
-                            )
+            } else if (listExpanded) {
+                FourItemDropdown(items = objectives) { _, objective ->
+                    FixedObjectiveRow(
+                        objective = objective,
+                        onEditClick = { onEditObjectiveClick(objective) },
+                        onDeleteClick = { onDeleteObjectiveClick(objective) },
+                        onEnabledChange = { enabled ->
+                            onSetObjectiveEnabled(objective.id, enabled)
                         }
-                    }
+                    )
                 }
             }
 

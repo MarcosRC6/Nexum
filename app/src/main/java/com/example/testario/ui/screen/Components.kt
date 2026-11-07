@@ -47,6 +47,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.example.testario.ui.theme.TestarioNeonSurface
+import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioPrimary
 import com.example.testario.ui.theme.TestarioPrimaryDark
@@ -309,7 +311,6 @@ fun MainBottomNavigation(
         MainBottomNavigationItem(EstudarioIconKind.LIBRARY, "Biblioteca", selected == MainSection.LIBRARY, onLibrary, Modifier.weight(1f))
         MainBottomNavigationItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest, Modifier.weight(1f))
         MainBottomNavigationItem(EstudarioIconKind.PLAN, "Plan", selected == MainSection.PLAN, onPlan, Modifier.weight(1f))
-        MainBottomNavigationItem(EstudarioIconKind.STATS, "Estadísticas", selected == MainSection.STATS, onStats, Modifier.weight(1f))
     }
 }
 
@@ -353,37 +354,22 @@ fun LibrarySectionTabs(
     onGroups: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = modifier,
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
     ) {
-        if (topicsSelected) {
-            androidx.compose.material3.Button(
-                onClick = onTopics,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("Temas") }
-        } else {
-            androidx.compose.material3.OutlinedButton(
-                onClick = onTopics,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("Temas") }
-        }
-
-        if (!topicsSelected) {
-            androidx.compose.material3.Button(
-                onClick = onGroups,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("Grupos") }
-        } else {
-            androidx.compose.material3.OutlinedButton(
-                onClick = onGroups,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(14.dp)
-            ) { Text("Grupos") }
-        }
+        com.example.testario.ui.theme.NeonButton(
+            onClick = onTopics,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(14.dp),
+            selected = topicsSelected
+        ) { Text("Temas") }
+        com.example.testario.ui.theme.NeonButton(
+            onClick = onGroups,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(14.dp),
+            selected = !topicsSelected
+        ) { Text("Grupos") }
     }
 }
 

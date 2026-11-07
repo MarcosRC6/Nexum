@@ -12,16 +12,16 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.example.testario.ui.theme.NeonButton as Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.example.testario.ui.theme.NeonTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -113,21 +113,21 @@ fun UnifiedPlanScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (selectedTab == PlanTab.PLAN) {
-                    Button(onClick = {}, modifier = Modifier.weight(1f)) { Text("Plan") }
-                } else {
-                    OutlinedButton(onClick = { selectedTab = PlanTab.PLAN }, modifier = Modifier.weight(1f)) { Text("Plan") }
-                }
-                if (selectedTab == PlanTab.TIMER) {
-                    Button(onClick = {}, modifier = Modifier.weight(1f)) { Text("Reloj") }
-                } else {
-                    OutlinedButton(onClick = { selectedTab = PlanTab.TIMER }, modifier = Modifier.weight(1f)) { Text("Reloj") }
-                }
-                if (selectedTab == PlanTab.CALENDAR) {
-                    Button(onClick = {}, modifier = Modifier.weight(1f)) { Text("Calendario") }
-                } else {
-                    OutlinedButton(onClick = { selectedTab = PlanTab.CALENDAR }, modifier = Modifier.weight(1f)) { Text("Calendario") }
-                }
+                Button(
+                    onClick = { selectedTab = PlanTab.PLAN },
+                    modifier = Modifier.weight(1f),
+                    selected = selectedTab == PlanTab.PLAN
+                ) { Text("Plan") }
+                Button(
+                    onClick = { selectedTab = PlanTab.TIMER },
+                    modifier = Modifier.weight(1f),
+                    selected = selectedTab == PlanTab.TIMER
+                ) { Text("Reloj") }
+                Button(
+                    onClick = { selectedTab = PlanTab.CALENDAR },
+                    modifier = Modifier.weight(1f),
+                    selected = selectedTab == PlanTab.CALENDAR
+                ) { Text("Calendario") }
             }
 
             if (selectedTab == PlanTab.PLAN) {

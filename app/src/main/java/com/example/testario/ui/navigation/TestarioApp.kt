@@ -292,7 +292,7 @@ fun TestarioApp(
                 StatsScreen(
                     libraryViewModel = libraryViewModel,
                     statsViewModel = statsViewModel,
-                    onBack = { goHome() },
+                    onBack = { goBack() },
                     onHome = { goHome() },
                     onLibrary = { goLibrary() },
                     onCreateTest = { goTest() },
@@ -324,7 +324,8 @@ fun TestarioApp(
                     importExportViewModel = importExportViewModel,
                     statsViewModel = statsViewModel,
                     libraryViewModel = libraryViewModel,
-                    onBack = { goBack() }
+                    onBack = { goBack() },
+                    onStats = { navController.navigate(Routes.STATS) { launchSingleTop = true } }
                 )
             }
 
@@ -337,6 +338,7 @@ fun TestarioApp(
                     statsViewModel = statsViewModel,
                     libraryViewModel = libraryViewModel,
                     onBack = { goBack() },
+                    onStats = { navController.navigate(Routes.STATS) { launchSingleTop = true } },
                     openHomeSettingsInitially = true
                 )
             }

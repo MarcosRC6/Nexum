@@ -15,9 +15,10 @@ android {
         applicationId = "com.example.estudario"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 5
+        versionName = "1.0"
         manifestPlaceholders["nexumAppLabel"] = "@string/app_name"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     // A separate debug-only install for device testing. The release package
@@ -25,9 +26,9 @@ android {
     buildTypes {
         getByName("debug") {
             if (nexumPreviewBuild) {
-                applicationIdSuffix = ".preview"
-                versionNameSuffix = "-preview"
-                manifestPlaceholders["nexumAppLabel"] = "NEXUM Prueba"
+                applicationIdSuffix = ".neon"
+                versionNameSuffix = "-neon-preview"
+                manifestPlaceholders["nexumAppLabel"] = "NEXUM Neón"
             }
         }
     }
@@ -67,4 +68,6 @@ dependencies {
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit.ktx)
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core:1.6.1")
 }

@@ -25,7 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import com.example.testario.ui.theme.NeonButton as Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -33,15 +33,15 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.LinearProgressIndicator
+import com.example.testario.ui.theme.NeonLinearProgressIndicator as LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import com.example.testario.ui.theme.NeonTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -100,6 +100,7 @@ fun SettingsScreen(
     statsViewModel: StatsViewModel,
     libraryViewModel: LibraryViewModel,
     onBack: () -> Unit,
+    onStats: () -> Unit,
     openHomeSettingsInitially: Boolean = false
 ) {
     val context = LocalContext.current
@@ -951,6 +952,32 @@ fun SettingsScreen(
                     }
                 }
 
+                // Statistics lives after Data; the Home quick-access option remains available.
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = TestarioSurface)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("Estadísticas", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                        Text(
+                            "Consulta tu rendimiento, aciertos, errores y progreso de estudio.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TestarioMutedText
+                        )
+                        OutlinedButton(
+                            onClick = onStats,
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text("Abrir estadísticas")
+                        }
+                    }
+                }
+
                 message?.let { Card(Modifier.fillMaxWidth(), RoundedCornerShape(14.dp), CardDefaults.cardColors(containerColor = if(it.startsWith("Error")) TestarioRedDark else TestarioGreenDark)) { Text(it, Modifier.padding(12.dp), color = TestarioText) } }
             }
         }
@@ -1276,6 +1303,6 @@ private fun NotificationTimeField(
     )
 }
 
-@Composable private fun ThemeOption(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, m.height(46.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = if (s) TestarioPrimaryDark else TestarioSurfaceLight, contentColor = TestarioText), border = if (s) BorderStroke(1.dp, TestarioPrimary) else null) { Text(t) }
-@Composable private fun JsonModeButton(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, m.height(46.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = if (s) TestarioPrimaryDark else TestarioSurfaceLight, contentColor = TestarioText), border = if (s) BorderStroke(1.dp, TestarioPrimary) else null) { Text(t) }
-@Composable private fun ScopeButton(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, shape = RoundedCornerShape(10.dp), modifier = m.height(38.dp), colors = ButtonDefaults.buttonColors(containerColor = if (s) TestarioPrimary else TestarioSurfaceLight, contentColor = TestarioText)) { Text(t, style = MaterialTheme.typography.bodySmall) }
+@Composable private fun ThemeOption(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, m.height(46.dp), shape = RoundedCornerShape(12.dp), selected = s) { Text(t) }
+@Composable private fun JsonModeButton(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, m.height(46.dp), shape = RoundedCornerShape(12.dp), selected = s) { Text(t) }
+@Composable private fun ScopeButton(t: String, s: Boolean, m: Modifier, o: () -> Unit) = Button(o, shape = RoundedCornerShape(10.dp), modifier = m.height(38.dp), selected = s) { Text(t, style = MaterialTheme.typography.bodySmall) }

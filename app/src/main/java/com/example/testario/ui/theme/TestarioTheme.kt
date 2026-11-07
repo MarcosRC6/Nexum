@@ -20,6 +20,8 @@ data class TestarioColors(
     val surfaceLight: Color,
     val primary: Color,
     val primaryDark: Color,
+    val neonSurface: Color,
+    val neonSelected: Color,
     val text: Color,
     val mutedText: Color,
     val green: Color,
@@ -35,8 +37,10 @@ private val DarkTestarioColors = TestarioColors(
     background = Color(0xE0080C16),
     surface = Color(0xE6111827),
     surfaceLight = Color(0xD91A2233),
-    primary = Color(0xFFA678FF),
-    primaryDark = Color(0xFF37225F),
+    primary = Color(0xFFC283FF),
+    primaryDark = Color(0xFF352347),
+    neonSurface = Color(0xFF111322),
+    neonSelected = Color(0xFF342046),
     text = Color(0xFFF8F7FC),
     mutedText = Color(0xFF98A4BA),
     green = Color(0xFF61D995),
@@ -52,8 +56,10 @@ private val LightTestarioColors = TestarioColors(
     background = Color(0xEAF4F5FA),
     surface = Color(0xEDFFFFFF),
     surfaceLight = Color(0xE6EDEFF6),
-    primary = Color(0xFF6F42D8),
-    primaryDark = Color(0xFFE9E1FF),
+    primary = Color(0xFF7E39D4),
+    primaryDark = Color(0xFFEEE2FF),
+    neonSurface = Color(0xFFFFFFFF),
+    neonSelected = Color(0xFFF0E5FF),
     text = Color(0xFF151827),
     mutedText = Color(0xFF687188),
     green = Color(0xFF19895A),
@@ -72,6 +78,8 @@ val TestarioSurface: Color @Composable get() = LocalTestarioColors.current.surfa
 val TestarioSurfaceLight: Color @Composable get() = LocalTestarioColors.current.surfaceLight
 val TestarioPrimary: Color @Composable get() = LocalTestarioColors.current.primary
 val TestarioPrimaryDark: Color @Composable get() = LocalTestarioColors.current.primaryDark
+val TestarioNeonSurface: Color @Composable get() = LocalTestarioColors.current.neonSurface
+val TestarioNeonSelected: Color @Composable get() = LocalTestarioColors.current.neonSelected
 val TestarioText: Color @Composable get() = LocalTestarioColors.current.text
 val TestarioMutedText: Color @Composable get() = LocalTestarioColors.current.mutedText
 val TestarioGreen: Color @Composable get() = LocalTestarioColors.current.green
@@ -100,7 +108,7 @@ fun TestarioTheme(
     val materialColors = if (darkTheme) {
         darkColorScheme(
             primary = testarioColors.primary,
-            onPrimary = Color.White,
+            onPrimary = testarioColors.text,
             primaryContainer = testarioColors.primaryDark,
             onPrimaryContainer = testarioColors.text,
             secondary = Color(0xFF70C7FF),
@@ -116,7 +124,7 @@ fun TestarioTheme(
     } else {
         lightColorScheme(
             primary = testarioColors.primary,
-            onPrimary = Color.White,
+            onPrimary = testarioColors.text,
             primaryContainer = testarioColors.primaryDark,
             onPrimaryContainer = testarioColors.text,
             secondary = Color(0xFF2476A8),
