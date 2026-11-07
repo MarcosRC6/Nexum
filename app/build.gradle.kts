@@ -34,6 +34,7 @@ android {
     signingConfigs {
         create("nexumOfficial") {
             if (hasReleaseSigning) {
+                storeType = "PKCS12"
                 storeFile = file(requireNotNull(releaseStoreFile))
                 storePassword = requireNotNull(releaseStorePassword)
                 keyAlias = requireNotNull(releaseKeyAlias)
