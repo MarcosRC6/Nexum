@@ -144,7 +144,10 @@ object NexumUpdateManager {
             .setDescription("Actualización oficial firmada")
             .setMimeType("application/vnd.android.package-archive")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalFilesDir(context, Environment.DIRECTORY_DOWNLOADS, release.apkName)
+            .setDestinationInExternalFilesDir(
+                context, Environment.DIRECTORY_DOWNLOADS,
+                "NEXUM-${release.version}-${System.currentTimeMillis()}.apk"
+            )
         return manager.enqueue(request)
     }
 
@@ -176,7 +179,7 @@ object NexumUpdateManager {
                     actual.update(buffer, 0, read)
                 }
             } ?: return@withContext false
-            actual.digest().joinToString("") { "%02x".format(it) } == expected
+            actual.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) } == expected
         }
 
     /** Android still requires user approval for APK installation. */
