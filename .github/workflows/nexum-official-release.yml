@@ -1,6 +1,18 @@
 name: NEXUM - APK oficial firmada
 
 on:
+  # A merge into main builds a signed APK artifact, but never publishes a release.
+  # The public GitHub Release still requires an explicit manual selection.
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'settings.gradle.kts'
+      - 'build.gradle.kts'
+      - '.github/workflows/nexum-official-release.yml'
   workflow_dispatch:
     inputs:
       publish_release:
@@ -18,7 +30,7 @@ concurrency:
 
 jobs:
   signed-apk:
-    # Only a deliberate manual run of the official main branch may access signing secrets.
+    # Only main is trusted to access signing secrets. Pushes build artifacts; manual runs may publish.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 35
