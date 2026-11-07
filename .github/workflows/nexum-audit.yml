@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/home-daily-objective-test-launch-20261108
       - feature/nexum-1-1-updater-objective-tests-20261107
       - feature/nexum-official-signing-20261107
       - feature/neon-ui-light-dark-20261106
