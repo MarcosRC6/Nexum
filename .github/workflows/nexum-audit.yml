@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/nexum-1-1-updater-objective-tests-20261107
       - feature/nexum-official-signing-20261107
       - feature/neon-ui-light-dark-20261106
       - fix/home-ux-20261105
@@ -58,6 +59,9 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 14
           if-no-files-found: error
+
+      - name: Validate production release compilation
+        run: ./gradlew assembleRelease --stacktrace
 
       - name: Lint
         run: ./gradlew lintDebug --stacktrace
