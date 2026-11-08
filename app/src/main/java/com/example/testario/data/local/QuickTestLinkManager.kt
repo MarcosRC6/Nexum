@@ -7,7 +7,8 @@ import org.json.JSONObject
 data class QuickTestLink(
     val planTopicId: String,
     val libraryTopicIds: Set<String> = emptySet(),
-    val questionCount: Int = 25
+    val questionCount: Int = 25,
+    val templateId: String? = null
 )
 
 class QuickTestLinkManager(context: Context) {
@@ -38,6 +39,7 @@ class QuickTestLinkManager(context: Context) {
                 put("planTopicId", link.planTopicId)
                 put("libraryTopicIds", JSONArray(link.libraryTopicIds.toList()))
                 put("questionCount", link.questionCount)
+                link.templateId?.let { put("templateId", it) }
             })
         }
         root.put("links", array)
@@ -63,7 +65,9 @@ class QuickTestLinkManager(context: Context) {
             map[planTopicId] = QuickTestLink(
                 planTopicId = planTopicId,
                 libraryTopicIds = ids,
-                questionCount = item.optInt("questionCount", 25).coerceIn(1, 500)
+                questionCount = item.optInt("questionCount", 25).coerceIn(1, 500),
+                    templateId = if (item.isNull("templateId")) null
+                    else item.optString("templateId").trim().takeIf { it.isNotEmpty() }
             )
         }
         persist(map)
@@ -101,7 +105,9 @@ class QuickTestLinkManager(context: Context) {
                 map[planTopicId] = QuickTestLink(
                     planTopicId = planTopicId,
                     libraryTopicIds = ids,
-                    questionCount = item.optInt("questionCount", 25).coerceIn(1, 500)
+                    questionCount = item.optInt("questionCount", 25).coerceIn(1, 500),
+                    templateId = if (item.isNull("templateId")) null
+                    else item.optString("templateId").trim().takeIf { it.isNotEmpty() }
                 )
             }
             map
@@ -116,6 +122,7 @@ class QuickTestLinkManager(context: Context) {
                 put("planTopicId", link.planTopicId)
                 put("libraryTopicIds", JSONArray(link.libraryTopicIds.toList()))
                 put("questionCount", link.questionCount)
+                link.templateId?.let { put("templateId", it) }
             })
         }
         root.put("links", array)
