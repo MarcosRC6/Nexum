@@ -339,7 +339,7 @@ fun HomeScreen(
                                                         },
                                                         modifier = Modifier.padding(start = 40.dp)
                                                     ) {
-                                                        Text("Iniciar test · ${objective.linkedTestQuestionCount} preguntas")
+                                                        Text("Iniciar test")
                                                     }
                                                 }
                                             }
