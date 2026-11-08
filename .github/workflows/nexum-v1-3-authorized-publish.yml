@@ -11,7 +11,7 @@ on:
       - 'app/build.gradle.kts'
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 jobs:
@@ -41,10 +41,35 @@ jobs:
             echo "Release v1.3 already exists; refusing duplicate publication."
             exit 1
           fi
-          if git ls-remote --tags origin refs/tags/v1.3 | grep -q .; then
-            echo "Tag v1.3 already exists; refusing tag reuse."
+          # A pre-release annotated tag was created on 2026-11-05 and
+          # still points to the first project commit, not to a signed release.
+          # Verify both immutable object IDs before modifying its ref.
+          STALE_TAG_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v1.3" --jq .object.sha)"
+          test "$STALE_TAG_SHA" = "25a988a15861a1fb9d9b366ae2e5cd184facca43"
+          STALE_TARGET="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$STALE_TAG_SHA" --jq .object.sha)"
+          test "$STALE_TARGET" = "54de7eedd424c75d65b71b77646797cb514122ef"
+
+      - name: Preserve historical v1.3 placeholder tag, then free release name
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          LEGACY_REF="refs/tags/legacy-v1.3-initial-20261105"
+          OLD_TAG_OBJECT="25a988a15861a1fb9d9b366ae2e5cd184facca43"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/legacy-v1.3-initial-20261105" >/dev/null 2>&1; then
+            test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/legacy-v1.3-initial-20261105" --jq .object.sha)" = "$OLD_TAG_OBJECT"
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="$LEGACY_REF" \
+              -f sha="$OLD_TAG_OBJECT" >/dev/null
+          fi
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v1.3" --jq .object.sha)" = "$OLD_TAG_OBJECT"
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/v1.3"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v1.3" >/dev/null 2>&1; then
+            echo "Could not safely release the stale v1.3 tag."
             exit 1
           fi
+          echo "Archived the original historical tag; v1.3 now available for official publication."
 
       - name: Request existing official signing and release workflow
         env:
