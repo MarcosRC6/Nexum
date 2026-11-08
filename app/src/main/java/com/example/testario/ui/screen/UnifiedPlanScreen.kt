@@ -151,15 +151,13 @@ fun UnifiedPlanScreen(
                         ) {
                             Text("Test rápido", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                             Text(
-                                if (linkedTopics.isEmpty()) {
+                                if (link.templateId != null) {
+                                    val name = database.testTemplates.firstOrNull { it.id == link.templateId }?.name
+                                    "Plantilla: ${name ?: "No disponible"}"
+                                } else if (linkedTopics.isEmpty()) {
                                     "Vincula uno o varios bancos de Biblioteca a ${active.name}."
                                 } else {
-                                    if (link.templateId != null) {
-                                        val name = database.testTemplates.firstOrNull { it.id == link.templateId }?.name
-                                        "Plantilla: ${name ?: "No disponible"}"
-                                    } else {
-                                        "${link.questionCount} preguntas · Examen · ${linkedTopics.joinToString { it.name }}"
-                                    }
+                                    "${link.questionCount} preguntas · Examen · ${linkedTopics.joinToString { it.name }}"
                                 },
                                 color = TestarioMutedText,
                                 style = MaterialTheme.typography.bodySmall
@@ -259,7 +257,7 @@ internal fun QuickTestLinkDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Elige los bancos de preguntas relacionados. Esto no limita los tests normales.",
+                    "Elige una plantilla guardada o configura manualmente un test rápido.",
                     color = TestarioMutedText,
                     style = MaterialTheme.typography.bodySmall
                 )
