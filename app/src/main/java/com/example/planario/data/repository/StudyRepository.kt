@@ -282,7 +282,7 @@ class StudyRepository(
         refreshDay(LocalDate.now())
     }
 
-    fun addFixedObjective(name: String, targetMinutes: Int, linkedTestTopicIds: Set<String> = emptySet(), linkedTestQuestionCount: Int = 25) {
+    fun addFixedObjective(name: String, targetMinutes: Int, linkedTestTopicIds: Set<String> = emptySet(), linkedTestQuestionCount: Int = 25, linkedTestTemplateId: String? = null) {
         val cleanName = name.trim()
         if (cleanName.isBlank()) return
         if (targetMinutes <= 0) return
@@ -296,7 +296,8 @@ class StudyRepository(
             isEnabled = true,
             order = nextOrder,
             linkedTestTopicIds = linkedTestTopicIds,
-            linkedTestQuestionCount = linkedTestQuestionCount.coerceIn(1, 500)
+            linkedTestQuestionCount = linkedTestQuestionCount.coerceIn(1, 500),
+            linkedTestTemplateId = linkedTestTemplateId
         )
 
         _fixedObjectives.value = currentObjectives + newObjective
@@ -308,7 +309,8 @@ class StudyRepository(
         name: String,
         targetMinutes: Int,
         linkedTestTopicIds: Set<String>? = null,
-        linkedTestQuestionCount: Int? = null
+        linkedTestQuestionCount: Int? = null,
+        linkedTestTemplateId: String? = null
     ) {
         val cleanName = name.trim()
         if (cleanName.isBlank()) return
@@ -320,7 +322,10 @@ class StudyRepository(
                     name = cleanName,
                     targetMinutes = targetMinutes,
                     linkedTestTopicIds = linkedTestTopicIds ?: objective.linkedTestTopicIds,
-                    linkedTestQuestionCount = (linkedTestQuestionCount ?: objective.linkedTestQuestionCount).coerceIn(1, 500)
+                    linkedTestQuestionCount = (linkedTestQuestionCount ?: objective.linkedTestQuestionCount).coerceIn(1, 500),
+                    // A full link update can explicitly clear the selected template.
+                    linkedTestTemplateId = if (linkedTestTopicIds != null || linkedTestQuestionCount != null)
+                        linkedTestTemplateId else objective.linkedTestTemplateId
                 )
             } else {
                 objective

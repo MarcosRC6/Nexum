@@ -12,6 +12,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
+import com.example.testario.domain.QuickTestLaunchResolver
+import com.example.testario.domain.QuickTestLaunchResult
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.testario.update.NexumRelease
 import com.example.testario.update.NexumUpdateManager
@@ -129,6 +132,19 @@ fun TestarioApp(
         navController.navigate(Routes.SETTINGS_HOME) { launchSingleTop = true }
     }
 
+    fun launchLinkedQuickTest(topicIds: List<String>, count: Int, templateId: String?) {
+        when (val result = QuickTestLaunchResolver.resolve(
+            libraryViewModel.database.value, topicIds, count, templateId
+        )) {
+            is QuickTestLaunchResult.Ready -> {
+                sessionViewModel.start(result.topics, result.config)
+                navController.navigate(Routes.TEST_SCREEN)
+            }
+            is QuickTestLaunchResult.Invalid ->
+                Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
+        }
+    }
+
     LaunchedEffect(Unit) {
         val context = libraryViewModel.getApplication<android.app.Application>().applicationContext
         PlanarioDependencies.init(context)
@@ -183,20 +199,8 @@ fun TestarioApp(
                     onCreateTest = { goTest() },
                     onPlan = { goPlan() },
                     onOpenTimer = { goPlan("timer") },
-                    onStartQuickTest = { topicIds, count ->
-                        val topics = libraryViewModel.database.value.topics.filter { it.id in topicIds }
-                        sessionViewModel.start(
-                            topics,
-                            TestConfig(
-                                mode = TestMode.EXAM,
-                                topicIds = topicIds,
-                                questionCount = count,
-                                difficulties = emptySet(),
-                                difficultyFilterEnabled = false,
-                                timerEnabled = false
-                            )
-                        )
-                        navController.navigate(Routes.TEST_SCREEN)
+                    onStartQuickTest = { topicIds, count, templateId ->
+                        launchLinkedQuickTest(topicIds, count, templateId)
                     },
                     onOpenTemplate = { templateId -> navController.navigate(Routes.testConfig(templateId = templateId)) },
                     onStats = { goStats() },
@@ -293,20 +297,8 @@ fun TestarioApp(
                     onTest = { goTest() },
                     onStats = { goStats() },
                     onSettings = { goSettings() },
-                    onStartQuickTest = { topicIds, count ->
-                        val topics = libraryViewModel.database.value.topics.filter { it.id in topicIds }
-                        sessionViewModel.start(
-                            topics,
-                            TestConfig(
-                                mode = TestMode.EXAM,
-                                topicIds = topicIds,
-                                questionCount = count,
-                                difficulties = emptySet(),
-                                difficultyFilterEnabled = false,
-                                timerEnabled = false
-                            )
-                        )
-                        navController.navigate(Routes.TEST_SCREEN)
+                    onStartQuickTest = { topicIds, count, templateId ->
+                        launchLinkedQuickTest(topicIds, count, templateId)
                     }
                 )
             }

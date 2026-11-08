@@ -16,6 +16,8 @@ import com.example.testario.ui.theme.NeonButton as Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -44,6 +46,7 @@ import com.example.planario.features.plan.PlanScreen
 import com.example.planario.features.timer.TimerScreen
 import com.example.testario.data.local.QuickTestLinkManager
 import com.example.testario.data.model.Topic
+import com.example.testario.data.model.TestTemplate
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioMutedText
 import com.example.testario.ui.theme.TestarioPrimary
@@ -62,7 +65,7 @@ fun UnifiedPlanScreen(
     onTest: () -> Unit,
     onStats: () -> Unit,
     onSettings: () -> Unit,
-    onStartQuickTest: (List<String>, Int) -> Unit
+    onStartQuickTest: (List<String>, Int, String?) -> Unit
 ) {
     val context = LocalContext.current
     val database by libraryViewModel.database.collectAsState()
@@ -148,7 +151,10 @@ fun UnifiedPlanScreen(
                         ) {
                             Text("Test rápido", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                             Text(
-                                if (linkedTopics.isEmpty()) {
+                                if (link.templateId != null) {
+                                    val name = database.testTemplates.firstOrNull { it.id == link.templateId }?.name
+                                    "Plantilla: ${name ?: "No disponible"}"
+                                } else if (linkedTopics.isEmpty()) {
                                     "Vincula uno o varios bancos de Biblioteca a ${active.name}."
                                 } else {
                                     "${link.questionCount} preguntas · Examen · ${linkedTopics.joinToString { it.name }}"
@@ -163,11 +169,11 @@ fun UnifiedPlanScreen(
                                 ) { Text(if (linkedTopics.isEmpty()) "Vincular" else "Configurar") }
                                 Button(
                                     onClick = {
-                                        if (link.libraryTopicIds.isNotEmpty()) {
-                                            onStartQuickTest(link.libraryTopicIds.toList(), link.questionCount)
+                                        if (link.libraryTopicIds.isNotEmpty() || link.templateId != null) {
+                                            onStartQuickTest(link.libraryTopicIds.toList(), link.questionCount, link.templateId)
                                         }
                                     },
-                                    enabled = link.libraryTopicIds.isNotEmpty(),
+                                    enabled = link.libraryTopicIds.isNotEmpty() || link.templateId != null,
                                     modifier = Modifier.weight(1f)
                                 ) { Text("Iniciar") }
                             }
@@ -179,6 +185,7 @@ fun UnifiedPlanScreen(
                 Column(Modifier.weight(1f)) {
                     PlanScreen(
                         libraryTopics = database.topics,
+                        libraryTemplates = database.testTemplates,
                         onStartLinkedTest = onStartQuickTest
                     )
                 }
@@ -200,15 +207,18 @@ fun UnifiedPlanScreen(
             QuickTestLinkDialog(
                 planTopicName = active.name,
                 libraryTopics = database.topics,
+                testTemplates = database.testTemplates,
                 initialSelectedIds = linkManager.get(active.id).libraryTopicIds,
                 initialQuestionCount = linkManager.get(active.id).questionCount,
+                initialTemplateId = linkManager.get(active.id).templateId,
                 onDismiss = { showLinkDialog = false },
-                onSave = { selectedIds, count ->
+                onSave = { selectedIds, count, templateId ->
                     linkManager.save(
                         com.example.testario.data.local.QuickTestLink(
                             planTopicId = active.id,
                             libraryTopicIds = selectedIds,
-                            questionCount = count
+                            questionCount = count,
+                            templateId = templateId
                         )
                     )
                     showLinkDialog = false
@@ -222,14 +232,19 @@ fun UnifiedPlanScreen(
 internal fun QuickTestLinkDialog(
     planTopicName: String,
     libraryTopics: List<Topic>,
+    testTemplates: List<TestTemplate>,
     initialSelectedIds: Set<String>,
     initialQuestionCount: Int,
+    initialTemplateId: String?,
     onDismiss: () -> Unit,
-    onSave: (Set<String>, Int) -> Unit
+    onSave: (Set<String>, Int, String?) -> Unit
 ) {
     var selectedIds by remember { mutableStateOf(initialSelectedIds) }
     var countText by remember { mutableStateOf(initialQuestionCount.toString()) }
     var searchText by remember { mutableStateOf("") }
+    var selectedTemplateId by remember { mutableStateOf(initialTemplateId) }
+    var templateMenuExpanded by remember { mutableStateOf(false) }
+    val selectedTemplate = testTemplates.firstOrNull { it.id == selectedTemplateId }
     val visibleTopics = remember(libraryTopics, searchText) {
         val query = searchText.trim()
         if (query.isBlank()) libraryTopics
@@ -242,10 +257,38 @@ internal fun QuickTestLinkDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    "Elige los bancos de preguntas relacionados. Esto no limita los tests normales.",
+                    "Elige una plantilla guardada o configura manualmente un test rápido.",
                     color = TestarioMutedText,
                     style = MaterialTheme.typography.bodySmall
                 )
+                OutlinedButton(onClick = { templateMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(selectedTemplate?.let { "Plantilla: ${it.name}" }
+                        ?: if (selectedTemplateId != null) "Plantilla no disponible" else "Sin plantilla · Test rápido")
+                }
+                DropdownMenu(
+                    expanded = templateMenuExpanded,
+                    onDismissRequest = { templateMenuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Sin plantilla · Elegir temas y preguntas") },
+                        onClick = { selectedTemplateId = null; templateMenuExpanded = false }
+                    )
+                    testTemplates.sortedBy { it.name.lowercase() }.forEach { template ->
+                        DropdownMenuItem(
+                            text = { Text(template.name) },
+                            onClick = { selectedTemplateId = template.id; templateMenuExpanded = false }
+                        )
+                    }
+                }
+                if (selectedTemplateId != null) {
+                    Text(
+                        if (selectedTemplate == null)
+                            "Esta plantilla ya no existe. Elige otra o desactiva la plantilla."
+                        else "Se aplicará toda la configuración guardada: temas, cantidad, modo, dificultad, puntuación y temporizador.",
+                        color = TestarioMutedText,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                } else {
                 OutlinedTextField(
                     value = countText,
                     onValueChange = { value -> countText = value.filter { it.isDigit() }.take(3) },
@@ -289,12 +332,14 @@ internal fun QuickTestLinkDialog(
                         }
                     }
                 }
+                }
             }
         },
         confirmButton = {
             Button(
+                enabled = selectedTemplateId == null || selectedTemplate != null,
                 onClick = {
-                    onSave(selectedIds, (countText.toIntOrNull() ?: 25).coerceIn(1, 500))
+                    onSave(selectedIds, (countText.toIntOrNull() ?: 25).coerceIn(1, 500), selectedTemplateId)
                 }
             ) { Text("Guardar") }
         },

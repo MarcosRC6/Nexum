@@ -10,5 +10,6 @@ data class FixedObjective(
     val order: Int = 0,
     // Bank IDs are stable across app restarts and included in Planario backups.
     val linkedTestTopicIds: Set<String> = emptySet(),
-    val linkedTestQuestionCount: Int = 25
+    val linkedTestQuestionCount: Int = 25,
+    val linkedTestTemplateId: String? = null
 )
