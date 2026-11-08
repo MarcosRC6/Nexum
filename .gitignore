@@ -1,4 +1,4 @@
-﻿*.iml
+*.iml
 .gradle
 /local.properties
 /.idea
@@ -14,3 +14,34 @@
 *.keystore
 *.p12
 *.pfx
+
+# Defense in depth: local secrets, credential stores and signing material.
+*.pem
+*.key
+*.asc
+*.gpg
+*.kdbx
+.env
+.env.*
+!.env.example
+.npmrc
+.pypirc
+**/local.properties
+**/google-services.json
+**/service-account.json
+**/credentials.json
+**/secrets.json
+**/id_rsa
+**/id_ed25519
+.secrets/
+**/.secrets/
+*.sqlite
+*.sqlite3
+*.db
+*.bak
+*.7z
+*.rar
+
+# Generated app packages and private/local archives are never source files.
+*.apk
+*.zip
