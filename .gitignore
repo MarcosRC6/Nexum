@@ -14,3 +14,32 @@
 *.keystore
 *.p12
 *.pfx
+
+# Protect signing keys and local development credentials.
+*.pem
+*.key
+*.asc
+*.der
+*.cer
+*.crt
+.env
+.env.*
+*.env
+*.env.*
+*credentials*.json
+*service-account*.json
+*secrets*.properties
+signing.properties
+keystore.properties
+
+# User exports, crash logs and generated installable binaries.
+*.apk
+*.aab
+*.zip
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+*.log
+*.hprof
+*.jfr

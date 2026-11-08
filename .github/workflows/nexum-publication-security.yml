@@ -1,0 +1,27 @@
+name: NEXUM - publication security gate
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exposure-audit:
+    name: Scan current files and history for accidental credentials
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout complete history for sensitive data inspection
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run read-only publication safety gate
+        run: python3 scripts/check_publication_safety.py
