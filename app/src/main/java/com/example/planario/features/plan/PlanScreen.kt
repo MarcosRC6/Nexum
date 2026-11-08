@@ -60,7 +60,7 @@ import kotlinx.coroutines.launch
 fun PlanScreen(
     libraryTopics: List<Topic> = emptyList(),
     libraryTemplates: List<TestTemplate> = emptyList(),
-    onStartLinkedTest: (List<String>, Int, String?) -> Unit = { _, _ -> },
+    onStartLinkedTest: (List<String>, Int, String?) -> Unit = { _, _, _ -> },
     viewModel: PlanViewModel = viewModel(factory = PlanViewModel.factory())
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -1099,6 +1099,7 @@ private fun AddOrEditFixedObjectiveDialog(
     initialName: String,
     initialMinutes: Int,
     libraryTopics: List<Topic>,
+    libraryTemplates: List<TestTemplate>,
     initialLinkedTopicIds: Set<String>,
     initialQuestionCount: Int,
     initialTemplateId: String?,
