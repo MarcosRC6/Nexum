@@ -25,3 +25,5 @@ jobs:
           persist-credentials: false
       - name: Run read-only publication safety gate
         run: python3 scripts/check_publication_safety.py
+      - name: Check tracked binary image metadata for private information
+        run: python3 scripts/check_asset_metadata.py
