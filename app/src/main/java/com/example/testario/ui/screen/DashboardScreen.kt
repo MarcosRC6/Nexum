@@ -300,31 +300,48 @@ fun HomeScreen(
                                         if (homeObjectivesExpanded) {
                                         FourItemDropdown(items = studyState.fixedObjectives, rowSpacing = 4.dp) { _, objective ->
                                             val checked = studyState.isFixedObjectiveCompleted(objective.id)
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(RoundedCornerShape(12.dp))
-                                                    .clickable { studyViewModel.toggleFixedObjectiveCompleted(objective.id) }
-                                                    .padding(vertical = 6.dp, horizontal = 2.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Checkbox(
-                                                    checked = checked,
-                                                    onCheckedChange = null
-                                                )
-                                                Spacer(Modifier.width(4.dp))
-                                                Text(
-                                                    text = objective.name,
-                                                    color = TestarioText,
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    modifier = Modifier.weight(1f)
-                                                )
-                                                Spacer(Modifier.width(12.dp))
-                                                Text(
-                                                    text = "${objective.targetMinutes} min",
-                                                    color = TestarioMutedText,
-                                                    style = MaterialTheme.typography.bodyMedium
-                                                )
+                                            // Use the same saved objective links as the Plan screen; do not
+                                            // create a separate association or alter completion behavior.
+                                            val linkedTopicIds = database.topics
+                                                .filter { it.id in objective.linkedTestTopicIds && it.questions.isNotEmpty() }
+                                                .map { it.id }
+                                            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .clickable { studyViewModel.toggleFixedObjectiveCompleted(objective.id) }
+                                                        .padding(vertical = 6.dp, horizontal = 2.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Checkbox(
+                                                        checked = checked,
+                                                        onCheckedChange = null
+                                                    )
+                                                    Spacer(Modifier.width(4.dp))
+                                                    Text(
+                                                        text = objective.name,
+                                                        color = TestarioText,
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    Spacer(Modifier.width(12.dp))
+                                                    Text(
+                                                        text = "${objective.targetMinutes} min",
+                                                        color = TestarioMutedText,
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
+                                                }
+                                                if (linkedTopicIds.isNotEmpty()) {
+                                                    TextButton(
+                                                        onClick = {
+                                                            onStartQuickTest(linkedTopicIds, objective.linkedTestQuestionCount)
+                                                        },
+                                                        modifier = Modifier.padding(start = 40.dp)
+                                                    ) {
+                                                        Text("Iniciar test · ${objective.linkedTestQuestionCount} preguntas")
+                                                    }
+                                                }
                                             }
                                         }
                                         }
