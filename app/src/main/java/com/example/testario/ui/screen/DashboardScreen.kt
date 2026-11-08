@@ -90,7 +90,7 @@ fun HomeScreen(
     onCreateTest: () -> Unit,
     onPlan: () -> Unit,
     onOpenTimer: () -> Unit,
-    onStartQuickTest: (List<String>, Int) -> Unit,
+    onStartQuickTest: (List<String>, Int, String?) -> Unit,
     onOpenTemplate: (String) -> Unit,
     onStats: () -> Unit,
     onSettings: () -> Unit,
@@ -332,10 +332,10 @@ fun HomeScreen(
                                                         style = MaterialTheme.typography.bodyMedium
                                                     )
                                                 }
-                                                if (linkedTopicIds.isNotEmpty()) {
+                                                if (linkedTopicIds.isNotEmpty() || objective.linkedTestTemplateId != null) {
                                                     TextButton(
                                                         onClick = {
-                                                            onStartQuickTest(linkedTopicIds, objective.linkedTestQuestionCount)
+                                                            onStartQuickTest(linkedTopicIds, objective.linkedTestQuestionCount, objective.linkedTestTemplateId)
                                                         },
                                                         modifier = Modifier.padding(start = 40.dp)
                                                     ) {
@@ -374,15 +374,15 @@ fun HomeScreen(
                                             Button(
                                                 onClick = {
                                                     val link = activeQuickLink
-                                                    if (link != null && activeLinkedTopics.isNotEmpty()) {
-                                                        onStartQuickTest(activeLinkedTopics, link.questionCount)
+                                                    if (link != null && (activeLinkedTopics.isNotEmpty() || link.templateId != null)) {
+                                                        onStartQuickTest(activeLinkedTopics, link.questionCount, link.templateId)
                                                     } else {
                                                         onPlan()
                                                     }
                                                 },
                                                 modifier = Modifier.weight(1f)
                                             ) {
-                                                Text(if (activeLinkedTopics.isEmpty()) "Vincular test" else "Test rápido")
+                                                Text(if (activeLinkedTopics.isEmpty() && activeQuickLink?.templateId == null) "Vincular test" else "Test rápido")
                                             }
                                         }
                                         }
