@@ -302,6 +302,7 @@ private fun fixedObjectivesToJsonArray(objectives: List<FixedObjective>): JSONAr
                 put("order", objective.order)
                 put("linkedTestTopicIds", JSONArray(objective.linkedTestTopicIds.toList()))
                 put("linkedTestQuestionCount", objective.linkedTestQuestionCount.coerceIn(1, 500))
+                objective.linkedTestTemplateId?.let { put("linkedTestTemplateId", it) }
             }
         )
     }
@@ -338,7 +339,9 @@ private fun jsonArrayToFixedObjectives(array: JSONArray?): List<FixedObjective> 
                         }
                     }
                 },
-                linkedTestQuestionCount = item.optInt("linkedTestQuestionCount", 25).coerceIn(1, 500)
+                linkedTestQuestionCount = item.optInt("linkedTestQuestionCount", 25).coerceIn(1, 500),
+                linkedTestTemplateId = if (item.isNull("linkedTestTemplateId")) null
+                else item.optString("linkedTestTemplateId").trim().takeIf { it.isNotEmpty() }
             )
         )
     }
