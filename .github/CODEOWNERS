@@ -1,0 +1,4 @@
+# Ownership of all source, build configuration, and official release workflows.
+* @MarcosRC6
+.github/workflows/ @MarcosRC6
+scripts/check_publication_safety.py @MarcosRC6
