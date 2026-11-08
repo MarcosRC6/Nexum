@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: nexum-audit-final-v2
+  group: nexum-audit-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
