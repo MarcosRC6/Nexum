@@ -1,0 +1,27 @@
+name: NEXUM security preflight
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publication-preflight:
+    name: publication-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check tracked files for accidental secret exposure
+        run: python3 scripts/check_publication_safety.py
