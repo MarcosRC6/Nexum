@@ -11,6 +11,9 @@ on:
       - fix/home-ux-20261105
       - audit/nexum-final-20261106
       - feature/neon-ui-light-dark-20261106
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
