@@ -80,7 +80,7 @@ kotlin {
 dependencies {
 
     implementation("androidx.core:core-ktx:1.15.0")
-    implementation("com.google.android.gms:play-services-nearby:19.5.1")
+    implementation("com.google.android.gms:play-services-nearby:19.3.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation(platform("androidx.compose:compose-bom:2025.12.00"))
 
