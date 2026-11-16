@@ -146,6 +146,7 @@ fun SettingsScreen(
     var showStudySettings by remember { mutableStateOf(false) }
     var showDataOptions by remember { mutableStateOf(false) }
     var showTutorial by remember { mutableStateOf(false) }
+    var showNearbySync by remember { mutableStateOf(false) }
     var showExportOptions by remember { mutableStateOf(false) }
     var exportTarget by remember { mutableStateOf<ExportTarget?>(null) }
     var pendingUnifiedBytes by remember { mutableStateOf<ByteArray?>(null) }
@@ -841,9 +842,6 @@ fun SettingsScreen(
                                     shape = RoundedCornerShape(16.dp)
                                 ) { Text("Importar") }
 
-                                NexumDeviceSyncPanel()
-
-
                                 OutlinedButton(
                                     onClick = {
                                         showExportOptions = !showExportOptions
@@ -950,6 +948,28 @@ fun SettingsScreen(
 
                                         }
                                     }
+                                }
+
+                                OutlinedButton(
+                                    onClick = { showNearbySync = !showNearbySync },
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    border = BorderStroke(1.dp, TestarioPrimary)
+                                ) {
+                                    Text(
+                                        if (showNearbySync) "Cerrar transferencia" else "Sincronizar dispositivos",
+                                        color = TestarioPrimary
+                                    )
+                                }
+                                Text(
+                                    "Transferencia inalámbrica entre dos NEXUM cercanos. Enviar comparte " +
+                                        "la copia completa; Recibir la sustituye solo tras verificar el código " +
+                                        "y confirmar, guardando antes una copia de recuperación.",
+                                    color = TestarioMutedText,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                AnimatedVisibility(showNearbySync) {
+                                    NexumNearbySyncPanel()
                                 }
 
                                 Text(
