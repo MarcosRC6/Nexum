@@ -471,7 +471,7 @@ private fun TopicQueueSection(
                     )
                 }
 
-                IconButton(onClick = { listExpanded = !listExpanded }, enabled = topics.isNotEmpty()) {
+                IconButton(onClick = { listExpanded = !listExpanded }) {
                     Text(if (listExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                 }
                 TextButton(onClick = onAddTopicClick) {
@@ -479,7 +479,7 @@ private fun TopicQueueSection(
                 }
             }
 
-            if (topics.isEmpty()) {
+            if (listExpanded && topics.isEmpty()) {
                 Text(
                     text = "Añade temas poco a poco. No hace falta cargar todo el temario desde el principio.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -502,7 +502,8 @@ private fun TopicQueueSection(
                 }
             }
 
-            ExpandableHelp(
+            if (listExpanded) {
+                ExpandableHelp(
                 title = "💡 ¿Qué es?",
                 expanded = helpExpanded,
                 onClick = { helpExpanded = !helpExpanded }
@@ -512,6 +513,7 @@ private fun TopicQueueSection(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                }
             }
         }
     }
@@ -713,7 +715,7 @@ private fun FixedObjectivesSection(
                     )
                 }
 
-                IconButton(onClick = { listExpanded = !listExpanded }, enabled = objectives.isNotEmpty()) {
+                IconButton(onClick = { listExpanded = !listExpanded }) {
                     Text(
                         if (listExpanded) "⌃" else "⌄",
                         color = TestarioPrimary,
@@ -725,7 +727,7 @@ private fun FixedObjectivesSection(
                 }
             }
 
-            if (objectives.isEmpty()) {
+            if (listExpanded && objectives.isEmpty()) {
                 Text(
                     text = "Crea cualquier objetivo fijo: callejero, test, legislación, academia o lo que necesites.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -747,7 +749,8 @@ private fun FixedObjectivesSection(
                 }
             }
 
-            ExpandableHelp(
+            if (listExpanded) {
+                ExpandableHelp(
                 title = "💡 ¿Qué es?",
                 expanded = helpExpanded,
                 onClick = { helpExpanded = !helpExpanded }
@@ -757,6 +760,7 @@ private fun FixedObjectivesSection(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                }
             }
         }
     }
