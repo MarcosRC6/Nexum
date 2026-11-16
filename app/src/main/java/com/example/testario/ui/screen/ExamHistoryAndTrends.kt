@@ -216,6 +216,9 @@ private fun PerformanceTrends(database: TestarioDatabase) {
 
 @Composable
 private fun TrendLineGraph(values: List<TrendSeriesPoint>) {
+    // Read theme colors in the composable scope; Canvas's DrawScope isn't composable.
+    val primary = TestarioPrimary
+    val grid = TestarioSurfaceLight
     Canvas(modifier = Modifier.fillMaxWidth().height(160.dp)) {
         val left = 8.dp.toPx()
         val right = size.width - 8.dp.toPx()
@@ -223,7 +226,7 @@ private fun TrendLineGraph(values: List<TrendSeriesPoint>) {
         val bottom = size.height - 12.dp.toPx()
         for (percent in listOf(0, 50, 100)) {
             val y = bottom - (bottom - top) * percent / 100f
-            drawLine(TestarioSurfaceLight, androidx.compose.ui.geometry.Offset(left, y), androidx.compose.ui.geometry.Offset(right, y), strokeWidth = 1.dp.toPx())
+            drawLine(grid, androidx.compose.ui.geometry.Offset(left, y), androidx.compose.ui.geometry.Offset(right, y), strokeWidth = 1.dp.toPx())
         }
         val points = values.mapIndexed { index, item ->
             val x = if (values.size == 1) (left + right) / 2f
@@ -236,9 +239,9 @@ private fun TrendLineGraph(values: List<TrendSeriesPoint>) {
                 moveTo(points.first().x, points.first().y)
                 points.drop(1).forEach { lineTo(it.x, it.y) }
             }
-            drawPath(path, TestarioPrimary, style = Stroke(width = 2.5.dp.toPx()))
+            drawPath(path, primary, style = Stroke(width = 2.5.dp.toPx()))
         }
-        points.forEach { drawCircle(TestarioPrimary, radius = 3.5.dp.toPx(), center = it) }
+        points.forEach { drawCircle(primary, radius = 3.5.dp.toPx(), center = it) }
     }
 }
 
