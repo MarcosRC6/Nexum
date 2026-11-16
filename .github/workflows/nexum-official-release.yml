@@ -125,20 +125,19 @@ jobs:
           El APK está firmado con la clave permanente de NEXUM y se puede
           instalar encima de la versión oficial anterior conservando los datos.
 
-          Novedades de NEXUM 1.5:
-          - Sincronizar dispositivos de forma inalambrica mediante Enviar/Recibir
-            (Nearby Connections), sin cuentas de nube ni intercambio manual de ZIP.
-          - Emparejamiento confirmado por codigo en ambos dispositivos.
-          - Transferencia de copia completa con comprobacion de integridad,
-            confirmacion antes de sobrescribir y recuperacion preventiva local.
-          - Tutorial de primera apertura, omisible y disponible posteriormente
-            desde el simbolo ? en Ajustes, completo o por secciones.
-          - Nuevos nombres NEXUM por apartado, alcance y fecha para exportaciones.
-          - Conserva compatibilidad con copias anteriores y firma oficial.
+          Novedades de NEXUM 1.5.1:
+          - Correccion de la transferencia inalambrica Enviar/Recibir en
+            Android 13 y versiones posteriores: permisos Wi-Fi permanentes
+            que Nearby Connections necesita en ambos dispositivos.
+          - Las secciones Temas y Objetivos diarios de Plan se pueden plegar
+            aunque no tengan contenido; el texto de ayuda se oculta al plegar
+            y la cabecera y el boton Anadir siguen disponibles.
+          - Mantiene tutorial, datos, formato de copias, nombre NEXUM,
+            identificador Android y certificado oficial de NEXUM 1.5.
 
-          Nota: la transferencia entre dos moviles reales requiere validacion en
-          dispositivos fisicos. Recomendamos crear una copia de seguridad completa
-          antes de instalar o probar la nueva sincronizacion.
+          Importante: recomendamos una copia completa antes de actualizar.
+          El emparejamiento y transferencia entre dos moviles reales deben
+          probarse en ambos; las pruebas automaticas no sustituyen esta prueba.
           NOTES
           gh release create "$TAG" "$APK#NEXUM-$TAG.apk" \
             --repo "$GITHUB_REPOSITORY" \

@@ -471,7 +471,7 @@ private fun TopicQueueSection(
                     )
                 }
 
-                IconButton(onClick = { listExpanded = !listExpanded }, enabled = topics.isNotEmpty()) {
+                IconButton(onClick = { listExpanded = !listExpanded }) {
                     Text(if (listExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                 }
                 TextButton(onClick = onAddTopicClick) {
@@ -479,7 +479,7 @@ private fun TopicQueueSection(
                 }
             }
 
-            if (topics.isEmpty()) {
+            if (listExpanded && topics.isEmpty()) {
                 Text(
                     text = "Añade temas poco a poco. No hace falta cargar todo el temario desde el principio.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -502,16 +502,18 @@ private fun TopicQueueSection(
                 }
             }
 
-            ExpandableHelp(
-                title = "💡 ¿Qué es?",
-                expanded = helpExpanded,
-                onClick = { helpExpanded = !helpExpanded }
-            ) {
-                Text(
-                    text = "La cola marca el orden de estudio. Solo el primer tema es el tema activo. Cuando lo terminas, se mueve al final y sube de vuelta. Si activas manualmente otro tema, el que estaba activo pasa al final para no alternar siempre entre los mismos dos. Los temas nuevos se colocan al final de lo pendiente, antes de volver a temas ya terminados. Usa las flechas ↑ y ↓ para reordenar manualmente los temas pendientes; el tema activo permanece fijo y se cambia con el botón Activar.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            if (listExpanded) {
+                ExpandableHelp(
+                    title = "💡 ¿Qué es?",
+                    expanded = helpExpanded,
+                    onClick = { helpExpanded = !helpExpanded }
+                ) {
+                    Text(
+                        text = "La cola marca el orden de estudio. Solo el primer tema es el tema activo. Cuando lo terminas, se mueve al final y sube de vuelta. Si activas manualmente otro tema, el que estaba activo pasa al final para no alternar siempre entre los mismos dos. Los temas nuevos se colocan al final de lo pendiente, antes de volver a temas ya terminados. Usa las flechas ↑ y ↓ para reordenar manualmente los temas pendientes; el tema activo permanece fijo y se cambia con el botón Activar.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                }
             }
         }
     }
@@ -713,7 +715,7 @@ private fun FixedObjectivesSection(
                     )
                 }
 
-                IconButton(onClick = { listExpanded = !listExpanded }, enabled = objectives.isNotEmpty()) {
+                IconButton(onClick = { listExpanded = !listExpanded }) {
                     Text(
                         if (listExpanded) "⌃" else "⌄",
                         color = TestarioPrimary,
@@ -725,7 +727,7 @@ private fun FixedObjectivesSection(
                 }
             }
 
-            if (objectives.isEmpty()) {
+            if (listExpanded && objectives.isEmpty()) {
                 Text(
                     text = "Crea cualquier objetivo fijo: callejero, test, legislación, academia o lo que necesites.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -747,16 +749,18 @@ private fun FixedObjectivesSection(
                 }
             }
 
-            ExpandableHelp(
-                title = "💡 ¿Qué es?",
-                expanded = helpExpanded,
-                onClick = { helpExpanded = !helpExpanded }
-            ) {
-                Text(
-                    text = "Los objetivos diarios aparecen cada día, pero no generan deuda. Si un día no marcas uno, mañana vuelve a aparecer normal, sin acumularse.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            if (listExpanded) {
+                ExpandableHelp(
+                    title = "💡 ¿Qué es?",
+                    expanded = helpExpanded,
+                    onClick = { helpExpanded = !helpExpanded }
+                ) {
+                    Text(
+                        text = "Los objetivos diarios aparecen cada día, pero no generan deuda. Si un día no marcas uno, mañana vuelve a aparecer normal, sin acumularse.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                }
             }
         }
     }
