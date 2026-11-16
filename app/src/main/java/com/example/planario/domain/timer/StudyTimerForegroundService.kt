@@ -248,6 +248,16 @@ class StudyTimerForegroundService : Service() {
             StudyTimerState.STOPPED -> Unit
         }
 
+        if (state.studyTimerState != StudyTimerState.STOPPED) {
+            // Also available after the user swipes the Activity from Recents.
+            // Android cannot show the in-app Back confirmation in that case.
+            builder.addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "Detener y guardar",
+                createServiceActionPendingIntent(ACTION_STOP)
+            )
+        }
+
         return builder.build()
     }
 
