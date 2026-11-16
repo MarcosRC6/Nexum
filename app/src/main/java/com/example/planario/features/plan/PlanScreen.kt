@@ -504,14 +504,14 @@ private fun TopicQueueSection(
 
             if (listExpanded) {
                 ExpandableHelp(
-                title = "💡 ¿Qué es?",
-                expanded = helpExpanded,
-                onClick = { helpExpanded = !helpExpanded }
-            ) {
-                Text(
-                    text = "La cola marca el orden de estudio. Solo el primer tema es el tema activo. Cuando lo terminas, se mueve al final y sube de vuelta. Si activas manualmente otro tema, el que estaba activo pasa al final para no alternar siempre entre los mismos dos. Los temas nuevos se colocan al final de lo pendiente, antes de volver a temas ya terminados. Usa las flechas ↑ y ↓ para reordenar manualmente los temas pendientes; el tema activo permanece fijo y se cambia con el botón Activar.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    title = "💡 ¿Qué es?",
+                    expanded = helpExpanded,
+                    onClick = { helpExpanded = !helpExpanded }
+                ) {
+                    Text(
+                        text = "La cola marca el orden de estudio. Solo el primer tema es el tema activo. Cuando lo terminas, se mueve al final y sube de vuelta. Si activas manualmente otro tema, el que estaba activo pasa al final para no alternar siempre entre los mismos dos. Los temas nuevos se colocan al final de lo pendiente, antes de volver a temas ya terminados. Usa las flechas ↑ y ↓ para reordenar manualmente los temas pendientes; el tema activo permanece fijo y se cambia con el botón Activar.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 }
             }
@@ -751,14 +751,14 @@ private fun FixedObjectivesSection(
 
             if (listExpanded) {
                 ExpandableHelp(
-                title = "💡 ¿Qué es?",
-                expanded = helpExpanded,
-                onClick = { helpExpanded = !helpExpanded }
-            ) {
-                Text(
-                    text = "Los objetivos diarios aparecen cada día, pero no generan deuda. Si un día no marcas uno, mañana vuelve a aparecer normal, sin acumularse.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    title = "💡 ¿Qué es?",
+                    expanded = helpExpanded,
+                    onClick = { helpExpanded = !helpExpanded }
+                ) {
+                    Text(
+                        text = "Los objetivos diarios aparecen cada día, pero no generan deuda. Si un día no marcas uno, mañana vuelve a aparecer normal, sin acumularse.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 }
             }
