@@ -95,7 +95,9 @@ fun HomeScreen(
     onOpenTemplate: (String) -> Unit,
     onStats: () -> Unit,
     onSettings: () -> Unit,
-    onCustomizeHome: () -> Unit
+    onCustomizeHome: () -> Unit,
+    savedTestSessionViewModel: com.example.testario.viewmodel.TestSessionViewModel,
+    onResumeSavedTest: () -> Unit
 ) {
     val database by libraryViewModel.database.collectAsState()
     val studyViewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory())
@@ -103,6 +105,8 @@ fun HomeScreen(
     val context = LocalContext.current
     val quickTestLinks = remember { QuickTestLinkManager(context.applicationContext) }
     val requestTimerNotificationPermission = rememberTimerNotificationPermissionRequest()
+    val pendingTest by savedTestSessionViewModel.pendingSavedSession.collectAsState()
+    var showDiscardPendingTestDialog by remember { mutableStateOf(false) }
     var isReorderMode by remember { mutableStateOf(false) }
     var showRestartStudyDialog by remember { mutableStateOf(false) }
     var homeObjectivesExpanded by remember { mutableStateOf(true) }
@@ -169,6 +173,48 @@ fun HomeScreen(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                pendingTest?.let { pending ->
+                    item(key = "pending_test_resume") {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(22.dp),
+                            colors = CardDefaults.cardColors(containerColor = TestarioSurface),
+                            border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    "Test guardado para continuar",
+                                    color = TestarioText,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    "Pregunta ${pending.questionIndex + 1} de ${pending.answers.size} · " +
+                                        if (pending.mode == TestMode.EXAM) "Examen" else "Entrenamiento",
+                                    color = TestarioMutedText
+                                )
+                                Text(
+                                    "Tus respuestas y el tiempo restante están guardados. " +
+                                        "No se ha registrado ninguna nota todavía.",
+                                    color = TestarioMutedText,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(
+                                        onClick = onResumeSavedTest,
+                                        modifier = Modifier.weight(1f)
+                                    ) { Text("Reanudar") }
+                                    OutlinedButton(
+                                        onClick = { showDiscardPendingTestDialog = true }
+                                    ) { Text("Descartar") }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 if (visibleWidgetIds.isEmpty()) {
                     item(key = "empty_home") {
                         Card(
@@ -593,6 +639,23 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    if (showDiscardPendingTestDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardPendingTestDialog = false },
+            title = { Text("Descartar test guardado") },
+            text = { Text("Se perderán las respuestas del test suspendido. Esta acción no afectará a exámenes ya terminados ni al banco de preguntas.") },
+            confirmButton = {
+                Button(onClick = {
+                    savedTestSessionViewModel.discardSavedSession()
+                    showDiscardPendingTestDialog = false
+                }) { Text("Descartar test") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDiscardPendingTestDialog = false }) { Text("Cancelar") }
+            }
+        )
     }
 
     if (showRestartStudyDialog) {

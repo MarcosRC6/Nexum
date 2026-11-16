@@ -1,6 +1,7 @@
 package com.example.testario.ui.screen
 
 import androidx.activity.compose.BackHandler
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -161,35 +162,55 @@ fun TestScreen(
             title = { Text("Abandonar test") },
             text = { Text("¿Qué deseas hacer con el progreso actual?") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        showExitDialog = false
-                        val res = sessionViewModel.finish()
-                        if (sessionViewModel.claimFinalStatsRegistration()) {
-                            val elapsedMins = maxOf(1, (totalElapsedSeconds / 60L).toInt())
-                            statsViewModel.registerTestResults(
-                                results = questions,
-                                finalTestResult = res,
-                                totalTimeSpentMinutes = elapsedMins
-                            )
-                        }
-                        onFinish()
-                    }
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text("Guardar y salir")
-                }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { showExitDialog = false }) {
-                        Text("Cancelar", color = TestarioMutedText)
-                    }
-                    TextButton(onClick = {
-                        showExitDialog = false
-                        sessionViewModel.cancelSession()
-                        onFinish()
-                    }) {
-                        Text("Salir sin guardar", color = TestarioRed)
+                    Button(
+                        onClick = {
+                            if (sessionViewModel.saveForLater()) {
+                                showExitDialog = false
+                                onFinish()
+                            } else {
+                                Toast.makeText(
+                                    context, "No se pudo guardar el test. Inténtalo de nuevo.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Guardar para continuar") }
+                    OutlinedButton(
+                        onClick = {
+                            showExitDialog = false
+                            val res = sessionViewModel.finish()
+                            if (sessionViewModel.claimFinalStatsRegistration()) {
+                                val elapsedMins = maxOf(1, (totalElapsedSeconds / 60L).toInt())
+                                statsViewModel.registerTestResults(
+                                    results = questions,
+                                    finalTestResult = res,
+                                    totalTimeSpentMinutes = elapsedMins,
+                                    mode = mode,
+                                    elapsedSeconds = totalElapsedSeconds,
+                                    sessionId = sessionViewModel.sessionId()
+                                )
+                            }
+                            onFinish()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Finalizar y registrar resultados") }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TextButton(onClick = { showExitDialog = false }) {
+                            Text("Cancelar", color = TestarioMutedText)
+                        }
+                        TextButton(onClick = {
+                            showExitDialog = false
+                            sessionViewModel.cancelSession()
+                            onFinish()
+                        }) { Text("Salir sin guardar", color = TestarioRed) }
                     }
                 }
             }
@@ -204,7 +225,10 @@ fun TestScreen(
                 statsViewModel.registerTestResults(
                     results = questions,
                     finalTestResult = res,
-                    totalTimeSpentMinutes = elapsedMins
+                    totalTimeSpentMinutes = elapsedMins,
+                    mode = mode,
+                    elapsedSeconds = totalElapsedSeconds,
+                    sessionId = sessionViewModel.sessionId()
                 )
             }
         }
