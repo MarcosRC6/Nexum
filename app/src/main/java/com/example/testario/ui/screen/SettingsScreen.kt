@@ -835,6 +835,9 @@ fun SettingsScreen(
                                     shape = RoundedCornerShape(16.dp)
                                 ) { Text("Importar") }
 
+                                NexumDeviceSyncPanel()
+
+
                                 OutlinedButton(
                                     onClick = {
                                         showExportOptions = !showExportOptions
