@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">NEXUM</string>
+    <string name="nexum_quick_widget_description">Inicia un test de 10 preguntas o una plantilla guardada directamente desde el escritorio.</string>
 </resources>

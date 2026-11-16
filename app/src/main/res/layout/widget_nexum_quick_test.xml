@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/nexumQuickWidgetRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_today_background_dark"
+    android:padding="14dp">
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="NEXUM · TEST RÁPIDO"
+        android:textColor="#D9BCFF"
+        android:textStyle="bold"
+        android:textSize="12sp"
+        android:maxLines="1"/>
+    <TextView
+        android:id="@+id/nexumQuickWidgetSelection"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="6dp"
+        android:text="10 preguntas aleatorias"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:textSize="16sp"
+        android:gravity="center_vertical"
+        android:ellipsize="end"
+        android:maxLines="2"/>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        <TextView
+            android:id="@+id/nexumQuickWidgetStart"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:background="@drawable/widget_nexum_quick_button"
+            android:text="Iniciar test"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="13sp"/>
+        <TextView
+            android:id="@+id/nexumQuickWidgetConfigure"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:layout_marginStart="7dp"
+            android:gravity="center"
+            android:background="@drawable/widget_today_section_dark"
+            android:text="Plantilla"
+            android:textColor="#EADFFF"
+            android:textStyle="bold"
+            android:textSize="13sp"/>
+    </LinearLayout>
+</LinearLayout>

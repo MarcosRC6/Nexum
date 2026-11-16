@@ -10,6 +10,7 @@ import com.example.testario.data.repository.OrganizationRepository
 import com.example.testario.data.repository.QuestionRepository
 import com.example.testario.data.repository.TopicRepository
 import com.example.testario.domain.ImageManager
+import com.example.testario.widget.NexumQuickTestWidgetProvider
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 
@@ -116,9 +117,17 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
     fun deleteGroup(groupId: String): Boolean = organizationRepo.deleteGroup(groupId)
 
-    fun saveTestTemplate(template: TestTemplate): String? = organizationRepo.saveTemplate(template)
+    fun saveTestTemplate(template: TestTemplate): String? {
+        val result = organizationRepo.saveTemplate(template)
+        if (result != null) NexumQuickTestWidgetProvider.updateAllWidgets(getApplication())
+        return result
+    }
 
-    fun deleteTestTemplate(templateId: String): Boolean = organizationRepo.deleteTemplate(templateId)
+    fun deleteTestTemplate(templateId: String): Boolean {
+        val deleted = organizationRepo.deleteTemplate(templateId)
+        if (deleted) NexumQuickTestWidgetProvider.updateAllWidgets(getApplication())
+        return deleted
+    }
 
     fun updateQuestionDifficulty(topicId: String, questionId: String, difficulty: Int?) {
         topicRepo.updateQuestionDifficulty(topicId, questionId, difficulty)
