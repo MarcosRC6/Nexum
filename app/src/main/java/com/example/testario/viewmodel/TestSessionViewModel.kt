@@ -293,7 +293,7 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
             // A saved exam is an immutable snapshot: deleting a source question
             // must never silently erase a previously saved answer.
             val freshQuestion = dbQuestions[state.question.id] ?: return@map state
-            if (freshQuestion == state.question) return@mapNotNull state
+            if (freshQuestion == state.question) return@map state
 
             // La sesión baraja las respuestas al arrancar. Un cambio externo de la
             // pregunta (bandera, dificultad, edición, etc.) no debe recolocarlas
