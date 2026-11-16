@@ -1,12 +1,17 @@
 package com.example.testario.ui.navigation
 
+import android.app.Activity
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +32,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.planario.app.PlanarioDependencies
+import com.example.planario.domain.timer.StudyTimerState
 import com.example.testario.data.model.TestConfig
 import com.example.testario.data.model.TestMode
 import com.example.testario.ui.screen.GroupsScreen
@@ -65,6 +71,8 @@ fun TestarioApp(
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val context = LocalContext.current
+    val timerState by PlanarioDependencies.studyTimerController.state.collectAsState()
+    var showTimerExitDialog by remember { mutableStateOf(false) }
     var announcedRelease by remember { mutableStateOf<NexumRelease?>(null) }
     var dismissedUpdateNotice by remember { mutableStateOf(false) }
     val systemDark = isSystemInDarkTheme()
@@ -191,6 +199,9 @@ fun TestarioApp(
                 modifier = Modifier.fillMaxSize()
             ) {
             composable(Routes.HOME) {
+                BackHandler(enabled = timerState.studyTimerState == StudyTimerState.RUNNING) {
+                    showTimerExitDialog = true
+                }
                 HomeScreen(
                     libraryViewModel = libraryViewModel,
                     homeSettingsViewModel = homeSettingsViewModel,
@@ -358,6 +369,45 @@ fun TestarioApp(
                 )
             }
             }
+        }
+
+        if (showTimerExitDialog && timerState.studyTimerState == StudyTimerState.RUNNING) {
+            AlertDialog(
+                onDismissRequest = { showTimerExitDialog = false },
+                title = { Text("El reloj sigue corriendo") },
+                text = {
+                    Text(
+                        "El cronómetro de estudio está contando. ¿Quieres detenerlo y guardar " +
+                            "el tiempo, o dejarlo funcionando mientras sales de NEXUM?"
+                    )
+                },
+                confirmButton = {
+                    Column {
+                        com.example.testario.ui.theme.NeonButton(
+                            onClick = {
+                                showTimerExitDialog = false
+                                // Hide only the Activity. The foreground service and
+                                // notification keep the running clock alive.
+                                (context as? Activity)?.moveTaskToBack(true)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Seguir contando") }
+                        com.example.testario.ui.theme.NeonOutlinedButton(
+                            onClick = {
+                                showTimerExitDialog = false
+                                PlanarioDependencies.finishStudyTimerAndSave()
+                                (context as? Activity)?.moveTaskToBack(true)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Detener y guardar") }
+                    }
+                },
+                dismissButton = {
+                    com.example.testario.ui.theme.NeonTextButton(
+                        onClick = { showTimerExitDialog = false }
+                    ) { Text("Cancelar") }
+                }
+            )
         }
 
         val update = announcedRelease
