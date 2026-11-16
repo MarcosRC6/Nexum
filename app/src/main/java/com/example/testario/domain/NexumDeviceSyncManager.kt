@@ -6,6 +6,9 @@ import android.net.Uri
 import android.os.Build
 import androidx.documentfile.provider.DocumentFile
 import org.json.JSONObject
+import com.example.testario.data.local.TestarioLocalStore
+import java.io.FilterOutputStream
+import java.io.OutputStream
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -83,7 +86,7 @@ class NexumDeviceSyncManager(private val context: Context) {
     }.sortedWith(compareByDescending<Snapshot> { it.dateUtc }.thenByDescending { it.filename })
 
     /** Read remote copies only after an explicit selection; verify CRCs before returning them. */
-    private fun verifyZip(stream: InputStream, expectedDevice: String): Boolean {
+    private fun verifyZip(stream: InputStream, expectedDevice: String?): Boolean {
         var manifest: JSONObject? = null
         var foundDb = false
         var foundPlan = false
@@ -120,7 +123,7 @@ class NexumDeviceSyncManager(private val context: Context) {
         return foundDb && foundPlan &&
             meta.optString("format") == UnifiedDataManager.GLOBAL_FORMAT &&
             meta.optInt("version") == 1 &&
-            meta.optString("syncDeviceId") == expectedDevice
+            (expectedDevice == null || meta.optString("syncDeviceId") == expectedDevice)
     }
 
     private fun requireFolderWrite(): DocumentFile = directory().also {
@@ -144,9 +147,8 @@ class NexumDeviceSyncManager(private val context: Context) {
             val output = requireNotNull(resolver.openOutputStream(file.uri, "w")) {
                 "No se pudo abrir la copia para escritura"
             }
-            output.use { unified.exportGlobalBackup(it, syncDeviceId = id) }
-            require(file.length() <= MAX_TRANSFER_BYTES || file.length() == 0L) {
-                "La copia es demasiado grande para sincronización segura en este dispositivo"
+            output.use { stream ->
+                unified.exportGlobalBackup(LimitedOutput(stream), syncDeviceId = id)
             }
             val verified = requireNotNull(resolver.openInputStream(file.uri))
                 .use { verifyZip(it, id) }
@@ -168,7 +170,7 @@ class NexumDeviceSyncManager(private val context: Context) {
     }
 
     /** The caller MUST display a confirmation identifying the source and destructive scope. */
-    fun useRemoteDevice(snapshot: Snapshot): String {
+    suspend fun useRemoteDevice(snapshot: Snapshot): String {
         val dir = directory()
         require(dir.listFiles().any { it.uri == snapshot.uri && it.name == snapshot.filename }) {
             "La copia compartida ha cambiado; vuelve a actualizar la lista"
@@ -184,11 +186,20 @@ class NexumDeviceSyncManager(private val context: Context) {
             context.filesDir,
             "NEXUM_RECUPERACION_SINCRONIZACION_${System.currentTimeMillis()}.zip"
         )
-        recovery.outputStream().use { unified.exportGlobalBackup(it) }
-        val success = runCatching { unified.restoreGlobalBackup(bytes) }.getOrDefault(false)
+        recovery.outputStream().use { stream -> unified.exportGlobalBackup(LimitedOutput(stream)) }
+        require(recovery.inputStream().use { verifyZip(it, null) }) {
+            "La copia local de recuperación no supera la verificación"
+        }
+        val success = runCatching {
+            val restored = unified.restoreGlobalBackup(bytes)
+            if (restored) TestarioLocalStore.get(context).flushCurrentForSync()
+            restored
+        }.getOrDefault(false)
         if (!success) {
             val restored = runCatching {
-                unified.restoreGlobalBackup(recovery.readBytes())
+                val ok = unified.restoreGlobalBackup(recovery.readBytes())
+                if (ok) TestarioLocalStore.get(context).flushCurrentForSync()
+                ok
             }.getOrDefault(false)
             error(
                 if (restored) "Error al recibir los datos; se ha restaurado la copia previa."
@@ -204,15 +215,46 @@ class NexumDeviceSyncManager(private val context: Context) {
         .filter { it.isFile && it.name.startsWith("NEXUM_RECUPERACION_SINCRONIZACION_") && it.name.endsWith(".zip") }
         .sortedByDescending { it.lastModified() }
 
-    fun restoreRecoveryArchive(file: File): Boolean {
+    suspend fun restoreRecoveryArchive(file: File): Boolean {
         require(recoveryFiles().any { it.absolutePath == file.absolutePath })
         val bytes = file.inputStream().use { limitedBytes(it, MAX_TRANSFER_BYTES) }
-        require(verifyGlobalBackup(bytes)) { "La copia local de recuperación no es válida" }
-        return unified.restoreGlobalBackup(bytes)
+        require(verifyZip(ByteArrayInputStream(bytes), null)) { "La copia de recuperación no es válida" }
+
+        // Undoing a synchronization is also destructive: protect CURRENT data first.
+        val before = File(
+            context.filesDir, "NEXUM_RECUPERACION_SINCRONIZACION_${System.currentTimeMillis()}.zip"
+        )
+        before.outputStream().use { unified.exportGlobalBackup(LimitedOutput(it)) }
+        require(before.inputStream().use { verifyZip(it, null) }) {
+            "No se pudo verificar la copia previa a la restauración"
+        }
+        val ok = runCatching {
+            val result = unified.restoreGlobalBackup(bytes)
+            if (result) TestarioLocalStore.get(context).flushCurrentForSync()
+            result
+        }.getOrDefault(false)
+        if (!ok) {
+            runCatching {
+                if (unified.restoreGlobalBackup(before.readBytes()))
+                    TestarioLocalStore.get(context).flushCurrentForSync()
+            }
+        }
+        recoveryFiles().drop(2).forEach { runCatching { it.delete() } }
+        return ok
     }
 
-    private fun verifyGlobalBackup(bytes: ByteArray): Boolean =
-        unified.detect(bytes, "NEXUM_TODO_COMPLETO.zip").kind == UnifiedDataManager.ImportKind.GLOBAL_BACKUP
+    private class LimitedOutput(target: OutputStream) : FilterOutputStream(target) {
+        private var count = 0L
+        override fun write(b: Int) {
+            require(++count <= MAX_TRANSFER_BYTES) { "La copia supera los 128 MB permitidos" }
+            out.write(b)
+        }
+        override fun write(b: ByteArray, off: Int, len: Int) {
+            count += len
+            require(count <= MAX_TRANSFER_BYTES) { "La copia supera los 128 MB permitidos" }
+            out.write(b, off, len)
+        }
+    }
 
     private fun limitedBytes(input: InputStream, max: Long): ByteArray {
         val out = ByteArrayOutputStream()
