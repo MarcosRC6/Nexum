@@ -182,14 +182,7 @@ class NexumDeviceSyncManager(private val context: Context) {
         require(verifyZip(ByteArrayInputStream(bytes), snapshot.sourceId)) {
             "La copia seleccionada no es válida o está incompleta"
         }
-        val recovery = File(
-            context.filesDir,
-            "NEXUM_RECUPERACION_SINCRONIZACION_${System.currentTimeMillis()}.zip"
-        )
-        recovery.outputStream().use { stream -> unified.exportGlobalBackup(LimitedOutput(stream)) }
-        require(recovery.inputStream().use { verifyZip(it, null) }) {
-            "La copia local de recuperación no supera la verificación"
-        }
+        val recovery = createVerifiedRecovery()
         val success = runCatching {
             val restored = unified.restoreGlobalBackup(bytes)
             if (restored) TestarioLocalStore.get(context).flushCurrentForSync()
@@ -211,6 +204,27 @@ class NexumDeviceSyncManager(private val context: Context) {
         return recovery.name
     }
 
+    /** Never expose a partial recovery as an eligible restore point. */
+    private fun createVerifiedRecovery(): File {
+        val dest = File(
+            context.filesDir, "NEXUM_RECUPERACION_SINCRONIZACION_${System.currentTimeMillis()}.zip"
+        )
+        val temporary = File(context.filesDir, "${dest.name}.partial")
+        try {
+            temporary.outputStream().use { unified.exportGlobalBackup(LimitedOutput(it)) }
+            require(temporary.inputStream().use { verifyZip(it, null) }) {
+                "La copia de seguridad local es incompleta o inválida"
+            }
+            require(temporary.renameTo(dest)) {
+                "No se pudo guardar la copia de recuperación verificada"
+            }
+            return dest
+        } catch (error: Exception) {
+            temporary.delete()
+            throw error
+        }
+    }
+
     fun recoveryFiles(): List<File> = context.filesDir.listFiles().orEmpty()
         .filter { it.isFile && it.name.startsWith("NEXUM_RECUPERACION_SINCRONIZACION_") && it.name.endsWith(".zip") }
         .sortedByDescending { it.lastModified() }
@@ -221,13 +235,7 @@ class NexumDeviceSyncManager(private val context: Context) {
         require(verifyZip(ByteArrayInputStream(bytes), null)) { "La copia de recuperación no es válida" }
 
         // Undoing a synchronization is also destructive: protect CURRENT data first.
-        val before = File(
-            context.filesDir, "NEXUM_RECUPERACION_SINCRONIZACION_${System.currentTimeMillis()}.zip"
-        )
-        before.outputStream().use { unified.exportGlobalBackup(LimitedOutput(it)) }
-        require(before.inputStream().use { verifyZip(it, null) }) {
-            "No se pudo verificar la copia previa a la restauración"
-        }
+        val before = createVerifiedRecovery()
         val ok = runCatching {
             val result = unified.restoreGlobalBackup(bytes)
             if (result) TestarioLocalStore.get(context).flushCurrentForSync()
