@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
 import com.example.testario.domain.QuickTestLaunchResolver
 import com.example.testario.domain.QuickTestLaunchResult
+import com.example.testario.widget.NexumQuickTestWidgetModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.testario.update.NexumRelease
 import com.example.testario.update.NexumUpdateManager
@@ -58,7 +59,8 @@ import com.example.testario.viewmodel.ThemeViewModel
 @Composable
 fun TestarioApp(
     requestedDestinationRoute: String? = null,
-    navigationRequestId: Int = 0
+    navigationRequestId: Int = 0,
+    requestedQuickTestTemplateId: String? = null
 ) {
     val themeViewModel: ThemeViewModel = viewModel()
     val behaviorSettingsViewModel: BehaviorSettingsViewModel = viewModel()
@@ -170,13 +172,22 @@ fun TestarioApp(
         }
     }
 
-    LaunchedEffect(requestedDestinationRoute, navigationRequestId) {
+    LaunchedEffect(requestedDestinationRoute, navigationRequestId, requestedQuickTestTemplateId) {
         when (requestedDestinationRoute) {
             "plan" -> goPlan("plan")
             "timer" -> goPlan("timer")
             "calendar" -> goPlan("calendar")
             "settings" -> goSettings()
             "home" -> goHome()
+            NexumQuickTestWidgetModel.LAUNCH_ROUTE -> {
+                // Reuse the same resolver as linked tests: no duplicated logic,
+                // database migrations, or guessed template defaults.
+                launchLinkedQuickTest(
+                    topicIds = NexumQuickTestWidgetModel.defaultTopicIds(libraryViewModel.database.value),
+                    count = NexumQuickTestWidgetModel.DEFAULT_QUESTION_COUNT,
+                    templateId = requestedQuickTestTemplateId
+                )
+            }
         }
     }
 
