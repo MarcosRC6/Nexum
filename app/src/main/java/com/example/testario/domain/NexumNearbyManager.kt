@@ -182,6 +182,8 @@ class NexumNearbyManager(context: Context) {
                 val prepared = archives.prepareHostArchive()
                 hostFile = prepared
                 val file = Payload.fromFile(prepared.file)
+                // Keep the received archive out of public Downloads.
+                file.setSensitive(true)
                 outgoingFileId = file.id
                 val control = JSONObject()
                     .put("type", "NEXUM_BACKUP_V1")
@@ -256,7 +258,7 @@ class NexumNearbyManager(context: Context) {
                         checkStaging()
                     }
                 }
-                PayloadTransferUpdate.Status.ERROR, PayloadTransferUpdate.Status.CANCELED ->
+                PayloadTransferUpdate.Status.FAILURE, PayloadTransferUpdate.Status.CANCELED ->
                     failure("Transferencia interrumpida. No se han reemplazado datos.")
                 else -> Unit
             }
