@@ -145,6 +145,7 @@ fun SettingsScreen(
     val studySettings by PlanarioDependencies.studyRepository.settings.collectAsState()
     var showStudySettings by remember { mutableStateOf(false) }
     var showDataOptions by remember { mutableStateOf(false) }
+    var showTutorial by remember { mutableStateOf(false) }
     var showExportOptions by remember { mutableStateOf(false) }
     var exportTarget by remember { mutableStateOf<ExportTarget?>(null) }
     var pendingUnifiedBytes by remember { mutableStateOf<ByteArray?>(null) }
@@ -384,8 +385,13 @@ fun SettingsScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
+        if (showTutorial) NexumTutorialDialog(initialSection = null, onClose = { showTutorial = false })
         Scaffold(containerColor = TestarioBackground, topBar = {
-            TestarioTopBar("Ajustes", onBack)
+            TestarioTopBar("Ajustes", onBack, actions = {
+                androidx.compose.material3.IconButton(onClick = { showTutorial = true }) {
+                    Text("?", color = TestarioPrimary, style = MaterialTheme.typography.headlineMedium)
+                }
+            })
         }) { padding ->
             Column(Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
