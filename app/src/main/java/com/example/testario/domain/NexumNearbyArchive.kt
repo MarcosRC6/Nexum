@@ -3,6 +3,7 @@ package com.example.testario.domain
 import android.content.Context
 import com.example.testario.data.local.TestarioLocalStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -67,7 +68,7 @@ class NexumNearbyArchive(private val context: Context) {
         }
     }
 
-    suspend fun applyToReceiver(archive: Prepared): String = withContext(Dispatchers.IO) {
+    suspend fun applyToReceiver(archive: Prepared): String = withContext(Dispatchers.IO + NonCancellable) {
         require(archive.file.exists() && archive.file.length() == archive.size)
         require(digest(archive.file) == archive.sha256)
         requireValid(archive.file)
@@ -91,7 +92,7 @@ class NexumNearbyArchive(private val context: Context) {
         recovery.name
     }
 
-    suspend fun restoreLastRecovery(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun restoreLastRecovery(): Boolean = withContext(Dispatchers.IO + NonCancellable) {
         val target = recoveryFiles().firstOrNull() ?: return@withContext false
         requireValid(target)
         // Undo is destructive too: keep a separate previous-state snapshot.

@@ -58,11 +58,13 @@ class NexumNearbyManager(context: Context) {
     private var endpoint: String? = null
     private var hostFile: NexumNearbyArchive.Prepared? = null
     private var outgoingFileId: Long? = null
+    @Volatile private var closed = false
     private var receiverFile: NexumNearbyArchive.Prepared? = null
     private var filePayload: Payload? = null
     private var fileCompleted = false
     private var metadata: JSONObject? = null
     private var stagingStarted = false
+    @Volatile private var applyingReceived = false
 
     private fun update(change: (NexumNearbyState) -> NexumNearbyState) {
         mutable.value = change(mutable.value)
@@ -299,6 +301,7 @@ class NexumNearbyManager(context: Context) {
         require(state.value.mode == NexumNearbyMode.JOIN && state.value.readyToRestore)
         val prepared = requireNotNull(receiverFile)
         update { it.copy(processing = true, status = "Guardando copia preventiva y restaurando…") }
+        applyingReceived = true
         return try {
             val recovery = archives.applyToReceiver(prepared)
             update { it.copy(processing = false, readyToRestore = false, completed = true,
@@ -307,6 +310,9 @@ class NexumNearbyManager(context: Context) {
         } catch (error: Exception) {
             failure(error.localizedMessage ?: "No se pudieron restaurar los datos")
             throw error
+        } finally {
+            applyingReceived = false
+            if (closed) archives.cleanup(receiverFile)
         }
     }
 
@@ -319,7 +325,7 @@ class NexumNearbyManager(context: Context) {
         client.stopDiscovery()
         client.stopAllEndpoints()
         archives.cleanup(hostFile)
-        archives.cleanup(receiverFile)
+        if (!applyingReceived) archives.cleanup(receiverFile)
         hostFile = null
         receiverFile = null
         outgoingFileId = null
@@ -332,6 +338,7 @@ class NexumNearbyManager(context: Context) {
     }
 
     fun close() {
+        closed = true
         stop()
         scope.cancel()
     }
