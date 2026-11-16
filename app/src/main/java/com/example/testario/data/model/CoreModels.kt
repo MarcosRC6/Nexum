@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import java.util.UUID
 
 object DatabaseSchema {
-    const val CURRENT_VERSION = 2
+    const val CURRENT_VERSION = 3
 }
 
 @Serializable
@@ -15,7 +15,9 @@ data class TestarioDatabase(
     val testTemplates: List<TestTemplate> = emptyList(),
     val testsDone: Int = 0,
     val totalTrainingMinutes: Int = 0,
-    val testHistory: List<HistoricalResult> = emptyList()
+    val testHistory: List<HistoricalResult> = emptyList(),
+    val detailedExamHistory: List<DetailedExam> = emptyList(),
+    val performanceHistory: List<TestPerformancePoint> = emptyList()
 )
 
 @Serializable
@@ -123,4 +125,46 @@ data class HistoricalResult(
     val timestamp: Long,
     val score: Double,
     val percent: Int
+)
+
+/** Up to five fully reviewable EXAM attempts, with answer order frozen at exam time. */
+@Serializable
+data class DetailedExam(
+    val id: String,
+    val timestamp: Long,
+    val score: Double,
+    val percent: Int,
+    val correct: Int,
+    val wrong: Int,
+    val blank: Int,
+    val elapsedSeconds: Long,
+    val questions: List<ExamQuestionRecord>
+)
+
+@Serializable
+data class ExamQuestionRecord(
+    val topicId: String,
+    val topicName: String,
+    val question: Question,
+    val selectedAnswerId: String? = null,
+    val timeSpentSeconds: Long = 0L
+)
+
+/** Compact and bounded series for topic/group trend charts. Never retains question text. */
+@Serializable
+data class TestPerformancePoint(
+    val id: String,
+    val timestamp: Long,
+    val mode: TestMode,
+    val topics: List<TopicPerformancePoint>
+)
+
+@Serializable
+data class TopicPerformancePoint(
+    val topicId: String,
+    val topicName: String,
+    val groupIds: List<String>,
+    val correct: Int,
+    val wrong: Int,
+    val blank: Int
 )

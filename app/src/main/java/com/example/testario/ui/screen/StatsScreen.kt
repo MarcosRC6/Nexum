@@ -201,6 +201,8 @@ fun StatsScreen(
                 }
             }
 
+            ExamHistoryAndTrends(database)
+
             Column(modifier = Modifier.fillMaxWidth().animateContentSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                 TextButton(onClick = { showExtras = !showExtras }) { Text(text = if (showExtras) "Ocultar detalles ▲" else "Ver más detalles ▼", color = TestarioMutedText) }
                 if (showExtras) {

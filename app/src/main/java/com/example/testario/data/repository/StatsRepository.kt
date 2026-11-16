@@ -6,6 +6,8 @@ import com.example.testario.data.model.HistoricalResult
 import com.example.testario.data.model.QuestionStats
 import com.example.testario.data.model.TestQuestionState
 import com.example.testario.data.model.TestResult
+import com.example.testario.data.model.TestMode
+import com.example.testario.domain.TestHistoryAnalytics
 
 class StatsRepository(
     private val localStore: TestarioLocalStore,
@@ -20,6 +22,10 @@ class StatsRepository(
                     if (topic.id == topicId) {
                         topic.copy(questions = topic.questions.map { it.copy(stats = QuestionStats()) })
                     } else topic
+                },
+                performanceHistory = db.performanceHistory.mapNotNull { item ->
+                    val retained = item.topics.filterNot { it.topicId == topicId }
+                    if (retained.isEmpty()) null else item.copy(topics = retained)
                 }
             )
         )
@@ -32,6 +38,8 @@ class StatsRepository(
                 testsDone = 0,
                 totalTrainingMinutes = 0,
                 testHistory = emptyList(),
+                detailedExamHistory = emptyList(),
+                performanceHistory = emptyList(),
                 topics = db.topics.map { topic ->
                     topic.copy(questions = topic.questions.map { it.copy(stats = QuestionStats()) })
                 }
@@ -92,8 +100,20 @@ class StatsRepository(
         )
     }
 
-    fun registerTestResults(results: List<TestQuestionState>, finalTestResult: TestResult, totalTimeSpentMinutes: Int) {
+    fun registerTestResults(
+        results: List<TestQuestionState>,
+        finalTestResult: TestResult,
+        totalTimeSpentMinutes: Int,
+        mode: TestMode,
+        elapsedSeconds: Long,
+        sessionId: String
+    ) {
         val db = localStore.database.value
+        // Persist the score and question statistics exactly once for a session.
+        if (db.performanceHistory.any { it.id == sessionId }) return
+        val timestamp = System.currentTimeMillis()
+        val exam = TestHistoryAnalytics.detailed(db, results, finalTestResult, mode, elapsedSeconds, sessionId, timestamp)
+        val trend = TestHistoryAnalytics.trend(db, results, mode, sessionId, timestamp)
         val failureExitCorrectStreak = preferencesManager.getFailureExitCorrectStreak()
         val history = db.testHistory.toMutableList()
 
@@ -147,6 +167,8 @@ class StatsRepository(
             db.copy(
                 topics = newTopics,
                 testHistory = history,
+                detailedExamHistory = TestHistoryAnalytics.appendExam(db.detailedExamHistory, exam),
+                performanceHistory = TestHistoryAnalytics.appendTrend(db.performanceHistory, trend),
                 testsDone = db.testsDone + 1,
                 totalTrainingMinutes = db.totalTrainingMinutes + totalTimeSpentMinutes
             )

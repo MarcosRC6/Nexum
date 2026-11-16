@@ -4,6 +4,10 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.testario.data.local.PreferencesManager
+import com.example.testario.data.local.SavedTestSessionStore
+import com.example.testario.data.local.SavedTestSession
+import com.example.testario.data.local.StoredTestAnswer
+import java.util.UUID
 import com.example.testario.data.model.TestConfig
 import com.example.testario.data.model.TestMode
 import com.example.testario.data.model.TestQuestionState
@@ -24,6 +28,14 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
 
     private val selectionEngine = SmartSelectionEngine()
     private val preferencesManager = PreferencesManager(application)
+    private val savedStore = SavedTestSessionStore(application)
+    private val _pendingSavedSession = MutableStateFlow(savedStore.load())
+    val pendingSavedSession: StateFlow<SavedTestSession?> = _pendingSavedSession
+    private var resumedFromSaved = false
+    private var activeSessionId = UUID.randomUUID().toString()
+    fun sessionId(): String = activeSessionId
+
+    fun refreshSavedSession() { _pendingSavedSession.value = savedStore.load() }
 
     private val _questions = MutableStateFlow<List<TestQuestionState>>(emptyList())
     val questions: StateFlow<List<TestQuestionState>> = _questions
@@ -77,6 +89,8 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
     fun start(topics: List<Topic>, config: TestConfig) {
         timerJob?.cancel()
         generationJob?.cancel()
+        resumedFromSaved = false
+        activeSessionId = UUID.randomUUID().toString()
 
         sessionActive = true
         finalStatsClaimed = false
@@ -145,11 +159,13 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    private fun startTimer(mins: Int) {
-        val durationMillis = mins * 60 * 1000L
+    private fun startTimer(mins: Int) = startTimerFromSeconds(mins * 60)
+
+    private fun startTimerFromSeconds(seconds: Int) {
+        val durationMillis = seconds * 1000L
         val endTime = System.currentTimeMillis() + durationMillis
 
-        _remainingSeconds.value = mins * 60
+        _remainingSeconds.value = seconds
 
         timerJob = viewModelScope.launch {
             while (System.currentTimeMillis() < endTime) {
@@ -162,6 +178,71 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
             sessionActive = false
             questionTimerJob?.cancel()
             questionTimerJob = null
+        }
+    }
+
+
+    /** Explicit save-for-later: no results or per-question stats are registered. */
+    fun saveForLater(): Boolean {
+        if (!sessionActive || _isPreparing.value || _questions.value.isEmpty() || _timeExpired.value) return false
+        val snapshot = SavedTestSession(
+            sessionId = activeSessionId,
+            savedAt = System.currentTimeMillis(),
+            mode = _mode.value,
+            questionIndex = _currentIndex.value,
+            answers = _questions.value.map { s ->
+                StoredTestAnswer(s.question, s.selectedAnswerId, s.corrected, s.answersRevealed, s.timeSpentSeconds)
+            },
+            elapsedSeconds = _totalElapsedSeconds.value,
+            remainingSeconds = _remainingSeconds.value,
+            pointsCorrect = pointsCorrect,
+            penaltyWrong = penaltyWrong
+        )
+        if (!savedStore.save(snapshot)) return false
+        _pendingSavedSession.value = snapshot
+        sessionActive = false
+        timerJob?.cancel()
+        questionTimerJob?.cancel()
+        questionTimerJob = null
+        return true
+    }
+
+    /** Resume exactly the saved question/answer order, with the timed exam frozen while away. */
+    fun resumeSavedSession(): Boolean {
+        val snapshot = savedStore.load() ?: return false
+        if (snapshot.answers.isEmpty()) return false
+        timerJob?.cancel()
+        generationJob?.cancel()
+        questionTimerJob?.cancel()
+        activeSessionId = snapshot.sessionId
+        resumedFromSaved = true
+        sessionActive = true
+        finalStatsClaimed = false
+        pointsCorrect = snapshot.pointsCorrect
+        penaltyWrong = snapshot.penaltyWrong
+        _mode.value = snapshot.mode
+        _questions.value = snapshot.answers.map { a ->
+            TestQuestionState(a.question, a.selectedAnswerId, a.corrected, a.answersRevealed, a.timeSpentSeconds)
+        }
+        _currentIndex.value = snapshot.questionIndex.coerceIn(0, _questions.value.lastIndex)
+        _totalElapsedSeconds.value = snapshot.elapsedSeconds
+        _remainingSeconds.value = snapshot.remainingSeconds
+        _timeExpired.value = false
+        _isPreparing.value = false
+        startQuestionTicker()
+        snapshot.remainingSeconds?.let { startTimerFromSeconds(it) }
+        return true
+    }
+
+    fun discardSavedSession() {
+        savedStore.clear()
+        _pendingSavedSession.value = null
+    }
+
+    private fun clearResumedSessionIfNeeded() {
+        if (resumedFromSaved) {
+            discardSavedSession()
+            resumedFromSaved = false
         }
     }
 
@@ -208,9 +289,11 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
     fun refreshQuestionsFromDatabase(topics: List<Topic>) {
         val dbQuestions = topics.flatMap { it.questions }.associateBy { it.id }
 
-        val updatedList = _questions.value.mapNotNull { state ->
-            val freshQuestion = dbQuestions[state.question.id] ?: return@mapNotNull null
-            if (freshQuestion == state.question) return@mapNotNull state
+        val updatedList = _questions.value.map { state ->
+            // A saved exam is an immutable snapshot: deleting a source question
+            // must never silently erase a previously saved answer.
+            val freshQuestion = dbQuestions[state.question.id] ?: return@map state
+            if (freshQuestion == state.question) return@map state
 
             // La sesión baraja las respuestas al arrancar. Un cambio externo de la
             // pregunta (bandera, dificultad, edición, etc.) no debe recolocarlas
@@ -253,6 +336,7 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
         generationJob?.cancel()
         questionTimerJob?.cancel()
         questionTimerJob = null
+        clearResumedSessionIfNeeded()
         val l = _questions.value
         val c = l.count { it.selectedAnswerId != null && it.selectedAnswerId == it.question.correctAnswerId }
         val b = l.count { it.selectedAnswerId == null }
@@ -273,6 +357,7 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun cancelSession() {
+        clearResumedSessionIfNeeded()
         sessionActive = false
         finalStatsClaimed = false
         _isPreparing.value = false

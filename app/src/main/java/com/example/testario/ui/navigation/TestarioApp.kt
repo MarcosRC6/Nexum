@@ -227,7 +227,15 @@ fun TestarioApp(
                     onOpenTemplate = { templateId -> navController.navigate(Routes.testConfig(templateId = templateId)) },
                     onStats = { goStats() },
                     onSettings = { goSettings() },
-                    onCustomizeHome = { goHomeSettings() }
+                    onCustomizeHome = { goHomeSettings() },
+                    savedTestSessionViewModel = sessionViewModel,
+                    onResumeSavedTest = {
+                        if (sessionViewModel.resumeSavedSession()) {
+                            navController.navigate(Routes.TEST_SCREEN) { launchSingleTop = true }
+                        } else {
+                            Toast.makeText(context, "No se pudo recuperar el test guardado.", Toast.LENGTH_LONG).show()
+                        }
+                    }
                 )
             }
 
