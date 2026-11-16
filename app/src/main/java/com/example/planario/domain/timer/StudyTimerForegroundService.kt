@@ -77,7 +77,9 @@ class StudyTimerForegroundService : Service() {
             }
 
             ACTION_STOP -> {
-                PlanarioDependencies.studyTimerController.persistCurrentStudyTimerNow()
+                // A stop action must finish and save the clock, not merely hide
+                // its notification while the timer continues unobserved.
+                PlanarioDependencies.finishStudyTimerAndSave()
                 stopServiceSafely()
                 START_NOT_STICKY
             }
@@ -93,6 +95,13 @@ class StudyTimerForegroundService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? {
         return null
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // Swiping the task away is different from pressing Back. Android cannot
+        // show a dialog after task removal; preserve the running timer instead.
+        PlanarioDependencies.studyTimerController.persistCurrentStudyTimerNow()
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
@@ -216,6 +225,7 @@ class StudyTimerForegroundService : Service() {
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(createOpenAppPendingIntent())
 
         when (state.studyTimerState) {
@@ -236,6 +246,16 @@ class StudyTimerForegroundService : Service() {
             }
 
             StudyTimerState.STOPPED -> Unit
+        }
+
+        if (state.studyTimerState != StudyTimerState.STOPPED) {
+            // Also available after the user swipes the Activity from Recents.
+            // Android cannot show the in-app Back confirmation in that case.
+            builder.addAction(
+                android.R.drawable.ic_menu_close_clear_cancel,
+                "Detener y guardar",
+                createServiceActionPendingIntent(ACTION_STOP)
+            )
         }
 
         return builder.build()

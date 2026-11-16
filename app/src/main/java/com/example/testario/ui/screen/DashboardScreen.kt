@@ -66,6 +66,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.planario.features.home.HomeViewModel
 import com.example.planario.domain.timer.StudyTimerState
+import com.example.planario.ui.notifications.rememberTimerNotificationPermissionRequest
 import com.example.testario.data.local.QuickTestLinkManager
 import com.example.testario.ui.theme.FourItemDropdown
 import com.example.testario.ui.theme.TestarioNeonSelected
@@ -101,6 +102,7 @@ fun HomeScreen(
     val studyState by studyViewModel.uiState.collectAsState()
     val context = LocalContext.current
     val quickTestLinks = remember { QuickTestLinkManager(context.applicationContext) }
+    val requestTimerNotificationPermission = rememberTimerNotificationPermissionRequest()
     var isReorderMode by remember { mutableStateOf(false) }
     var showRestartStudyDialog by remember { mutableStateOf(false) }
     var homeObjectivesExpanded by remember { mutableStateOf(true) }
@@ -263,6 +265,7 @@ fun HomeScreen(
                                             onClick = {
                                                 if (studyState.studyTimerState == StudyTimerState.STOPPED) {
                                                     studyViewModel.startStudyFromHome()
+                                                    requestTimerNotificationPermission()
                                                 } else {
                                                     showRestartStudyDialog = true
                                                 }
@@ -280,7 +283,10 @@ fun HomeScreen(
                                             onClick = {
                                                 when (studyState.studyTimerState) {
                                                     StudyTimerState.RUNNING -> studyViewModel.pauseStudyFromHome()
-                                                    StudyTimerState.PAUSED -> studyViewModel.resumeStudyFromHome()
+                                                    StudyTimerState.PAUSED -> {
+                                                        studyViewModel.resumeStudyFromHome()
+                                                        requestTimerNotificationPermission()
+                                                    }
                                                     StudyTimerState.STOPPED -> Unit
                                                 }
                                             },
@@ -606,6 +612,7 @@ fun HomeScreen(
                         onClick = {
                             showRestartStudyDialog = false
                             studyViewModel.restartStudyFromHome(saveCurrentTime = true)
+                            requestTimerNotificationPermission()
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -615,6 +622,7 @@ fun HomeScreen(
                         onClick = {
                             showRestartStudyDialog = false
                             studyViewModel.restartStudyFromHome(saveCurrentTime = false)
+                            requestTimerNotificationPermission()
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {

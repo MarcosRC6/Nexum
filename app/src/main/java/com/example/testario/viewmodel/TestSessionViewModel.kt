@@ -10,6 +10,7 @@ import com.example.testario.data.model.TestQuestionState
 import com.example.testario.data.model.TestResult
 import com.example.testario.data.model.Topic
 import com.example.testario.domain.SmartSelectionEngine
+import com.example.testario.domain.TestAnswerOrder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -125,9 +126,8 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
                 )
             }
 
-            val mappedQuestions = finalQuestions.map { q ->
-                TestQuestionState(question = q.copy(answers = q.answers.shuffled()))
-            }
+            val mappedQuestions = TestAnswerOrder.randomizeAndBalance(finalQuestions)
+                .map { question -> TestQuestionState(question = question) }
 
             withContext(Dispatchers.Main) {
                 if (!sessionActive) return@withContext

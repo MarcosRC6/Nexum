@@ -1,11 +1,9 @@
 package com.example.planario.app
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.core.content.ContextCompat
+import android.util.Log
 import com.example.planario.app.notifications.PlanarioNotificationScheduler
 import com.example.planario.data.local.StudyLocalDataSource
 import com.example.planario.data.repository.StudyRepository
@@ -78,8 +76,6 @@ object PlanarioDependencies {
     }
 
     fun startStudyTimerForegroundService() {
-        if (!canUseTimerNotification()) return
-
         val intent = Intent(
             appContext,
             StudyTimerForegroundService::class.java
@@ -88,10 +84,9 @@ object PlanarioDependencies {
         }
 
         runCatching {
-            ContextCompat.startForegroundService(
-                appContext,
-                intent
-            )
+            ContextCompat.startForegroundService(appContext, intent)
+        }.onFailure { error ->
+            Log.w("NEXUM_Timer", "No se pudo iniciar el servicio del cronómetro", error)
         }
     }
 
@@ -104,6 +99,18 @@ object PlanarioDependencies {
         runCatching {
             appContext.stopService(intent)
         }
+    }
+
+    fun finishStudyTimerAndSave() {
+        if (!::appContext.isInitialized) return
+        if (studyTimerController.state.value.studyTimerState == StudyTimerState.STOPPED) return
+
+        val finished = studyTimerController.finishStudyTimerAndReturnSession()
+        studyRepository.clearActiveStudyTimerTracking()
+        if (finished.minutes > 0) {
+            studyRepository.addTimerTime(minutes = finished.minutes, date = finished.date)
+        }
+        stopStudyTimerForegroundService()
     }
 
     fun schedulePlanarioNotifications() {
@@ -120,19 +127,4 @@ object PlanarioDependencies {
         planarioNotificationScheduler.cancelAll()
     }
 
-    private fun canUseTimerNotification(): Boolean {
-        if (!::appContext.isInitialized) return false
-
-        val notificationsEnabled = studyRepository.settings.value.notificationsEnabled
-        if (!notificationsEnabled) return false
-
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            return true
-        }
-
-        return ContextCompat.checkSelfPermission(
-            appContext,
-            Manifest.permission.POST_NOTIFICATIONS
-        ) == PackageManager.PERMISSION_GRANTED
-    }
 }
