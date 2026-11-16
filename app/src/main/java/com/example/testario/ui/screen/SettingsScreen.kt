@@ -63,6 +63,7 @@ import com.example.testario.data.model.DuplicateTopicAction
 import com.example.testario.data.model.ImportPreview
 import com.example.testario.data.model.Topic
 import com.example.testario.domain.UnifiedDataManager
+import com.example.testario.domain.NexumExportNames
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioGreenDark
@@ -822,7 +823,7 @@ fun SettingsScreen(
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Spacer(Modifier.height(4.dp))
                                 Button(
-                                    onClick = { unifiedBackupLauncher.launch("nexum_copia_completa.zip") },
+                                    onClick = { unifiedBackupLauncher.launch(NexumExportNames.fullBackup()) },
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
                                     shape = RoundedCornerShape(16.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = TestarioGreenDark, contentColor = TestarioGreen)
@@ -854,12 +855,12 @@ fun SettingsScreen(
 
                                         if (exportTarget == ExportTarget.PLAN) {
                                             Text(
-                                                "Exporta temas del plan, vueltas, días, tiempos, objetivos y ajustes en el formato compatible con Planario.",
+                                                "Exporta temas del plan, vueltas, días, tiempos, objetivos y ajustes. Formato compatible con las copias antiguas.",
                                                 color = TestarioMutedText,
                                                 style = MaterialTheme.typography.bodySmall
                                             )
                                             Button(
-                                                onClick = { exportPlanLauncher.launch("planario_backup.json") },
+                                                onClick = { exportPlanLauncher.launch(NexumExportNames.plan()) },
                                                 modifier = Modifier.fillMaxWidth().height(50.dp),
                                                 shape = RoundedCornerShape(16.dp)
                                             ) { Text("Exportar plan") }
@@ -919,14 +920,14 @@ fun SettingsScreen(
                                                     }
                                                     pendingExportTopicIds = ids
                                                     if (exportMode == ExportMode.COMPLETE) {
-                                                        exportZipLauncher.launch("testario_biblioteca.zip")
+                                                        exportZipLauncher.launch(NexumExportNames.library(zip = true, partial = ids != null))
                                                     } else {
                                                         isLoading = true
                                                         coroutineScope.launch {
                                                             try {
                                                                 pendingExportText = importExportViewModel.exportSimpleJson(ids)
                                                                 isLoading = false
-                                                                exportJsonLauncher.launch("testario_biblioteca.json")
+                                                                exportJsonLauncher.launch(NexumExportNames.library(zip = false, partial = ids != null))
                                                             } catch (_: Exception) {
                                                                 message = "Error al exportar la Biblioteca."
                                                                 isLoading = false
@@ -943,7 +944,7 @@ fun SettingsScreen(
                                 }
 
                                 Text(
-                                    "Importar reconoce automáticamente copias completas, backups antiguos de Planario y archivos de Biblioteca de Testario.",
+                                    "Importar reconoce copias NEXUM y archivos antiguos de Testario y Planario. Se conserva la compatibilidad.",
                                     color = TestarioMutedText,
                                     style = MaterialTheme.typography.bodySmall
                                 )
