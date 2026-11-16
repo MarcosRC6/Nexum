@@ -34,6 +34,15 @@ object MigrationManager {
             jsonObject.put("version", currentVersion)
         }
 
+        // v3: historical exam snapshots (5) and compact performance series (30).
+        // Preserve all v2 questions, templates, statistics, groups and existing history.
+        if (currentVersion < 3) {
+            if (!jsonObject.has("detailedExamHistory")) jsonObject.put("detailedExamHistory", JSONArray())
+            if (!jsonObject.has("performanceHistory")) jsonObject.put("performanceHistory", JSONArray())
+            currentVersion = 3
+            jsonObject.put("version", currentVersion)
+        }
+
         return jsonObject.toString()
     }
 }

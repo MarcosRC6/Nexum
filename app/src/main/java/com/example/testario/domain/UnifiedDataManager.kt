@@ -6,6 +6,7 @@ import com.example.planario.data.local.StudyLocalDataSource
 import com.example.testario.data.model.TestarioDatabase
 import com.example.testario.data.local.MigrationManager
 import com.example.testario.data.local.QuickTestLinkManager
+import com.example.testario.data.local.SavedTestSessionStore
 import com.example.testario.data.local.TestarioLocalStore
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -90,6 +91,7 @@ class UnifiedDataManager(private val context: Context) {
         val planJson = PlanarioDependencies.studyRepository.exportBackupJson()
         val quickLinksJson = QuickTestLinkManager(context).exportJson()
         val settingsJson = exportTestarioSettings()
+        val pendingTest = SavedTestSessionStore(context).exportJson()
 
         ZipOutputStream(outputStream).use { zos ->
             writeText(zos, "manifest.json", JSONObject().apply {
@@ -101,6 +103,7 @@ class UnifiedDataManager(private val context: Context) {
             writeText(zos, "planario_backup.json", planJson)
             writeText(zos, "quick_test_links.json", quickLinksJson)
             writeText(zos, "testario_settings.json", settingsJson)
+            if (pendingTest != null) writeText(zos, "pending_test_session.json", pendingTest)
 
             if (imagesDir.exists()) {
                 imagesDir.listFiles()?.filter { it.isFile }?.forEach { file ->
@@ -118,7 +121,8 @@ class UnifiedDataManager(private val context: Context) {
             "testario_database.json",
             "planario_backup.json",
             "quick_test_links.json",
-            "testario_settings.json"
+            "testario_settings.json",
+            "pending_test_session.json"
         )
         val textEntries = runCatching { readZipTextEntries(bytes, wanted) }.getOrElse { return false }
 
@@ -148,6 +152,11 @@ class UnifiedDataManager(private val context: Context) {
             return false
         }
 
+        val pendingTestRaw = textEntries["pending_test_session.json"]
+        if (pendingTestRaw != null &&
+            runCatching { SavedTestSessionStore(context).validate(pendingTestRaw) }.isFailure
+        ) return false
+
         // Solo después de validar todos los componentes empezamos a modificar el estado.
         if (!extractQuestionImages(bytes)) return false
 
@@ -167,6 +176,7 @@ class UnifiedDataManager(private val context: Context) {
         if (settingsRaw != null) {
             runCatching { restoreTestarioSettings(settingsRaw) }.getOrElse { return false }
         }
+        runCatching { SavedTestSessionStore(context).importJson(pendingTestRaw) }.getOrElse { return false }
         return true
     }
 
