@@ -57,6 +57,7 @@ class NexumNearbyManager(context: Context) {
 
     private var endpoint: String? = null
     private var hostFile: NexumNearbyArchive.Prepared? = null
+    private var outgoingFileId: Long? = null
     private var receiverFile: NexumNearbyArchive.Prepared? = null
     private var filePayload: Payload? = null
     private var fileCompleted = false
@@ -181,6 +182,7 @@ class NexumNearbyManager(context: Context) {
                 val prepared = archives.prepareHostArchive()
                 hostFile = prepared
                 val file = Payload.fromFile(prepared.file)
+                outgoingFileId = file.id
                 val control = JSONObject()
                     .put("type", "NEXUM_BACKUP_V1")
                     .put("payloadId", file.id)
@@ -233,8 +235,10 @@ class NexumNearbyManager(context: Context) {
         override fun onPayloadTransferUpdate(id: String, transfer: PayloadTransferUpdate) {
             if (id != endpoint) return
             val payload = filePayload
-            if (state.value.mode == NexumNearbyMode.JOIN && payload != null &&
-                transfer.payloadId != payload.id) return
+            if (state.value.mode == NexumNearbyMode.HOST &&
+                transfer.payloadId != outgoingFileId) return
+            if (state.value.mode == NexumNearbyMode.JOIN &&
+                (payload == null || transfer.payloadId != payload.id)) return
             if (transfer.totalBytes > 0L) {
                 val percent = (transfer.bytesTransferred * 100L / transfer.totalBytes).toInt()
                     .coerceIn(0, 100)
@@ -316,6 +320,7 @@ class NexumNearbyManager(context: Context) {
         archives.cleanup(receiverFile)
         hostFile = null
         receiverFile = null
+        outgoingFileId = null
         endpoint = null
         metadata = null
         filePayload = null

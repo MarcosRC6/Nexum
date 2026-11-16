@@ -1,37 +1,31 @@
-# Sincronización entre dispositivos — NEXUM
+# NEXUM — Transferir datos entre dispositivos (Host / Join)
 
-## Funcionamiento
+## Objetivo
+La transferencia es directa, inalámbrica y sin Internet mediante Nearby Connections. La opción aparece en **Ajustes → Datos → debajo de Exportar → Sincronizar dispositivos**. El código sustituye al antiguo diseño de carpeta compartida; no requiere nube, ni selección de carpeta ni archivos ZIP enviados a mano.
 
-La primera versión utiliza el **selector de carpeta de Android** (Storage Access Framework). No utiliza una cuenta propia de NEXUM, ni requiere subir datos a servidores de NEXUM. Los dispositivos deben poder **leer y escribir la misma carpeta**, por ejemplo mediante un proveedor de nube que exponga su carpeta en el selector de archivos de Android.
+## Enviar / Crear conexión
+1. En el dispositivo con la información que deseas conservar pulsa **ENVIAR · Crear conexión**. Quedará visible a los NEXUM cercanos.
+2. En el otro móvil abre **RECIBIR · Unirse a conexión** y selecciona el emisor.
+3. Ambos muestran un código de autenticación: **compáralo visualmente y acepta solo si coincide**. Si no coincide, cancela.
+4. El emisor pulsa **Compartir copia completa**, lee el alcance de los datos y confirma el envío.
+5. Se transfiere un ZIP interno de NEXUM; el receptor comprueba tamaño, SHA-256 y estructura completa antes de permitir la importación.
 
-1. En ambos móviles, entra en **Ajustes → Datos → Sincronización entre dispositivos**.
-2. Asigna un nombre reconocible a cada móvil, por ejemplo `Móvil principal` y `Tablet`.
-3. Pulsa **Seleccionar carpeta compartida** y elige **exactamente la misma carpeta** en ambos. No sirve escoger dos carpetas locales distintas.
-4. En el dispositivo que tenga la información que deseas conservar, pulsa **Este dispositivo prevalece · Enviar**, lee el aviso y confirma.
-5. En el otro dispositivo, pulsa **Buscar copias**, selecciona la copia correspondiente al móvil de origen y pulsa **Usar el NEXUM seleccionado · Recibir**.
-6. Verifica el nombre, identificación y fecha de origen. Confirma solo si quieres **reemplazar todos los datos del dispositivo receptor**.
-7. Cierra y vuelve a abrir NEXUM después de la recepción.
+## Recibir / Sustituir
+6. El receptor ve la confirmación: la copia del emisor reemplazará **todos** sus temas, imágenes, grupos, estadísticas, historial, plantillas, planificación, objetivos, test pendiente y ajustes. **No hay fusión**.
+7. Si el cronómetro está activo deberá detenerse/guardarse antes de confirmar.
+8. Antes de restaurar, el receptor crea y valida una copia local privada. Solo entonces restaura la copia entrante. Si falla, intenta restaurar el estado anterior.
+9. Tras finalizar, reinicia NEXUM para refrescar todos los ajustes visuales. Se puede usar **Recuperar los datos anteriores** desde la misma pantalla.
 
-## Qué incluye
+## Seguridad y límites
+- Nearby Connections usa Bluetooth/BLE/Wi-Fi, con cifrado de transporte. La seguridad frente a conexiones no autorizadas depende de **comparar y aceptar los códigos en ambos móviles**. No se establece conexión completa sin aceptación en ambos.
+- No hay servidores propios, ni cuenta ni almacenamiento compartido externo. El ZIP temporal y las copias de recuperación quedan en el almacenamiento privado de la app.
+- Ninguna recepción modifica los datos automáticamente. Si se cancela o corta antes de completar, no se ejecuta la restauración.
+- Máximo **128 MiB comprimidos**, por el diseño actual del restaurador global, y 768 MiB descomprimidos. Las copias de mayor tamaño requieren una evolución hacia restauración en streaming.
+- Se necesitan permisos inalámbricos para anunciar, descubrir y conectar. También servicios de Google Play compatibles en ambos Android.
+- Esta PR no fusiona con main ni publica APK por sí sola. Requiere pruebas de Android reales en dos dispositivos, incluyendo fallo de transferencia, permiso denegado, respaldo y restauración.
 
-- Biblioteca, grupos, temas, respuestas y estadísticas
-- Historial de exámenes, evolución y pruebas guardadas
-- Imágenes propias de las preguntas presentes en el almacenamiento de NEXUM
-- Planificación, calendario, objetivos, sesiones registradas y ajustes
-- Vínculos de test rápido
+## Tutorial
+Al abrir NEXUM por primera vez, tras la pantalla inicial, se muestra una guía **omitable**. Explica Inicio, Biblioteca y Grupos, Tests, Planificación, Estadísticas y Ajustes/Datos. En el icono **?** de la esquina derecha del encabezado de Ajustes puede repetirse completa o por capítulos. Salir o finalizar la guía marca el recorrido como visto, pero nunca borra el acceso desde Ajustes.
 
-El formato interno sigue siendo el de **copia global NEXUM v1**; las antiguas copias Testario/Planario siguen importándose por la vía habitual. El manifiesto añade una identificación de origen para sincronización.
-
-## Resolución de conflictos
-
-No hay fusión automática de cambios: el usuario **elige qué copia prevalece**. Las subidas nunca sobrescriben directamente los datos locales de otro dispositivo y conservan hasta tres instantáneas de cada origen. Antes de recibir, NEXUM genera y verifica una copia privada de recuperación. Para deshacer la última recepción, usa **Restaurar la última copia de recuperación**.
-
-Los envíos y recepciones son **manuales y confirmados**. No es sincronización instantánea o bidireccional en segundo plano. Las carpetas deben estar ya sincronizadas por su proveedor, cuya velocidad o disponibilidad NEXUM no controla.
-
-## Límites y privacidad
-
-- **128 MiB comprimidos** como máximo para esta implementación: el proceso anterior de restauración aún consume los datos desde un `ByteArray`, y ese límite reduce el riesgo de quedarse sin memoria.
-- Los ZIP no se cifran adicionalmente por NEXUM. Utiliza una carpeta privada, con un proveedor de nube de confianza.
-- Un proveedor Android que no permita seleccionar carpetas o escribir archivos no podrá usarse. No implica pérdida de datos locales.
-- Las pruebas automáticas no sustituyen una prueba real entre dos dispositivos Android, especialmente con archivos grandes, fotos, permisos caducados y desconexiones.
-- La versión 1.4 publicada permanece intacta; el código vive en una PR independiente pendiente de autorización.
+## Exportaciones
+Los nombres visibles se generan como `NEXUM_<APARTADO>_<COMPLETO/SIMPLE>[_PARCIAL]_<YYYYMMDD_HHMMSS>.<zip|json>`. Se mantienen los nombres internos y el formato de importación de Testario y Planario para retrocompatibilidad.
