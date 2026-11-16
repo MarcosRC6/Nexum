@@ -38,18 +38,26 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.planario.domain.timer.PomodoroTimerState
 import com.example.planario.domain.timer.StudyTimerState
+import com.example.planario.ui.notifications.rememberTimerNotificationPermissionRequest
 
 @Composable
 fun TimerScreen(
     viewModel: TimerViewModel = viewModel(factory = TimerViewModel.factory())
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val requestTimerNotificationPermission = rememberTimerNotificationPermissionRequest()
 
     TimerContent(
         uiState = uiState,
-        onStartStudy = viewModel::startStudyTimer,
+        onStartStudy = {
+            viewModel.startStudyTimer()
+            requestTimerNotificationPermission()
+        },
         onPauseStudy = viewModel::pauseStudyTimer,
-        onResumeStudy = viewModel::resumeStudyTimer,
+        onResumeStudy = {
+            viewModel.resumeStudyTimer()
+            requestTimerNotificationPermission()
+        },
         onFinishStudy = viewModel::finishStudyTimer,
         onDiscardStudy = viewModel::discardStudyTimer,
         onSetPomodoroDuration = viewModel::setPomodoroDuration,
