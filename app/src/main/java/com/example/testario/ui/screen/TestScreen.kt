@@ -92,6 +92,7 @@ fun TestScreen(
 
     var finished by rememberSaveable { mutableStateOf(false) }
     var showExitDialog by rememberSaveable { mutableStateOf(false) }
+    var showReplaceSavedDialog by rememberSaveable { mutableStateOf(false) }
     var reviewingResults by rememberSaveable { mutableStateOf(false) }
     var reviewIndex by rememberSaveable { mutableStateOf(0) }
 
@@ -153,6 +154,37 @@ fun TestScreen(
     val currentTopicName = database.topics.firstOrNull { it.id == topicId }?.name ?: "Tema desconocido"
     val currentTopicDisplayName = topicDisplayName(currentTopicName, current.question.originTopicName)
 
+    fun saveAndLeave() {
+        if (sessionViewModel.saveForLater()) {
+            showExitDialog = false
+            showReplaceSavedDialog = false
+            onFinish()
+        } else {
+            Toast.makeText(
+                context, "No se pudo guardar el test. Inténtalo de nuevo.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    if (showReplaceSavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showReplaceSavedDialog = false },
+            containerColor = TestarioSurface,
+            title = { Text("Reemplazar test guardado") },
+            text = {
+                Text(
+                    "Hay otro test suspendido. Solo se conserva uno a la vez. " +
+                        "¿Quieres reemplazarlo por el test actual?"
+                )
+            },
+            confirmButton = { Button(onClick = { saveAndLeave() }) { Text("Reemplazar y guardar") } },
+            dismissButton = {
+                OutlinedButton(onClick = { showReplaceSavedDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
@@ -168,14 +200,12 @@ fun TestScreen(
                 ) {
                     Button(
                         onClick = {
-                            if (sessionViewModel.saveForLater()) {
+                            val previous = sessionViewModel.pendingSavedSession.value
+                            if (previous != null && previous.sessionId != sessionViewModel.sessionId()) {
                                 showExitDialog = false
-                                onFinish()
+                                showReplaceSavedDialog = true
                             } else {
-                                Toast.makeText(
-                                    context, "No se pudo guardar el test. Inténtalo de nuevo.",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                saveAndLeave()
                             }
                         },
                         modifier = Modifier.fillMaxWidth()

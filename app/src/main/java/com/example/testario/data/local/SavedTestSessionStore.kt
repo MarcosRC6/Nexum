@@ -77,7 +77,11 @@ class SavedTestSessionStore(context: Context) {
         require(value.sessionId.isNotBlank() && value.answers.isNotEmpty())
         require(value.questionIndex in value.answers.indices)
         require(value.elapsedSeconds >= 0 && (value.remainingSeconds == null || value.remainingSeconds >= 0))
-        require(value.answers.all { it.question.answers.isNotEmpty() })
+        require(value.answers.all { answer ->
+            val ids = answer.question.answers.map { it.id }.toSet()
+            ids.isNotEmpty() && answer.question.correctAnswerId in ids &&
+                (answer.selectedAnswerId == null || answer.selectedAnswerId in ids)
+        })
         return value
     }
 

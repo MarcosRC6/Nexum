@@ -107,6 +107,7 @@ fun HomeScreen(
     val quickTestLinks = remember { QuickTestLinkManager(context.applicationContext) }
     val requestTimerNotificationPermission = rememberTimerNotificationPermissionRequest()
     val pendingTest by savedTestSessionViewModel.pendingSavedSession.collectAsState()
+    LaunchedEffect(Unit) { savedTestSessionViewModel.refreshSavedSession() }
     var showDiscardPendingTestDialog by remember { mutableStateOf(false) }
     var isReorderMode by remember { mutableStateOf(false) }
     var showRestartStudyDialog by remember { mutableStateOf(false) }

@@ -22,6 +22,10 @@ class StatsRepository(
                     if (topic.id == topicId) {
                         topic.copy(questions = topic.questions.map { it.copy(stats = QuestionStats()) })
                     } else topic
+                },
+                performanceHistory = db.performanceHistory.mapNotNull { item ->
+                    val retained = item.topics.filterNot { it.topicId == topicId }
+                    if (retained.isEmpty()) null else item.copy(topics = retained)
                 }
             )
         )

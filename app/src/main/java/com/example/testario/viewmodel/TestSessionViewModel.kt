@@ -289,8 +289,10 @@ class TestSessionViewModel(application: Application) : AndroidViewModel(applicat
     fun refreshQuestionsFromDatabase(topics: List<Topic>) {
         val dbQuestions = topics.flatMap { it.questions }.associateBy { it.id }
 
-        val updatedList = _questions.value.mapNotNull { state ->
-            val freshQuestion = dbQuestions[state.question.id] ?: return@mapNotNull null
+        val updatedList = _questions.value.map { state ->
+            // A saved exam is an immutable snapshot: deleting a source question
+            // must never silently erase a previously saved answer.
+            val freshQuestion = dbQuestions[state.question.id] ?: return@map state
             if (freshQuestion == state.question) return@mapNotNull state
 
             // La sesión baraja las respuestas al arrancar. Un cambio externo de la
