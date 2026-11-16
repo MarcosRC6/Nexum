@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import com.example.planario.app.PlanarioDependencies
 import com.example.testario.ui.navigation.TestarioApp
 import com.example.testario.ui.screen.NexumSplashScreen
+import com.example.testario.ui.screen.NexumTutorialDialog
+import com.example.testario.ui.screen.NexumTutorialPreferences
 import com.example.testario.ui.theme.TestarioTheme
 import kotlinx.coroutines.delay
 
@@ -91,11 +93,23 @@ class MainActivity : ComponentActivity() {
                 if (showBrandIntro) {
                     TestarioTheme(darkTheme = true) { NexumSplashScreen() }
                 } else {
+                    var showTutorial by remember {
+                        mutableStateOf(
+                            NexumTutorialPreferences.shouldShow(applicationContext) &&
+                                requestedDestinationRoute.value == null
+                        )
+                    }
                     TestarioApp(
                         requestedDestinationRoute = requestedDestinationRoute.value,
                         navigationRequestId = navigationRequestId.intValue,
                         requestedQuickTestTemplateId = requestedQuickTestTemplateId.value
                     )
+                    if (showTutorial) {
+                        NexumTutorialDialog(initialSection = 0, onClose = {
+                            NexumTutorialPreferences.markSeen(applicationContext)
+                            showTutorial = false
+                        })
+                    }
                 }
             }
         }

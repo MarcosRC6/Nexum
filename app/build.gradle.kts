@@ -25,8 +25,8 @@ android {
         applicationId = "com.example.estudario"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.4"
+        versionCode = 10
+        versionName = "1.5"
         manifestPlaceholders["nexumAppLabel"] = "@string/app_name"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -80,6 +80,7 @@ kotlin {
 dependencies {
 
     implementation("androidx.core:core-ktx:1.15.0")
+    implementation("com.google.android.gms:play-services-nearby:19.3.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation(platform("androidx.compose:compose-bom:2025.12.00"))
 

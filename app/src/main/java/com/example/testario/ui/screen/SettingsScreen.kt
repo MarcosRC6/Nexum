@@ -63,6 +63,7 @@ import com.example.testario.data.model.DuplicateTopicAction
 import com.example.testario.data.model.ImportPreview
 import com.example.testario.data.model.Topic
 import com.example.testario.domain.UnifiedDataManager
+import com.example.testario.domain.NexumExportNames
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioGreenDark
@@ -144,6 +145,8 @@ fun SettingsScreen(
     val studySettings by PlanarioDependencies.studyRepository.settings.collectAsState()
     var showStudySettings by remember { mutableStateOf(false) }
     var showDataOptions by remember { mutableStateOf(false) }
+    var showTutorial by remember { mutableStateOf(false) }
+    var showNearbySync by remember { mutableStateOf(false) }
     var showExportOptions by remember { mutableStateOf(false) }
     var exportTarget by remember { mutableStateOf<ExportTarget?>(null) }
     var pendingUnifiedBytes by remember { mutableStateOf<ByteArray?>(null) }
@@ -383,8 +386,13 @@ fun SettingsScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
+        if (showTutorial) NexumTutorialDialog(initialSection = null, onClose = { showTutorial = false })
         Scaffold(containerColor = TestarioBackground, topBar = {
-            TestarioTopBar("Ajustes", onBack)
+            TestarioTopBar("Ajustes", onBack, actions = {
+                androidx.compose.material3.IconButton(onClick = { showTutorial = true }) {
+                    Text("?", color = TestarioPrimary, style = MaterialTheme.typography.headlineMedium)
+                }
+            })
         }) { padding ->
             Column(Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
@@ -822,7 +830,7 @@ fun SettingsScreen(
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 Spacer(Modifier.height(4.dp))
                                 Button(
-                                    onClick = { unifiedBackupLauncher.launch("nexum_copia_completa.zip") },
+                                    onClick = { unifiedBackupLauncher.launch(NexumExportNames.fullBackup()) },
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
                                     shape = RoundedCornerShape(16.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = TestarioGreenDark, contentColor = TestarioGreen)
@@ -854,12 +862,12 @@ fun SettingsScreen(
 
                                         if (exportTarget == ExportTarget.PLAN) {
                                             Text(
-                                                "Exporta temas del plan, vueltas, días, tiempos, objetivos y ajustes en el formato compatible con Planario.",
+                                                "Exporta temas del plan, vueltas, días, tiempos, objetivos y ajustes. Formato compatible con las copias antiguas.",
                                                 color = TestarioMutedText,
                                                 style = MaterialTheme.typography.bodySmall
                                             )
                                             Button(
-                                                onClick = { exportPlanLauncher.launch("planario_backup.json") },
+                                                onClick = { exportPlanLauncher.launch(NexumExportNames.plan()) },
                                                 modifier = Modifier.fillMaxWidth().height(50.dp),
                                                 shape = RoundedCornerShape(16.dp)
                                             ) { Text("Exportar plan") }
@@ -919,14 +927,14 @@ fun SettingsScreen(
                                                     }
                                                     pendingExportTopicIds = ids
                                                     if (exportMode == ExportMode.COMPLETE) {
-                                                        exportZipLauncher.launch("testario_biblioteca.zip")
+                                                        exportZipLauncher.launch(NexumExportNames.library(zip = true, partial = ids != null))
                                                     } else {
                                                         isLoading = true
                                                         coroutineScope.launch {
                                                             try {
                                                                 pendingExportText = importExportViewModel.exportSimpleJson(ids)
                                                                 isLoading = false
-                                                                exportJsonLauncher.launch("testario_biblioteca.json")
+                                                                exportJsonLauncher.launch(NexumExportNames.library(zip = false, partial = ids != null))
                                                             } catch (_: Exception) {
                                                                 message = "Error al exportar la Biblioteca."
                                                                 isLoading = false
@@ -942,8 +950,30 @@ fun SettingsScreen(
                                     }
                                 }
 
+                                OutlinedButton(
+                                    onClick = { showNearbySync = !showNearbySync },
+                                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    border = BorderStroke(1.dp, TestarioPrimary)
+                                ) {
+                                    Text(
+                                        if (showNearbySync) "Cerrar transferencia" else "Sincronizar dispositivos",
+                                        color = TestarioPrimary
+                                    )
+                                }
                                 Text(
-                                    "Importar reconoce automáticamente copias completas, backups antiguos de Planario y archivos de Biblioteca de Testario.",
+                                    "Transferencia inalámbrica entre dos NEXUM cercanos. Enviar comparte " +
+                                        "la copia completa; Recibir la sustituye solo tras verificar el código " +
+                                        "y confirmar, guardando antes una copia de recuperación.",
+                                    color = TestarioMutedText,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                AnimatedVisibility(showNearbySync) {
+                                    NexumNearbySyncPanel()
+                                }
+
+                                Text(
+                                    "Importar reconoce copias NEXUM y archivos antiguos de Testario y Planario. Se conserva la compatibilidad.",
                                     color = TestarioMutedText,
                                     style = MaterialTheme.typography.bodySmall
                                 )

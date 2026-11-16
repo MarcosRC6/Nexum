@@ -101,6 +101,11 @@ class TestarioLocalStore private constructor(context: Context) {
         }
     }
 
+    /** Await durable persistence before considering a cross-device restore complete. */
+    suspend fun flushCurrentForSync() {
+        mutex.withLock { writeDatabaseAtomically(_database.value) }
+    }
+
     companion object {
         @Volatile
         private var INSTANCE: TestarioLocalStore? = null

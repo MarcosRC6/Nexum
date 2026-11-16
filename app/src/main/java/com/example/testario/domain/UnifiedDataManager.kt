@@ -86,7 +86,7 @@ class UnifiedDataManager(private val context: Context) {
         }.getOrDefault(false)
     }
 
-    fun exportGlobalBackup(outputStream: OutputStream) {
+    fun exportGlobalBackup(outputStream: OutputStream, syncDeviceId: String? = null) {
         val databaseJson = json.encodeToString(localStore.database.value)
         val planJson = PlanarioDependencies.studyRepository.exportBackupJson()
         val quickLinksJson = QuickTestLinkManager(context).exportJson()
@@ -98,6 +98,7 @@ class UnifiedDataManager(private val context: Context) {
                 put("format", GLOBAL_FORMAT)
                 put("version", 1)
                 put("createdAt", System.currentTimeMillis())
+                if (syncDeviceId != null) put("syncDeviceId", syncDeviceId)
             }.toString(2))
             writeText(zos, "testario_database.json", databaseJson)
             writeText(zos, "planario_backup.json", planJson)
