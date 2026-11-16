@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
 
     private val requestedDestinationRoute = mutableStateOf<String?>(null)
     private val navigationRequestId = mutableIntStateOf(0)
+    private val requestedQuickTestTemplateId = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +44,7 @@ class MainActivity : ComponentActivity() {
         // loop. All existing Testario/Planario data remains untouched.
         val previousCrash = NexumCrashReporter.lastCrash(applicationContext)
         requestedDestinationRoute.value = intent.getStringExtra(EXTRA_START_DESTINATION_ROUTE)
+        requestedQuickTestTemplateId.value = intent.getStringExtra(EXTRA_QUICK_TEST_TEMPLATE_ID)
         setContent {
             var recoveryMessage by remember { mutableStateOf(previousCrash) }
             var startupReady by remember { mutableStateOf(false) }
@@ -91,7 +93,8 @@ class MainActivity : ComponentActivity() {
                 } else {
                     TestarioApp(
                         requestedDestinationRoute = requestedDestinationRoute.value,
-                        navigationRequestId = navigationRequestId.intValue
+                        navigationRequestId = navigationRequestId.intValue,
+                        requestedQuickTestTemplateId = requestedQuickTestTemplateId.value
                     )
                 }
             }
@@ -102,11 +105,13 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         requestedDestinationRoute.value = intent.getStringExtra(EXTRA_START_DESTINATION_ROUTE)
+        requestedQuickTestTemplateId.value = intent.getStringExtra(EXTRA_QUICK_TEST_TEMPLATE_ID)
         navigationRequestId.intValue += 1
     }
 
     companion object {
         const val EXTRA_START_DESTINATION_ROUTE = "extra_start_destination_route"
+        const val EXTRA_QUICK_TEST_TEMPLATE_ID = "extra_quick_test_template_id"
     }
 }
 

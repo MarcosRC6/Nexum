@@ -50,6 +50,21 @@
         </receiver>
 
         <receiver
+            android:name="com.example.testario.widget.NexumQuickTestWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_nexum_quick_test_info" />
+        </receiver>
+
+        <activity
+            android:name="com.example.testario.widget.NexumQuickTestWidgetConfigurationActivity"
+            android:exported="true" />
+
+        <receiver
             android:name="com.example.planario.app.widget.PlanarioTodayWidgetReceiver"
             android:exported="true">
             <intent-filter>
