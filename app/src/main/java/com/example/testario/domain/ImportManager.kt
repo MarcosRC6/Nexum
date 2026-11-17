@@ -522,37 +522,60 @@ class ImportManager(private val context: Context, private val localStore: Testar
                 return imported.topics.map { regenerateTopicIds(it) }
             }
             if (root.has("name") && root.has("questions")) {
-                runCatching { json.decodeFromString<Topic>(rawJson) }.getOrNull()?.let {
-                    return listOf(regenerateTopicIds(it))
+                val sample = root.optJSONArray("questions")?.optJSONObject(0)
+                return if (root.has("id") || sample?.has("correctAnswerId") == true) {
+                    listOf(regenerateTopicIds(json.decodeFromString<Topic>(rawJson)))
+                } else {
+                    val simple = json.decodeFromString<SimpleTopicJson>(rawJson)
+                    decodeSimpleTopics(json.encodeToString(listOf(simple)))
                 }
-                val simple = json.decodeFromString<SimpleTopicJson>(rawJson)
-                return decodeSimpleTopics(json.encodeToString(listOf(simple)))
             }
         }
         if (trimmed.startsWith("[")) {
-            return runCatching { decodeSimpleTopics(rawJson) }.getOrElse {
-                json.decodeFromString<List<Topic>>(rawJson).map { topic ->
-                    regenerateTopicIds(topic)
-                }
-            }
+            val array = org.json.JSONArray(rawJson)
+            val sampleTopic = array.optJSONObject(0)
+            val sampleQuestion = sampleTopic?.optJSONArray("questions")?.optJSONObject(0)
+            val fullModel = sampleTopic?.has("id") == true ||
+                sampleQuestion?.has("correctAnswerId") == true
+            return if (fullModel) json.decodeFromString<List<Topic>>(rawJson)
+                .map { regenerateTopicIds(it) } else decodeSimpleTopics(rawJson)
         }
         throw IllegalArgumentException("JSON de tema o biblioteca no reconocido.")
     }
 
     private fun decodeSimpleTopics(rawJson: String): List<Topic> {
-        return json.decodeFromString<List<SimpleTopicJson>>(rawJson).map { simpleTopic ->
+        val simpleTopics = json.decodeFromString<List<SimpleTopicJson>>(rawJson)
+        require(simpleTopics.size <= 10000) { "Demasiados temas en la importación." }
+        return simpleTopics.map { simpleTopic ->
+            val label = simpleTopic.name.ifBlank { "Importado" }
             Topic(
                 id = UUID.randomUUID().toString(),
-                name = simpleTopic.name.ifBlank { "Importado" },
-                questions = simpleTopic.questions.mapNotNull { simpleQuestion ->
-                    if (simpleQuestion.text.isBlank() || simpleQuestion.answers.size < 2) null else {
-                        val answers = simpleQuestion.answers.map { Answer(id = UUID.randomUUID().toString(), text = it.text) }
-                        val correctIndex = simpleQuestion.answers.indexOfFirst { it.isCorrect }
-                        Question(id = UUID.randomUUID().toString(), text = simpleQuestion.text, answers = answers, correctAnswerId = answers.getOrNull(if (correctIndex >= 0) correctIndex else 0)?.id ?: "", difficulty = null, explanation = "")
+                name = label,
+                questions = simpleTopic.questions.mapIndexed { index, question ->
+                    require(question.text.isNotBlank() && question.answers.size >= 2 &&
+                        question.answers.all { it.text.isNotBlank() }) {
+                        "Pregunta ${index + 1} no válida en el tema $label."
                     }
+                    val correct = question.answers.indices.filter {
+                        question.answers[it].isCorrect
+                    }
+                    require(correct.size == 1) {
+                        "Pregunta ${index + 1} de $label: debe existir una única respuesta correcta."
+                    }
+                    val answers = question.answers.map {
+                        Answer(id = UUID.randomUUID().toString(), text = it.text)
+                    }
+                    Question(
+                        id = UUID.randomUUID().toString(),
+                        text = question.text,
+                        answers = answers,
+                        correctAnswerId = answers[correct.single()].id,
+                        difficulty = null,
+                        explanation = ""
+                    )
                 }
             )
-        }.filter { it.questions.isNotEmpty() }
+        }
     }
 
     private fun regenerateTopicIds(topic: Topic, newTopicId: String = UUID.randomUUID().toString()): Topic {
