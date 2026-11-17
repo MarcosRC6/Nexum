@@ -350,13 +350,10 @@ class ImportManager(private val context: Context, private val localStore: Testar
 
         // Only deduplicate inside the TARGET topic. The same knowledge may
         // intentionally appear in different subjects, zones or groups.
-        val fingerprints = mutableSetOf<String>()
-        if (existingIndex >= 0 && action == DuplicateTopicAction.MERGE) {
-            topics[existingIndex].questions.mapTo(fingerprints, ::createQuestionFingerprint)
-        }
-        val uniqueQuestions = topic.questions.filter {
-            fingerprints.add(createQuestionFingerprint(it))
-        }
+        val targetQuestions = if (existingIndex >= 0 &&
+            action == DuplicateTopicAction.MERGE) topics[existingIndex].questions
+            else emptyList()
+        val uniqueQuestions = TopicImportMatcher.uniqueQuestions(topic.questions, targetQuestions)
         val duplicates = topic.questions.size - uniqueQuestions.size
         if (existingIndex >= 0 && action == DuplicateTopicAction.MERGE &&
             uniqueQuestions.isEmpty()) {
@@ -401,16 +398,8 @@ class ImportManager(private val context: Context, private val localStore: Testar
         return ImportTopicOutcome(created, merged, fresh.questions.size, duplicates, destination)
     }
 
-    private fun createQuestionFingerprint(question: Question): String {
-        val qText = normalizeText(question.text)
-        val aText = question.answers
-            .map { normalizeText(it.text) }
-            .sorted()
-            .joinToString("|")
-        val correct = question.answers.firstOrNull { it.id == question.correctAnswerId }
-            ?.text?.let(::normalizeText).orEmpty()
-        return "$qText::$aText::$correct"
-    }
+    private fun createQuestionFingerprint(question: Question): String =
+        TopicImportMatcher.fingerprint(question)
 
     private fun hasSyncDifferences(local: Question, external: Question): Boolean {
         if (createQuestionFingerprint(local) != createQuestionFingerprint(external)) return true
