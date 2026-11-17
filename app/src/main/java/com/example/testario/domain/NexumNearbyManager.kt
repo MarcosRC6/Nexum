@@ -65,7 +65,8 @@ class NexumNearbyManager(context: Context) {
     private val client = Nearby.getConnectionsClient(app)
     private val archives = NexumNearbyArchive(app)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val serviceId = app.packageName + ".nexum_transfer_v1"
+    // Version 2 changes the negotiation protocol; don't pair with an older client.
+    private val serviceId = app.packageName + ".nexum_transfer_v2"
     private val strategy = Strategy.P2P_POINT_TO_POINT
     val localName: String = "NEXUM · ${Build.MODEL}".take(64)
     private val mutable = MutableStateFlow(NexumNearbyState())
@@ -206,7 +207,7 @@ class NexumNearbyManager(context: Context) {
 
     fun acceptPeerRequestAndSend() {
         if (!state.value.remoteRequestedToSend) return
-        update { it.copy(remoteRequestedToSend = false) }
+        update { it.copy(remoteRequestedToSend = false, awaitingPeerToSend = false) }
         send()
     }
 
@@ -314,7 +315,8 @@ class NexumNearbyManager(context: Context) {
                             }
                             "NEXUM_REQUEST_SEND_V1" -> {
                                 require(!state.value.processing && !state.value.completed &&
-                                    !state.value.readyToRestore && outgoingFileId == null &&
+                                    !state.value.readyToRestore && !state.value.awaitingPeerToSend &&
+                                    outgoingFileId == null &&
                                     filePayload == null && metadata == null) {
                                     "La sincronización ya está ocupada."
                                 }
