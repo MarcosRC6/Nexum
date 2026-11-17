@@ -510,17 +510,31 @@ class ImportManager(private val context: Context, private val localStore: Testar
     }
 
     private fun decodeTopicsFromAnyJson(rawJson: String): List<Topic> {
-        // Full exported database; a simple array of topics; or one JSON per topic.
-        runCatching {
-            json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(rawJson))
-                .topics.map { regenerateTopicIds(it) }
-        }.getOrNull()?.let { return it }
-        runCatching { decodeSimpleTopics(rawJson) }.getOrNull()?.let { return it }
-        runCatching { json.decodeFromString<SimpleTopicJson>(rawJson) }.getOrNull()?.let {
-            return decodeSimpleTopics(json.encodeToString(listOf(it)))
+        // Inspect the shape FIRST: TestarioDatabase has default values, so
+        // blindly decoding a single-topic JSON as a database returns ZERO topics.
+        val trimmed = rawJson.trimStart()
+        if (trimmed.startsWith("{")) {
+            val root = org.json.JSONObject(rawJson)
+            if (root.has("topics")) {
+                val imported = json.decodeFromString<TestarioDatabase>(
+                    MigrationManager.migrate(rawJson)
+                )
+                return imported.topics.map { regenerateTopicIds(it) }
+            }
+            if (root.has("name") && root.has("questions")) {
+                runCatching { json.decodeFromString<Topic>(rawJson) }.getOrNull()?.let {
+                    return listOf(regenerateTopicIds(it))
+                }
+                val simple = json.decodeFromString<SimpleTopicJson>(rawJson)
+                return decodeSimpleTopics(json.encodeToString(listOf(simple)))
+            }
         }
-        runCatching { json.decodeFromString<Topic>(rawJson) }.getOrNull()?.let {
-            return listOf(regenerateTopicIds(it))
+        if (trimmed.startsWith("[")) {
+            return runCatching { decodeSimpleTopics(rawJson) }.getOrElse {
+                json.decodeFromString<List<Topic>>(rawJson).map { topic ->
+                    regenerateTopicIds(topic)
+                }
+            }
         }
         throw IllegalArgumentException("JSON de tema o biblioteca no reconocido.")
     }
