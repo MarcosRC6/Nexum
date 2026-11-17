@@ -48,6 +48,8 @@ data class NexumNearbyState(
     val incomingPeer: NexumNearbyPeer? = null,
     val localSummary: NexumNearbySummary? = null,
     val peerSummary: NexumNearbySummary? = null,
+    val awaitingPeerToSend: Boolean = false,
+    val remoteRequestedToSend: Boolean = false,
     val authenticationDigits: String? = null,
     val connected: Boolean = false,
     val progressPercent: Int = 0,
@@ -185,6 +187,37 @@ class NexumNearbyManager(context: Context) {
         stop()
     }
 
+    /** Ask the other phone to be authoritative, with confirmation ON THAT PHONE. */
+    fun requestPeerToSend() {
+        val id = endpoint ?: return
+        if (!state.value.connected || state.value.processing ||
+            state.value.completed || state.value.readyToRestore ||
+            outgoingFileId != null || filePayload != null || metadata != null) return
+        update { it.copy(awaitingPeerToSend = true,
+            status = "Esperando a que el otro móvil confirme que prevalecen sus datos…") }
+        client.sendPayload(id, Payload.fromBytes(
+            JSONObject().put("type", "NEXUM_REQUEST_SEND_V1")
+                .toString().toByteArray(Charsets.UTF_8)))
+            .addOnFailureListener {
+                update { it.copy(awaitingPeerToSend = false) }
+                failure(it.localizedMessage ?: "No se pudo solicitar la sincronización")
+            }
+    }
+
+    fun acceptPeerRequestAndSend() {
+        if (!state.value.remoteRequestedToSend) return
+        update { it.copy(remoteRequestedToSend = false) }
+        send()
+    }
+
+    fun rejectPeerRequest() {
+        val id = endpoint ?: return
+        update { it.copy(remoteRequestedToSend = false) }
+        client.sendPayload(id, Payload.fromBytes(
+            JSONObject().put("type", "NEXUM_REQUEST_REJECTED_V1")
+                .toString().toByteArray(Charsets.UTF_8)))
+    }
+
     /**
      * Either connected Android can be the source. HOST/JOIN are only roles for
      * discovery. The source confirms; the receiver verifies and confirms
@@ -193,6 +226,7 @@ class NexumNearbyManager(context: Context) {
     fun send() {
         val id = endpoint ?: return
         if (!state.value.connected || state.value.processing ||
+            state.value.awaitingPeerToSend ||
             state.value.readyToRestore || state.value.completed ||
             outgoingFileId != null || filePayload != null || metadata != null) return
         update { it.copy(processing = true, error = null, progressPercent = 0,
@@ -278,6 +312,19 @@ class NexumNearbyManager(context: Context) {
                                 )
                                 update { it.copy(peerSummary = summary) }
                             }
+                            "NEXUM_REQUEST_SEND_V1" -> {
+                                require(!state.value.processing && !state.value.completed &&
+                                    !state.value.readyToRestore && outgoingFileId == null &&
+                                    filePayload == null && metadata == null) {
+                                    "La sincronización ya está ocupada."
+                                }
+                                update { it.copy(remoteRequestedToSend = true,
+                                    status = "El otro móvil solicita que prevalezcan TUS datos. Confirma antes de enviar.") }
+                            }
+                            "NEXUM_REQUEST_REJECTED_V1" -> {
+                                update { it.copy(awaitingPeerToSend = false,
+                                    status = "El otro dispositivo ha rechazado el envío.") }
+                            }
                             "NEXUM_BACKUP_V1" -> {
                                 require(outgoingFileId == null && !state.value.completed) {
                                     "Dos dispositivos intentaron enviar a la vez. Reconecta y elige uno."
@@ -287,6 +334,7 @@ class NexumNearbyManager(context: Context) {
                                 require(metadata == null && !state.value.readyToRestore)
                                 metadata = json
                                 update { it.copy(processing = true,
+                                    awaitingPeerToSend = false,
                                     status = "Recibiendo datos del dispositivo que prevalecerá…") }
                                 checkStaging()
                             }
@@ -301,7 +349,8 @@ class NexumNearbyManager(context: Context) {
                         failure("Transferencias simultáneas no permitidas"); return
                     }
                     filePayload = payload
-                    update { it.copy(processing = true, status = "Recibiendo copia…") }
+                    update { it.copy(processing = true,
+                        awaitingPeerToSend = false, status = "Recibiendo copia…") }
                     checkStaging()
                 }
                 else -> failure("Tipo de transferencia no compatible")
