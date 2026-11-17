@@ -2,6 +2,7 @@ package com.example.testario.ui.screen
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,6 +20,7 @@ import kotlinx.coroutines.launch
  * Native pull-to-refresh for the two Biblioteca tabs. Does not re-import, delete,
  * or silently substitute any topic; the local store reconciles pending writes first.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryPullToRefreshBox(
     libraryViewModel: LibraryViewModel,
