@@ -228,11 +228,11 @@ fun NexumNearbySyncPanel() {
             "prevalecerá. Se reemplazarán TODOS los temas, imágenes, pruebas, estadísticas, " +
             "plantillas, planificación, objetivos y ajustes. No se mezclarán cambios. " +
             "Antes guardaremos una copia local recuperable." +
-            if (timer.studyTimerState == StudyTimerState.RUNNING)
-                "\n\nATENCIÓN: detén o guarda antes el cronómetro de estudio." else "") },
+            if (timer.studyTimerState != StudyTimerState.STOPPED)
+                "\n\nATENCIÓN: guarda y termina antes el cronómetro de estudio, incluso si está pausado." else "") },
         confirmButton = {
             Button(
-                enabled = timer.studyTimerState != StudyTimerState.RUNNING,
+                enabled = timer.studyTimerState == StudyTimerState.STOPPED,
                 onClick = {
                     restoreConfirmation = false
                     scope.launch {
@@ -259,7 +259,7 @@ fun NexumNearbySyncPanel() {
         text = { Text("Se sustituirá el estado de NEXUM por el que tenía antes de la última " +
             "recepción. Antes se guardará otra copia de seguridad. ¿Continuar?") },
         confirmButton = {
-            Button(onClick = {
+            Button(enabled = timer.studyTimerState == StudyTimerState.STOPPED, onClick = {
                 recoveryConfirmation = false
                 scope.launch {
                     try {

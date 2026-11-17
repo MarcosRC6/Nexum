@@ -2,6 +2,7 @@ package com.example.testario.domain
 
 import android.content.Context
 import com.example.planario.app.PlanarioDependencies
+import com.example.planario.domain.timer.StudyTimerState
 import com.example.planario.data.local.StudyLocalDataSource
 import com.example.testario.data.model.TestarioDatabase
 import com.example.testario.data.local.MigrationManager
@@ -48,6 +49,16 @@ class UnifiedDataManager(private val context: Context) {
                     else ImportKind.LIBRARY_DATA
                 )
             }
+            // A topic pack can contain one JSON per subject instead of a
+            // single testario_database.json. Let the strict ZIP reader validate
+            // all entries before importing anything.
+            if (runCatching {
+                ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
+                    generateSequence { zip.nextEntry }
+                        .any { !it.isDirectory && it.name.endsWith(".json", ignoreCase = true) &&
+                            it.name != "manifest.json" }
+                }
+            }.getOrDefault(false)) return Detection(ImportKind.LIBRARY_DATA)
             return Detection(ImportKind.UNKNOWN)
         }
 
@@ -117,6 +128,10 @@ class UnifiedDataManager(private val context: Context) {
     }
 
     fun restoreGlobalBackup(bytes: ByteArray): Boolean {
+        // Never throw away a running OR paused timer during an unrelated restore.
+        // UI must ask the user to finish/save before starting destructive restore.
+        if (PlanarioDependencies.studyTimerController.state.value.studyTimerState !=
+            StudyTimerState.STOPPED) return false
         val wanted = setOf(
             "manifest.json",
             "testario_database.json",

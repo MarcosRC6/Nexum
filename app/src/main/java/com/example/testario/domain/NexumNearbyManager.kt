@@ -2,6 +2,8 @@ package com.example.testario.domain
 
 import android.content.Context
 import android.os.Build
+import com.example.planario.app.PlanarioDependencies
+import com.example.testario.data.local.TestarioLocalStore
 import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
@@ -29,11 +31,23 @@ data class NexumNearbyPeer(val id: String, val name: String)
 
 enum class NexumNearbyMode { NONE, HOST, JOIN }
 
+/** Display-only inventory: identical counts DO NOT prove identical data. */
+data class NexumNearbySummary(
+    val topics: Int, val questions: Int, val groups: Int,
+    val planTopics: Int, val objectives: Int
+) {
+    fun describe(): String =
+        "$topics temas · $questions preguntas · $groups grupos · " +
+        "$planTopics temas de Plan · $objectives objetivos"
+}
+
 data class NexumNearbyState(
     val mode: NexumNearbyMode = NexumNearbyMode.NONE,
     val status: String = "Selecciona Enviar o Recibir.",
     val peers: List<NexumNearbyPeer> = emptyList(),
     val incomingPeer: NexumNearbyPeer? = null,
+    val localSummary: NexumNearbySummary? = null,
+    val peerSummary: NexumNearbySummary? = null,
     val authenticationDigits: String? = null,
     val connected: Boolean = false,
     val progressPercent: Int = 0,
@@ -77,11 +91,11 @@ class NexumNearbyManager(context: Context) {
     fun host() {
         stop()
         update { NexumNearbyState(mode = NexumNearbyMode.HOST,
-            status = "Preparando dispositivo emisor…") }
+            status = "Creando conexión de sincronización…") }
         client.startAdvertising(localName, serviceId, connections,
             AdvertisingOptions.Builder().setStrategy(strategy).build())
             .addOnSuccessListener {
-                update { it.copy(status = "Emisor activo. En el otro móvil pulsa Recibir.") }
+                update { it.copy(status = "Conexión creada. En el otro móvil pulsa Unirse.") }
             }
             .addOnFailureListener { failure(it.localizedMessage ?: "No se pudo anunciar el dispositivo") }
     }
@@ -140,9 +154,8 @@ class NexumNearbyManager(context: Context) {
                 client.stopAdvertising()
                 client.stopDiscovery()
                 update { it.copy(connected = true, authenticationDigits = null,
-                    status = if (it.mode == NexumNearbyMode.HOST)
-                        "Conectados. Confirma el envío de todos los datos."
-                    else "Conectados. Esperando el envío desde el dispositivo emisor.") }
+                    status = "Conectados. Elige en cuál de los móviles prevalecerán los datos.") }
+                announceSummary(id)
             } else {
                 failure("Conexión rechazada o interrumpida")
                 endpoint = null
@@ -172,11 +185,16 @@ class NexumNearbyManager(context: Context) {
         stop()
     }
 
-    /** Only the HOST can initiate a transfer after the pairing token is accepted. */
+    /**
+     * Either connected Android can be the source. HOST/JOIN are only roles for
+     * discovery. The source confirms; the receiver verifies and confirms
+     * replacement separately. No unattended or automatic overwrite.
+     */
     fun send() {
         val id = endpoint ?: return
-        if (state.value.mode != NexumNearbyMode.HOST || !state.value.connected ||
-            state.value.processing) return
+        if (!state.value.connected || state.value.processing ||
+            state.value.readyToRestore || state.value.completed ||
+            outgoingFileId != null || filePayload != null || metadata != null) return
         update { it.copy(processing = true, error = null, progressPercent = 0,
             status = "Preparando y verificando copia completa…") }
         scope.launch {
@@ -208,29 +226,82 @@ class NexumNearbyManager(context: Context) {
         }
     }
 
+    private fun localSummary(): NexumNearbySummary {
+        val db = TestarioLocalStore.get(app).database.value
+        val plan = PlanarioDependencies.studyRepository
+        return NexumNearbySummary(
+            topics = db.topics.size,
+            questions = db.topics.sumOf { it.questions.size },
+            groups = db.groups.size,
+            planTopics = plan.topics.value.size,
+            objectives = plan.fixedObjectives.value.size
+        )
+    }
+
+    private fun announceSummary(peerId: String) {
+        scope.launch {
+            try {
+                val summary = localSummary()
+                update { it.copy(localSummary = summary) }
+                val control = JSONObject()
+                    .put("type", "NEXUM_SUMMARY_V1")
+                    .put("topics", summary.topics)
+                    .put("questions", summary.questions)
+                    .put("groups", summary.groups)
+                    .put("planTopics", summary.planTopics)
+                    .put("objectives", summary.objectives)
+                client.sendPayload(peerId,
+                    Payload.fromBytes(control.toString().toByteArray(Charsets.UTF_8)))
+            } catch (error: Exception) {
+                failure("No se pudo preparar el resumen local: ${error.message}")
+            }
+        }
+    }
+
     private val payloads = object: PayloadCallback() {
         override fun onPayloadReceived(id: String, payload: Payload) {
-            if (id != endpoint || state.value.mode != NexumNearbyMode.JOIN ||
-                !state.value.connected) return
+            if (id != endpoint || !state.value.connected) return
             when (payload.type) {
                 Payload.Type.BYTES -> {
                     try {
                         val body = payload.asBytes() ?: error("Faltan metadatos")
                         require(body.size <= 4096) { "Datos de control demasiado largos" }
                         val json = JSONObject(String(body, Charsets.UTF_8))
-                        require(json.optString("type") == "NEXUM_BACKUP_V1")
-                        require(json.optLong("size") in 1..NexumNearbyArchive.MAX_COMPRESSED_BYTES)
-                        require(Regex("[a-f0-9]{64}").matches(json.optString("sha256")))
-                        require(metadata == null && !state.value.readyToRestore)
-                        metadata = json
-                        checkStaging()
+                        when (json.optString("type")) {
+                            "NEXUM_SUMMARY_V1" -> {
+                                fun field(name: String): Int = json.getInt(name).also {
+                                    require(it in 0..10_000_000) { "Resumen remoto no válido." }
+                                }
+                                val summary = NexumNearbySummary(
+                                    field("topics"), field("questions"), field("groups"),
+                                    field("planTopics"), field("objectives")
+                                )
+                                update { it.copy(peerSummary = summary) }
+                            }
+                            "NEXUM_BACKUP_V1" -> {
+                                require(outgoingFileId == null && !state.value.completed) {
+                                    "Dos dispositivos intentaron enviar a la vez. Reconecta y elige uno."
+                                }
+                                require(json.optLong("size") in 1..NexumNearbyArchive.MAX_COMPRESSED_BYTES)
+                                require(Regex("[a-f0-9]{64}").matches(json.optString("sha256")))
+                                require(metadata == null && !state.value.readyToRestore)
+                                metadata = json
+                                update { it.copy(processing = true,
+                                    status = "Recibiendo datos del dispositivo que prevalecerá…") }
+                                checkStaging()
+                            }
+                            else -> error("Mensaje de sincronización no reconocido")
+                        }
                     } catch (error: Exception) {
                         failure(error.message ?: "Datos de control no válidos")
                     }
                 }
                 Payload.Type.FILE -> {
-                    if (filePayload != null) { failure("Se ha recibido más de un archivo"); return }
+                    if (outgoingFileId != null || filePayload != null || state.value.completed) {
+                        failure("Transferencias simultáneas no permitidas"); return
+                    }
                     filePayload = payload
+                    update { it.copy(processing = true, status = "Recibiendo copia…") }
                     checkStaging()
                 }
                 else -> failure("Tipo de transferencia no compatible")
@@ -239,20 +310,18 @@ class NexumNearbyManager(context: Context) {
         override fun onPayloadTransferUpdate(id: String, transfer: PayloadTransferUpdate) {
             if (id != endpoint) return
             val payload = filePayload
-            if (state.value.mode == NexumNearbyMode.HOST &&
-                transfer.payloadId != outgoingFileId) return
-            if (state.value.mode == NexumNearbyMode.JOIN &&
-                (payload == null || transfer.payloadId != payload.id)) return
+            val outgoing = outgoingFileId != null && transfer.payloadId == outgoingFileId
+            val incoming = payload != null && transfer.payloadId == payload.id
+            if (!outgoing && !incoming) return
             if (transfer.totalBytes > 0L) {
                 val percent = (transfer.bytesTransferred * 100L / transfer.totalBytes).toInt()
                     .coerceIn(0, 100)
                 update { it.copy(progressPercent = percent,
-                    status = if (state.value.mode == NexumNearbyMode.HOST)
-                        "Enviando copia…" else "Recibiendo copia…") }
+                    status = if (outgoing) "Enviando copia…" else "Recibiendo copia…") }
             }
             when (transfer.status) {
                 PayloadTransferUpdate.Status.SUCCESS -> {
-                    if (state.value.mode == NexumNearbyMode.HOST) {
+                    if (outgoing) {
                         update { it.copy(progressPercent = 100, processing = false,
                             completed = true, status = "Envío terminado. El otro móvil debe confirmar la importación.") }
                     } else {
@@ -271,7 +340,7 @@ class NexumNearbyManager(context: Context) {
     private fun checkStaging() {
         val file = filePayload ?: return
         val meta = metadata ?: return
-        if (!fileCompleted || stagingStarted || state.value.mode != NexumNearbyMode.JOIN) return
+        if (!fileCompleted || stagingStarted || outgoingFileId != null) return
         if (meta.optLong("payloadId") != file.id) {
             failure("Los metadatos no corresponden al archivo recibido")
             return
@@ -298,7 +367,7 @@ class NexumNearbyManager(context: Context) {
     }
 
     suspend fun applyReceived(): String {
-        require(state.value.mode == NexumNearbyMode.JOIN && state.value.readyToRestore)
+        require(state.value.readyToRestore && outgoingFileId == null)
         val prepared = requireNotNull(receiverFile)
         update { it.copy(processing = true, status = "Guardando copia preventiva y restaurando…") }
         applyingReceived = true

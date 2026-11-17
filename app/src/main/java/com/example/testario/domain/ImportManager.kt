@@ -13,11 +13,24 @@ import com.example.testario.data.model.Question
 import com.example.testario.data.model.SimpleTopicJson
 import com.example.testario.data.model.TestarioDatabase
 import com.example.testario.data.model.Topic
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.InputStream
 import java.util.UUID
 import java.util.zip.ZipInputStream
+
+/**
+ * Result of a single topic operation. Reports empty merges explicitly instead of
+ * claiming a full ZIP was imported when some topics were silently skipped.
+ */
+data class ImportTopicOutcome(
+    val created: Boolean,
+    val merged: Boolean,
+    val addedQuestions: Int,
+    val duplicateQuestions: Int,
+    val destinationName: String
+)
 
 class ImportManager(private val context: Context, private val localStore: TestarioLocalStore) {
     private val json = Json { ignoreUnknownKeys = true }
@@ -52,27 +65,52 @@ class ImportManager(private val context: Context, private val localStore: Testar
         return try {
             val names = hashSetOf<String>()
             var rawJson: String? = null
+            val individualTopicJson = mutableListOf<Pair<String, String>>()
+            val archiveEntries = mutableSetOf<String>()
+            var totalJsonBytes = 0L
             var totalImageBytes = 0L
             val buffer = ByteArray(8192)
+
+            fun readBoundedJson(zis: ZipInputStream): String {
+                val output = java.io.ByteArrayOutputStream()
+                var entryBytes = 0L
+                while (true) {
+                    val count = zis.read(buffer)
+                    if (count < 0) break
+                    entryBytes += count
+                    totalJsonBytes += count
+                    require(entryBytes <= 128L * 1024L * 1024L &&
+                        totalJsonBytes <= 192L * 1024L * 1024L) {
+                        "El ZIP contiene archivos JSON demasiado grandes."
+                    }
+                    output.write(buffer, 0, count)
+                }
+                return output.toString(Charsets.UTF_8.name())
+            }
 
             ZipInputStream(buffered).use { zis ->
                 var entry = zis.nextEntry
                 while (entry != null) {
+                    require(archiveEntries.add(entry.name)) {
+                        "El ZIP contiene entradas duplicadas: ${entry.name}."
+                    }
                     when {
                         entry.name == "testario_database.json" && !entry.isDirectory -> {
                             require(rawJson == null) { "La copia contiene varias bases de datos." }
-                            val output = java.io.ByteArrayOutputStream()
-                            var jsonBytes = 0L
-                            while (true) {
-                                val count = zis.read(buffer)
-                                if (count < 0) break
-                                jsonBytes += count
-                                require(jsonBytes <= 128L * 1024L * 1024L) {
-                                    "La base de datos comprimida excede el tamaño permitido."
-                                }
-                                output.write(buffer, 0, count)
+                            rawJson = readBoundedJson(zis)
+                        }
+                        entry.name.endsWith(".json", ignoreCase = true) &&
+                            !entry.isDirectory &&
+                            entry.name !in setOf(
+                                "manifest.json", "planario_backup.json", "quick_test_links.json",
+                                "testario_settings.json", "pending_test_session.json"
+                            ) -> {
+                            require(!entry.name.startsWith("/") && !entry.name.contains('\\') &&
+                                entry.name.split('/').none { it == ".." }) {
+                                "Nombre de archivo JSON no seguro."
                             }
-                            rawJson = output.toString(Charsets.UTF_8.name())
+                            require(individualTopicJson.size < 500) { "El ZIP contiene demasiados JSON." }
+                            individualTopicJson.add(entry.name to readBoundedJson(zis))
                         }
                         entry.name.startsWith("question_images/") && !entry.isDirectory -> {
                             val name = entry.name.removePrefix("question_images/")
@@ -103,9 +141,29 @@ class ImportManager(private val context: Context, private val localStore: Testar
                 }
             }
 
-            val validJson = requireNotNull(rawJson) { "Falta testario_database.json en el ZIP." }
-            // No se acepta un ZIP dañado o incompatible antes de mostrar la vista previa.
-            json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(validJson))
+            val validJson = if (rawJson != null) {
+                require(individualTopicJson.isEmpty()) {
+                    "El ZIP mezcla una base completa y temas JSON separados: usa un solo formato."
+                }
+                val source = requireNotNull(rawJson)
+                json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(source))
+                source
+            } else {
+                require(individualTopicJson.isNotEmpty()) {
+                    "El ZIP no contiene testario_database.json ni archivos JSON de temas."
+                }
+                // Parse every JSON before allowing any changes; a malformed item
+                // rejects the whole archive rather than importing only its neighbours.
+                val topics = individualTopicJson.flatMap { (name, raw) ->
+                    try {
+                        decodeTopicsFromAnyJson(raw)
+                    } catch (error: Exception) {
+                        throw IllegalArgumentException("No se pudo leer el tema $name: ${error.message}")
+                    }
+                }
+                require(topics.isNotEmpty()) { "El ZIP no contiene ningún tema válido." }
+                json.encodeToString(TestarioDatabase(topics = topics))
+            }
             pendingImageStage = stage
             validJson
         } catch (error: Exception) {
@@ -281,40 +339,66 @@ class ImportManager(private val context: Context, private val localStore: Testar
         return updatedCount
     }
 
-    fun importSingleTopicProcessed(topic: Topic, action: DuplicateTopicAction, customName: String? = null) {
+    fun importSingleTopicProcessed(
+        topic: Topic,
+        action: DuplicateTopicAction,
+        customName: String? = null
+    ): ImportTopicOutcome {
         val db = localStore.database.value
-        val finalTopics = db.topics.toMutableList()
-        val existingFingerprints = finalTopics.flatMap { it.questions }.map { createQuestionFingerprint(it) }.toMutableSet()
+        val topics = db.topics.toMutableList()
+        val existingIndex = topics.indexOfFirst { it.name.equals(topic.name, ignoreCase = true) }
 
-        val uniqueNewQuestions = topic.questions.filter { incomingQ ->
-            val fingerprint = createQuestionFingerprint(incomingQ)
-            if (existingFingerprints.contains(fingerprint)) false else { existingFingerprints.add(fingerprint); true }
+        // Only deduplicate inside the TARGET topic. The same knowledge may
+        // intentionally appear in different subjects, zones or groups.
+        val fingerprints = mutableSetOf<String>()
+        if (existingIndex >= 0 && action == DuplicateTopicAction.MERGE) {
+            topics[existingIndex].questions.mapTo(fingerprints, ::createQuestionFingerprint)
+        }
+        val uniqueQuestions = topic.questions.filter {
+            fingerprints.add(createQuestionFingerprint(it))
+        }
+        val duplicates = topic.questions.size - uniqueQuestions.size
+        if (existingIndex >= 0 && action == DuplicateTopicAction.MERGE &&
+            uniqueQuestions.isEmpty()) {
+            return ImportTopicOutcome(
+                created = false, merged = false, addedQuestions = 0,
+                duplicateQuestions = duplicates, destinationName = topics[existingIndex].name
+            )
         }
 
-        if (uniqueNewQuestions.isEmpty()) return
         commitPendingImages()
-        // Una importación de biblioteca añade entidades NUEVAS. Nunca reutiliza IDs
-        // de tema, pregunta o respuesta de otra base, aunque sus huellas difieran.
-        val cleanTopic = regenerateTopicIds(topic.copy(questions = uniqueNewQuestions))
-        val existingIndex = finalTopics.indexOfFirst { it.name.equals(cleanTopic.name, ignoreCase = true) }
+        val fresh = regenerateTopicIds(topic.copy(questions = uniqueQuestions))
+        val destination: String
+        val created: Boolean
+        val merged: Boolean
 
         if (existingIndex >= 0) {
             when (action) {
-                DuplicateTopicAction.RENAME_AUTO -> finalTopics.add(cleanTopic.copy(name = generateUniqueTopicName(cleanTopic.name, finalTopics)))
-                DuplicateTopicAction.RENAME -> {
-                    val wantedName = customName?.trim().orEmpty().ifBlank { cleanTopic.name }
-                    finalTopics.add(cleanTopic.copy(name = generateUniqueTopicName(wantedName, finalTopics)))
-                }
                 DuplicateTopicAction.MERGE -> {
-                    val existingTopic = finalTopics[existingIndex]
-                    finalTopics[existingIndex] = existingTopic.copy(questions = existingTopic.questions + cleanTopic.questions)
+                    val old = topics[existingIndex]
+                    topics[existingIndex] = old.copy(questions = old.questions + fresh.questions)
+                    destination = old.name
+                    created = false
+                    merged = true
+                }
+                DuplicateTopicAction.RENAME_AUTO, DuplicateTopicAction.RENAME -> {
+                    val wanted = if (action == DuplicateTopicAction.RENAME)
+                        customName?.trim().orEmpty().ifBlank { fresh.name }
+                    else fresh.name
+                    destination = generateUniqueTopicName(wanted, topics)
+                    topics.add(fresh.copy(name = destination))
+                    created = true
+                    merged = false
                 }
             }
         } else {
-            val finalName = customName?.trim()?.ifBlank { cleanTopic.name } ?: cleanTopic.name
-            finalTopics.add(cleanTopic.copy(name = finalName))
+            destination = customName?.trim()?.ifBlank { fresh.name } ?: fresh.name
+            topics.add(fresh.copy(name = destination))
+            created = true
+            merged = false
         }
-        localStore.saveDatabase(db.copy(topics = finalTopics))
+        localStore.saveDatabase(db.copy(topics = topics))
+        return ImportTopicOutcome(created, merged, fresh.questions.size, duplicates, destination)
     }
 
     private fun createQuestionFingerprint(question: Question): String {
@@ -323,7 +407,9 @@ class ImportManager(private val context: Context, private val localStore: Testar
             .map { normalizeText(it.text) }
             .sorted()
             .joinToString("|")
-        return "$qText::$aText"
+        val correct = question.answers.firstOrNull { it.id == question.correctAnswerId }
+            ?.text?.let(::normalizeText).orEmpty()
+        return "$qText::$aText::$correct"
     }
 
     private fun hasSyncDifferences(local: Question, external: Question): Boolean {
@@ -423,7 +509,21 @@ class ImportManager(private val context: Context, private val localStore: Testar
         }
     }
 
-    private fun decodeTopicsFromAnyJson(rawJson: String): List<Topic> = try { json.decodeFromString<TestarioDatabase>(rawJson).topics.map { regenerateTopicIds(it) } } catch (_: Exception) { decodeSimpleTopics(rawJson) }
+    private fun decodeTopicsFromAnyJson(rawJson: String): List<Topic> {
+        // Full exported database; a simple array of topics; or one JSON per topic.
+        runCatching {
+            json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(rawJson))
+                .topics.map { regenerateTopicIds(it) }
+        }.getOrNull()?.let { return it }
+        runCatching { decodeSimpleTopics(rawJson) }.getOrNull()?.let { return it }
+        runCatching { json.decodeFromString<SimpleTopicJson>(rawJson) }.getOrNull()?.let {
+            return decodeSimpleTopics(json.encodeToString(listOf(it)))
+        }
+        runCatching { json.decodeFromString<Topic>(rawJson) }.getOrNull()?.let {
+            return listOf(regenerateTopicIds(it))
+        }
+        throw IllegalArgumentException("JSON de tema o biblioteca no reconocido.")
+    }
 
     private fun decodeSimpleTopics(rawJson: String): List<Topic> {
         return json.decodeFromString<List<SimpleTopicJson>>(rawJson).map { simpleTopic ->
