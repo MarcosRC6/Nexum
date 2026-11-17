@@ -115,9 +115,12 @@ fun GroupsScreen(
             )
         }
     ) { padding ->
-        Column(
+        LibraryPullToRefreshBox(
+            libraryViewModel = libraryViewModel,
+            modifier = Modifier.padding(padding).fillMaxSize()
+        ) {
+            Column(
             Modifier
-                .padding(padding)
                 .padding(16.dp)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
@@ -201,6 +204,7 @@ fun GroupsScreen(
                 }
             }
             Spacer(Modifier.height(8.dp))
+            }
         }
     }
 

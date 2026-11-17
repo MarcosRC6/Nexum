@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -195,12 +197,13 @@ fun LibraryTopicsScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(16.dp)
-                .fillMaxSize()
+        LibraryPullToRefreshBox(
+            libraryViewModel = libraryViewModel,
+            modifier = Modifier.padding(padding).fillMaxSize()
         ) {
+            Column(
+                modifier = Modifier.padding(16.dp).fillMaxSize()
+            ) {
             Text("Organiza temas, preguntas y grupos", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(10.dp))
             LibrarySectionTabs(
@@ -383,12 +386,12 @@ fun LibraryTopicsScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             if (database.topics.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.Center) {
                     Text("No tienes temas. Pulsa + para empezar.", color = TestarioMutedText)
                 }
             } else if (isDeleteMode) {
                 if (filteredTopics.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.Center) {
                         Text("No se han encontrado temas.", color = TestarioMutedText)
                     }
                 } else {
@@ -423,7 +426,7 @@ fun LibraryTopicsScreen(
                 }
             } else if (topicSearchText.isNotBlank() && effectiveSearchMode == HomeSearchMode.TOPICS) {
                 if (filteredTopics.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.Center) {
                         Text("No se han encontrado temas.", color = TestarioMutedText)
                     }
                 } else {
@@ -454,11 +457,11 @@ fun LibraryTopicsScreen(
                 val searchReady = debouncedQuestionSearchText == topicSearchText
 
                 if (!searchReady && selectedSearchQuestionIds.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.Center) {
                         Text("Buscando preguntas…", color = TestarioMutedText)
                     }
                 } else if (questionMatches.isEmpty() && selectedSearchQuestionIds.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), contentAlignment = Alignment.Center) {
                         Text("No se han encontrado preguntas.", color = TestarioMutedText)
                     }
                 } else {
@@ -550,6 +553,7 @@ fun LibraryTopicsScreen(
                     }
                     FastScrollbar(listState = listState, modifier = Modifier.align(Alignment.CenterEnd))
                 }
+            }
             }
         }
     }

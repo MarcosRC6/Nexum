@@ -11,6 +11,8 @@ import com.example.testario.data.repository.QuestionRepository
 import com.example.testario.data.repository.TopicRepository
 import com.example.testario.domain.ImageManager
 import com.example.testario.widget.NexumQuickTestWidgetProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 
@@ -24,6 +26,11 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     private val organizationRepo = OrganizationRepository(localStore)
 
     val database = localStore.database.stateIn(viewModelScope, SharingStarted.Eagerly, localStore.database.value)
+
+    /** Persist in-flight imports, re-read verified local data, and report the visible topic count. */
+    suspend fun refreshLibraryFromDisk(): Int = withContext(Dispatchers.IO) {
+        localStore.refreshDatabaseFromDisk().topics.size
+    }
 
     fun addTopic(name: String) = topicRepo.addTopic(name)
     fun updateTopic(topicId: String, name: String) = topicRepo.updateTopic(topicId, name)
