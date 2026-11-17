@@ -94,7 +94,9 @@ class StudyTimerController {
         }
 
         if (stored.date.isBefore(today)) {
-            val minutes = (stored.elapsedSeconds / 60L).toInt()
+            val safeSeconds = recoverAccurateRunningSeconds(stored, endedYesterday = true)
+                ?: stored.elapsedSeconds
+            val minutes = (safeSeconds / 60L).toInt()
 
             clearStoredStudyTimer()
             resetStudyTimer(clearPersistedState = true)
@@ -110,21 +112,45 @@ class StudyTimerController {
         }
 
         studyDate = stored.date
-        studyAccumulatedSecondsBeforeRun = stored.elapsedSeconds
-        studyStartedAtElapsedRealtimeMillis = null
-        studyStartedAtWallMillis = null
+        val recoveredRunningSeconds = recoverAccurateRunningSeconds(stored)
+        val canResume = stored.state == StudyTimerState.RUNNING &&
+            recoveredRunningSeconds != null
+        studyAccumulatedSecondsBeforeRun = recoveredRunningSeconds ?: stored.elapsedSeconds
+        studyStartedAtElapsedRealtimeMillis = if (canResume) SystemClock.elapsedRealtime() else null
+        studyStartedAtWallMillis = if (canResume) System.currentTimeMillis() else null
 
         _state.value = _state.value.copy(
-            studyElapsedSeconds = stored.elapsedSeconds,
-            studyTimerState = StudyTimerState.PAUSED
+            studyElapsedSeconds = studyAccumulatedSecondsBeforeRun,
+            studyTimerState = if (canResume) StudyTimerState.RUNNING else StudyTimerState.PAUSED
         )
-
         persistStudyTimerNow(
-            state = StudyTimerState.PAUSED,
-            elapsedSeconds = stored.elapsedSeconds
+            state = _state.value.studyTimerState,
+            elapsedSeconds = studyAccumulatedSecondsBeforeRun
         )
+        if (canResume) startStudyTicker()
 
         return null
+    }
+
+    /**
+     * Recover time ONLY when wall time and monotonic uptime agree: same boot,
+     * no clock jump, and a bounded interval. Otherwise preserve saved seconds
+     * and pause rather than inventing a study session.
+     */
+    private fun recoverAccurateRunningSeconds(
+        stored: StoredStudyTimer, endedYesterday: Boolean = false
+    ): Long? {
+        if (stored.state != StudyTimerState.RUNNING) return null
+        val endOfDayMillis = if (endedYesterday) stored.date.plusDays(1)
+            .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() else null
+        return TimerRecoveryPolicy.safeRunningSeconds(
+            savedSeconds = stored.elapsedSeconds,
+            lastWallMillis = stored.lastHeartbeatWallMillis,
+            lastUptimeMillis = stored.lastHeartbeatUptimeMillis,
+            nowWallMillis = System.currentTimeMillis(),
+            nowUptimeMillis = SystemClock.elapsedRealtime(),
+            endOfDayWallMillis = endOfDayMillis
+        )
     }
 
     fun restorePausedStudyTimer(
@@ -516,6 +542,7 @@ class StudyTimerController {
             ?.putString(KEY_STATE, state.name)
             ?.putLong(KEY_ELAPSED_SECONDS, elapsedSeconds.coerceAtLeast(0L))
             ?.putLong(KEY_LAST_HEARTBEAT_WALL_MILLIS, nowWallMillis)
+            ?.putLong(KEY_LAST_HEARTBEAT_UPTIME_MILLIS, SystemClock.elapsedRealtime())
             ?.putLong(KEY_STARTED_WALL_MILLIS, studyStartedAtWallMillis ?: 0L)
             ?.apply()
 
@@ -544,12 +571,14 @@ class StudyTimerController {
             .coerceAtLeast(0L)
 
         val lastHeartbeatWallMillis = prefs.getLong(KEY_LAST_HEARTBEAT_WALL_MILLIS, 0L)
+        val lastHeartbeatUptimeMillis = prefs.getLong(KEY_LAST_HEARTBEAT_UPTIME_MILLIS, 0L)
 
         return StoredStudyTimer(
             date = date,
             state = state,
             elapsedSeconds = elapsedSeconds,
-            lastHeartbeatWallMillis = lastHeartbeatWallMillis
+            lastHeartbeatWallMillis = lastHeartbeatWallMillis,
+            lastHeartbeatUptimeMillis = lastHeartbeatUptimeMillis
         )
     }
 
@@ -561,6 +590,7 @@ class StudyTimerController {
             ?.remove(KEY_STATE)
             ?.remove(KEY_ELAPSED_SECONDS)
             ?.remove(KEY_LAST_HEARTBEAT_WALL_MILLIS)
+            ?.remove(KEY_LAST_HEARTBEAT_UPTIME_MILLIS)
             ?.remove(KEY_STARTED_WALL_MILLIS)
             ?.apply()
 
@@ -598,7 +628,8 @@ class StudyTimerController {
         val date: LocalDate,
         val state: StudyTimerState,
         val elapsedSeconds: Long,
-        val lastHeartbeatWallMillis: Long
+        val lastHeartbeatWallMillis: Long,
+        val lastHeartbeatUptimeMillis: Long
     )
 
     companion object {
@@ -608,6 +639,7 @@ class StudyTimerController {
         private const val KEY_STATE = "state"
         private const val KEY_ELAPSED_SECONDS = "elapsed_seconds"
         private const val KEY_LAST_HEARTBEAT_WALL_MILLIS = "last_heartbeat_wall_millis"
+        private const val KEY_LAST_HEARTBEAT_UPTIME_MILLIS = "last_heartbeat_uptime_millis"
         private const val KEY_STARTED_WALL_MILLIS = "started_wall_millis"
 
         private const val STUDY_HEARTBEAT_INTERVAL_MILLIS = 10_000L

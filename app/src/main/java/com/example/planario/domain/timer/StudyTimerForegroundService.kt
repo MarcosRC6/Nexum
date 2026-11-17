@@ -32,6 +32,8 @@ class StudyTimerForegroundService : Service() {
 
     private var observerJob: Job? = null
     private var autoCloseObserverJob: Job? = null
+    private var lastPublishedTimerState: StudyTimerState? = null
+    private var lastPublishedPausedSeconds: Long = -1L
 
     override fun onCreate() {
         super.onCreate()
@@ -160,6 +162,9 @@ class StudyTimerForegroundService : Service() {
             notification,
             foregroundServiceType
         )
+        val state = PlanarioDependencies.studyTimerController.state.value
+        lastPublishedTimerState = state.studyTimerState
+        lastPublishedPausedSeconds = state.studyElapsedSeconds
     }
 
     private fun observeTimer() {
@@ -196,6 +201,13 @@ class StudyTimerForegroundService : Service() {
     }
 
     private fun updateNotification(state: StudyTimerControllerState) {
+        // Android's chronometer animates independently, even if background
+        // notification updates are throttled. Rebuild on state transitions only.
+        if (lastPublishedTimerState == state.studyTimerState &&
+            (state.studyTimerState == StudyTimerState.RUNNING ||
+                lastPublishedPausedSeconds == state.studyElapsedSeconds)) return
+        lastPublishedTimerState = state.studyTimerState
+        lastPublishedPausedSeconds = state.studyElapsedSeconds
         val notification = buildNotification(state)
 
         val notificationManager = getSystemService(NotificationManager::class.java)
@@ -214,7 +226,9 @@ class StudyTimerForegroundService : Service() {
             StudyTimerState.STOPPED -> "Cronómetro detenido"
         }
 
-        val content = "Tiempo: ${state.studyElapsedSeconds.toTimerText()}"
+        val content = if (state.studyTimerState == StudyTimerState.RUNNING)
+            "El tiempo sigue contando. Pausa o guarda cuando termines."
+        else "Tiempo: ${state.studyElapsedSeconds.toTimerText()}"
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
@@ -223,7 +237,10 @@ class StudyTimerForegroundService : Service() {
             .setContentText(content)
             .setOngoing(state.studyTimerState != StudyTimerState.STOPPED)
             .setOnlyAlertOnce(true)
-            .setShowWhen(false)
+            .setShowWhen(state.studyTimerState == StudyTimerState.RUNNING)
+            .setUsesChronometer(state.studyTimerState == StudyTimerState.RUNNING)
+            .setWhen(System.currentTimeMillis() -
+                state.studyElapsedSeconds.coerceAtMost(86400L * 365L) * 1000L)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(createOpenAppPendingIntent())
@@ -253,7 +270,7 @@ class StudyTimerForegroundService : Service() {
             // Android cannot show the in-app Back confirmation in that case.
             builder.addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                "Detener y guardar",
+                "Guardar tiempo",
                 createServiceActionPendingIntent(ACTION_STOP)
             )
         }

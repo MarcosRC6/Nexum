@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.planario.app.PlanarioDependencies
+import com.example.planario.domain.timer.StudyTimerState
 import com.example.testario.ui.navigation.TestarioApp
 import com.example.testario.ui.screen.NexumSplashScreen
 import com.example.testario.ui.screen.NexumTutorialDialog
@@ -56,6 +57,12 @@ class MainActivity : ComponentActivity() {
                 if (recoveryMessage == null && !startupReady) {
                     try {
                         PlanarioDependencies.init(applicationContext)
+                        if (PlanarioDependencies.studyTimerController.state.value.studyTimerState ==
+                            StudyTimerState.RUNNING) {
+                            // Restore the foreground notification on a fresh Activity
+                            // launch if Android killed the previous app process.
+                            PlanarioDependencies.startStudyTimerForegroundService()
+                        }
                         startupReady = true
                     } catch (error: Exception) {
                         // Show a recoverable screen rather than repeatedly

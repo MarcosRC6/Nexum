@@ -2,6 +2,8 @@ package com.example.testario.domain
 
 import android.content.Context
 import com.example.testario.data.local.TestarioLocalStore
+import com.example.planario.app.PlanarioDependencies
+import com.example.planario.domain.timer.StudyTimerState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -69,6 +71,10 @@ class NexumNearbyArchive(private val context: Context) {
     }
 
     suspend fun applyToReceiver(archive: Prepared): String = withContext(Dispatchers.IO + NonCancellable) {
+        require(PlanarioDependencies.studyTimerController.state.value.studyTimerState ==
+            StudyTimerState.STOPPED) {
+            "Guarda y termina el cronómetro (también si está pausado) antes de sustituir los datos."
+        }
         require(archive.file.exists() && archive.file.length() == archive.size)
         require(digest(archive.file) == archive.sha256)
         requireValid(archive.file)
@@ -93,6 +99,10 @@ class NexumNearbyArchive(private val context: Context) {
     }
 
     suspend fun restoreLastRecovery(): Boolean = withContext(Dispatchers.IO + NonCancellable) {
+        require(PlanarioDependencies.studyTimerController.state.value.studyTimerState ==
+            StudyTimerState.STOPPED) {
+            "Guarda y termina el cronómetro antes de recuperar otra copia."
+        }
         val target = recoveryFiles().firstOrNull() ?: return@withContext false
         requireValid(target)
         // Undo is destructive too: keep a separate previous-state snapshot.

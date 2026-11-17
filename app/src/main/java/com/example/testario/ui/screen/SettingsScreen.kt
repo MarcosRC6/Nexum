@@ -59,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.planario.app.PlanarioDependencies
+import com.example.planario.domain.timer.StudyTimerState
 import com.example.testario.data.model.DuplicateTopicAction
 import com.example.testario.data.model.ImportPreview
 import com.example.testario.data.model.Topic
@@ -143,6 +144,8 @@ fun SettingsScreen(
     var message by remember { mutableStateOf<String?>(null) }
     val unifiedDataManager = remember { UnifiedDataManager(context.applicationContext) }
     val studySettings by PlanarioDependencies.studyRepository.settings.collectAsState()
+    val studyTimerState by PlanarioDependencies.studyTimerController.state.collectAsState()
+    val timerHasUnsavedTime = studyTimerState.studyTimerState != StudyTimerState.STOPPED
     var showStudySettings by remember { mutableStateOf(false) }
     var showDataOptions by remember { mutableStateOf(false) }
     var showTutorial by remember { mutableStateOf(false) }
@@ -357,7 +360,12 @@ fun SettingsScreen(
                             showPlanImportConfirm = true
                         }
                         UnifiedDataManager.ImportKind.LIBRARY_DATA -> {
-                            val rawText = if (fileName?.endsWith(".zip", true) == true) {
+                            val isArchive = bytes.size >= 4 &&
+                                bytes[0] == 0x50.toByte() && bytes[1] == 0x4b.toByte()
+                            // Storage Access Framework may expose a ZIP under an
+                            // opaque content URI without its original .zip filename.
+                            val rawText = if (isArchive ||
+                                fileName?.endsWith(".zip", ignoreCase = true) == true) {
                                 importExportViewModel.extractPayload(ByteArrayInputStream(bytes), fileName)
                             } else {
                                 detection.text ?: bytes.toString(Charsets.UTF_8)
@@ -1093,8 +1101,11 @@ fun SettingsScreen(
             confirmButton = {
                 OutlinedButton(
                     onClick = {
-                        PlanarioDependencies.studyTimerController.discardStudyTimer()
-                        PlanarioDependencies.stopStudyTimerForegroundService()
+                        if (timerHasUnsavedTime) {
+                            message = "Guarda y termina el cronómetro antes de borrar el plan."
+                            showClearPlanningDialog = false
+                            return@OutlinedButton
+                        }
                         PlanarioDependencies.cancelPlanarioScheduledNotifications()
                         PlanarioDependencies.studyRepository.clearAllData()
                         com.example.testario.data.local.QuickTestLinkManager(context.applicationContext).prune(
@@ -1116,9 +1127,11 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showUnifiedRestoreConfirm = false; pendingUnifiedBytes = null },
             title = { Text("Restaurar copia completa") },
-            text = { Text("Se sustituirán Biblioteca, estadísticas, planificación, objetivos, ajustes y vínculos de test rápido por los de la copia seleccionada.") },
+            text = { Text("Se sustituirán Biblioteca, estadísticas, planificación, objetivos, ajustes y vínculos de test rápido por los de la copia seleccionada. Los tiempos registrados en la copia reemplazarán los actuales." +
+                if (timerHasUnsavedTime) "\n\nGuarda y termina el cronómetro antes de restaurar: nunca se descartará automáticamente." else "") },
             confirmButton = {
                 Button(
+                    enabled = !timerHasUnsavedTime,
                     onClick = {
                         val bytes = pendingUnifiedBytes
                         if (bytes != null) {
@@ -1177,15 +1190,12 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showPlanImportConfirm = false; pendingPlanJson = null },
             title = { Text("Datos de planificación detectados") },
-            text = { Text("El archivo corresponde a una copia de la aplicación de planificación anterior. Al importarlo sustituirá el plan, calendario, tiempos, objetivos y sus ajustes actuales; la Biblioteca y tus tests no se tocarán.") },
+            text = { Text("El archivo corresponde a una copia de planificación anterior. Sustituirá el plan, calendario, tiempos, objetivos y ajustes; la Biblioteca y tests se conservarán." +
+                if (timerHasUnsavedTime) "\n\nTermina y guarda el cronómetro antes de restaurar el plan." else "") },
             confirmButton = {
-                Button(onClick = {
+                Button(enabled = !timerHasUnsavedTime, onClick = {
                     val raw = pendingPlanJson
-                    val ok = if (raw != null) {
-                        // No dejamos que una sesión previa siga corriendo sobre el plan restaurado.
-                        PlanarioDependencies.studyTimerController.discardStudyTimer()
-                        PlanarioDependencies.studyRepository.clearActiveStudyTimerTracking()
-                        PlanarioDependencies.stopStudyTimerForegroundService()
+                    val ok = if (raw != null && !timerHasUnsavedTime) {
                         PlanarioDependencies.studyRepository.importBackupJson(raw)
                     } else {
                         false

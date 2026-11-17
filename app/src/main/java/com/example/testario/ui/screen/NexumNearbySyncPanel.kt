@@ -118,27 +118,28 @@ fun NexumNearbySyncPanel() {
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
         Text("Transferencia entre dispositivos", style = MaterialTheme.typography.titleMedium,
             color = TestarioText)
-        Text("Conecta dos Android cercanos sin Internet ni cuentas. El emisor conserva sus datos; " +
-            "el receptor recibe una copia completa que sustituye los suyos SOLO después de confirmarlo.",
-            style = MaterialTheme.typography.bodySmall, color = TestarioMutedText)
-        Text("1. Pulsa ENVIAR en el móvil con los datos correctos.\n" +
-            "2. Pulsa RECIBIR en el otro y elige el móvil emisor.\n" +
-            "3. Comprueba el MISMO código de seguridad en ambos.\n" +
-            "4. El emisor confirma el envío y el receptor verifica la copia.\n" +
-            "5. El receptor acepta reemplazar sus datos; NEXUM guarda antes una copia preventiva.",
+        Text("Sincroniza dos Android cercanos sin archivos ni cuentas: conecta ambos, compara " +
+            "su contenido y decide cuál prevalece. Nunca se sustituyen datos sin confirmar " +
+            "en los dos dispositivos.", style = MaterialTheme.typography.bodySmall,
+            color = TestarioMutedText)
+        Text("1. En un móvil pulsa CREAR CONEXIÓN; en el otro, UNIRSE.\n" +
+            "2. Comprueba que el código de seguridad sea idéntico.\n" +
+            "3. Elige Prevalece ESTE móvil o Prevalece el OTRO.\n" +
+            "4. El dueño del origen confirma el envío. El receptor confirma la sustitución.\n" +
+            "5. NEXUM guarda automáticamente una copia previa recuperable.",
             style = MaterialTheme.typography.bodySmall, color = TestarioMutedText)
 
         if (state.mode == NexumNearbyMode.NONE) {
             Button(modifier = Modifier.fillMaxWidth().height(48.dp),
                 onClick = { startIfPermitted(NexumNearbyMode.HOST) }) {
-                Text("ENVIAR · Crear conexión")
+                Text("CREAR CONEXIÓN")
             }
             OutlinedButton(modifier = Modifier.fillMaxWidth().height(48.dp),
                 onClick = { startIfPermitted(NexumNearbyMode.JOIN) }) {
-                Text("RECIBIR · Unirse a conexión")
+                Text("UNIRSE A CONEXIÓN")
             }
         } else {
-            Text(if (state.mode == NexumNearbyMode.HOST) "Modo: EMISOR" else "Modo: RECEPTOR",
+            Text(if (state.mode == NexumNearbyMode.HOST) "Modo: creó conexión" else "Modo: se unió",
                 color = TestarioPrimary, style = MaterialTheme.typography.titleMedium)
             Text(state.status, color = TestarioText)
             if (state.mode == NexumNearbyMode.JOIN && !state.connected &&
@@ -158,11 +159,48 @@ fun NexumNearbySyncPanel() {
                 Text("Dispositivo: ${state.incomingPeer?.name.orEmpty()}",
                     color = TestarioMutedText)
             }
-            if (state.mode == NexumNearbyMode.HOST && state.connected &&
-                !state.processing && !state.completed) {
-                Button(modifier = Modifier.fillMaxWidth(), onClick = { hostConfirmation = true }) {
-                    Text("Compartir copia completa")
+            if (state.connected) {
+                state.localSummary?.let { summary ->
+                    Text("ESTE dispositivo: ${summary.describe()}",
+                        color = TestarioText, style = MaterialTheme.typography.bodySmall)
                 }
+                state.peerSummary?.let { summary ->
+                    Text("OTRO dispositivo: ${summary.describe()}",
+                        color = TestarioText, style = MaterialTheme.typography.bodySmall)
+                }
+                Text("La comparación de cantidades es orientativa; no garantiza " +
+                    "que las preguntas o los planes sean idénticos.",
+                    color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+            }
+            if (state.connected && !state.processing && !state.completed &&
+                !state.readyToRestore && !state.awaitingPeerToSend &&
+                !state.remoteRequestedToSend) {
+                Button(modifier = Modifier.fillMaxWidth(), onClick = { hostConfirmation = true }) {
+                    Text("Prevalecen los datos de ESTE móvil")
+                }
+                OutlinedButton(modifier = Modifier.fillMaxWidth(),
+                    onClick = { manager.requestPeerToSend() }) {
+                    Text("Prevalecen los datos del OTRO móvil")
+                }
+            }
+            if (state.remoteRequestedToSend) {
+                AlertDialog(
+                    onDismissRequest = { manager.rejectPeerRequest() },
+                    title = { Text("El otro NEXUM solicita tus datos") },
+                    text = { Text("El otro móvil ha elegido que prevalezca ESTE dispositivo. " +
+                        "¿Confirmas enviar una copia completa? No se modificará tu información. " +
+                        "El receptor tendrá que aceptar el reemplazo por separado.") },
+                    confirmButton = {
+                        Button(onClick = { manager.acceptPeerRequestAndSend() }) {
+                            Text("Sí, prevalece este NEXUM")
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(onClick = { manager.rejectPeerRequest() }) {
+                            Text("Rechazar")
+                        }
+                    }
+                )
             }
             if (state.progressPercent > 0) {
                 LinearProgressIndicator(progress = { state.progressPercent / 100f },
@@ -188,9 +226,9 @@ fun NexumNearbySyncPanel() {
                 Text("Recuperar los datos anteriores")
             }
         }
-        Text("Requiere servicios Google Play compatibles, permisos inalámbricos y móviles cercanos. " +
-            "No sincroniza automáticamente ni fusiona cambios. Máximo 128 MB por copia; " +
-            "si se interrumpe la transferencia, no se reemplazan datos.",
+        Text("Sincronización local bajo demanda (ambos móviles próximos), sin nube ni mezcla " +
+            "automática de cambios. Máximo 128 MB por copia. Si se interrumpe el envío, " +
+            "no se reemplazan datos.",
             color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
     }
 
@@ -210,14 +248,14 @@ fun NexumNearbySyncPanel() {
 
     if (hostConfirmation) AlertDialog(
         onDismissRequest = { hostConfirmation = false },
-        title = { Text("Enviar todo NEXUM") },
+        title = { Text("¿Prevalecerá ESTE NEXUM?") },
         text = { Text("Se enviarán biblioteca, preguntas e imágenes, estadísticas, " +
             "historial, planificación, objetivos y ajustes. El receptor deberá confirmar " +
             "antes de reemplazar sus datos. Este dispositivo no se modificará.") },
         confirmButton = { Button(onClick = {
             hostConfirmation = false
             manager.send()
-        }) { Text("Sí, enviar copia") } },
+        }) { Text("Confirmar origen y enviar") } },
         dismissButton = { OutlinedButton(onClick = { hostConfirmation = false }) { Text("Cancelar") } }
     )
 
@@ -228,11 +266,11 @@ fun NexumNearbySyncPanel() {
             "prevalecerá. Se reemplazarán TODOS los temas, imágenes, pruebas, estadísticas, " +
             "plantillas, planificación, objetivos y ajustes. No se mezclarán cambios. " +
             "Antes guardaremos una copia local recuperable." +
-            if (timer.studyTimerState == StudyTimerState.RUNNING)
-                "\n\nATENCIÓN: detén o guarda antes el cronómetro de estudio." else "") },
+            if (timer.studyTimerState != StudyTimerState.STOPPED)
+                "\n\nATENCIÓN: guarda y termina antes el cronómetro de estudio, incluso si está pausado." else "") },
         confirmButton = {
             Button(
-                enabled = timer.studyTimerState != StudyTimerState.RUNNING,
+                enabled = timer.studyTimerState == StudyTimerState.STOPPED,
                 onClick = {
                     restoreConfirmation = false
                     scope.launch {
@@ -259,7 +297,7 @@ fun NexumNearbySyncPanel() {
         text = { Text("Se sustituirá el estado de NEXUM por el que tenía antes de la última " +
             "recepción. Antes se guardará otra copia de seguridad. ¿Continuar?") },
         confirmButton = {
-            Button(onClick = {
+            Button(enabled = timer.studyTimerState == StudyTimerState.STOPPED, onClick = {
                 recoveryConfirmation = false
                 scope.launch {
                     try {

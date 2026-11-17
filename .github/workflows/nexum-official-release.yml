@@ -125,19 +125,27 @@ jobs:
           El APK está firmado con la clave permanente de NEXUM y se puede
           instalar encima de la versión oficial anterior conservando los datos.
 
-          Novedades de NEXUM 1.5.1:
-          - Correccion de la transferencia inalambrica Enviar/Recibir en
-            Android 13 y versiones posteriores: permisos Wi-Fi permanentes
-            que Nearby Connections necesita en ambos dispositivos.
-          - Las secciones Temas y Objetivos diarios de Plan se pueden plegar
-            aunque no tengan contenido; el texto de ayuda se oculta al plegar
-            y la cabecera y el boton Anadir siguen disponibles.
-          - Mantiene tutorial, datos, formato de copias, nombre NEXUM,
-            identificador Android y certificado oficial de NEXUM 1.5.
+          Novedades de NEXUM 1.6:
+          - Actualizar la Biblioteca con un gesto hacia abajo en Temas y Grupos.
+          - Importación de ZIP con varios archivos JSON de temas, validación
+            completa, tratamiento de duplicados en el tema de destino y un
+            resumen de los temas y preguntas realmente incorporados.
+          - Protecciones frente al descarte de tiempo de estudio al sustituir
+            una copia o planificación, incluso con el cronómetro pausado.
+          - Cronómetro Android en la notificación y recuperación conservadora
+            de sesiones después de un cierre inesperado del proceso.
+          - Sincronización local Nearby entre dos móviles: comparación
+            orientativa de Biblioteca y Plan, selección del móvil prevaleciente
+            desde cualquiera de los dos, confirmaciones del envío y de la
+            sustitución y copia de recuperación previa.
+          - Se conservan nombres NEXUM en exportaciones y compatibilidad
+            con datos de versiones anteriores.
 
-          Importante: recomendamos una copia completa antes de actualizar.
-          El emparejamiento y transferencia entre dos moviles reales deben
-          probarse en ambos; las pruebas automaticas no sustituyen esta prueba.
+          Importante: se recomienda exportar una copia global de seguridad
+          antes de actualizar. Nearby sigue siendo una sincronización local
+          bajo demanda, NO una sincronización automática por Internet.
+          La verificación de la conexión real requiere DOS dispositivos
+          Android; las pruebas de CI no sustituyen esa comprobación.
           NOTES
           gh release create "$TAG" "$APK#NEXUM-$TAG.apk" \
             --repo "$GITHUB_REPOSITORY" \
