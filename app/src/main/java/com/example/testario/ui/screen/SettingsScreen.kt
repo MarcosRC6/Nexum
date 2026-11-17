@@ -360,7 +360,12 @@ fun SettingsScreen(
                             showPlanImportConfirm = true
                         }
                         UnifiedDataManager.ImportKind.LIBRARY_DATA -> {
-                            val rawText = if (fileName?.endsWith(".zip", true) == true) {
+                            val isArchive = bytes.size >= 4 &&
+                                bytes[0] == 0x50.toByte() && bytes[1] == 0x4b.toByte()
+                            // Storage Access Framework may expose a ZIP under an
+                            // opaque content URI without its original .zip filename.
+                            val rawText = if (isArchive ||
+                                fileName?.endsWith(".zip", ignoreCase = true) == true) {
                                 importExportViewModel.extractPayload(ByteArrayInputStream(bytes), fileName)
                             } else {
                                 detection.text ?: bytes.toString(Charsets.UTF_8)
