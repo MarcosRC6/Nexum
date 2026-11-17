@@ -70,9 +70,10 @@ class TestarioLocalStore private constructor(context: Context) {
     }
 
     private val mutex = kotlinx.coroutines.sync.Mutex()
+    private val databaseStateGuard = Any()
 
     fun saveDatabase(newDb: TestarioDatabase) {
-        _database.value = newDb
+        synchronized(databaseStateGuard) { _database.value = newDb }
         ioScope.launch {
             mutex.withLock {
                 try {
@@ -98,6 +99,28 @@ class TestarioLocalStore private constructor(context: Context) {
         } catch (error: Exception) {
             atomicFile.failWrite(output)
             throw error
+        }
+    }
+
+    /**
+     * Refresh the library from its durable local database without losing an asynchronous save.
+     * Every normal import/edit publishes to _database first, then writes via the mutex. Write
+     * that latest snapshot before reading; otherwise a pull immediately after an import could
+     * load old bytes and silently roll back the new topics.
+     *
+     * Never replace a newer in-memory snapshot published while the disk read was in progress.
+     * A corrupt disk read throws, leaving the in-memory database unchanged.
+     * This is a local refresh, NOT a re-import or a cross-device synchronization.
+     */
+    suspend fun refreshDatabaseFromDisk(): TestarioDatabase = mutex.withLock {
+        val snapshot = synchronized(databaseStateGuard) { _database.value }
+        writeDatabaseAtomically(snapshot)
+        val raw = atomicFile.openRead().bufferedReader().use { it.readText() }
+        val migrated = MigrationManager.migrate(raw)
+        val reloaded = json.decodeFromString<TestarioDatabase>(migrated)
+        synchronized(databaseStateGuard) {
+            if (_database.value === snapshot) _database.value = reloaded
+            _database.value
         }
     }
 
