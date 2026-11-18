@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
+import android.util.SizeF
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
@@ -135,19 +136,27 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
-            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
-            val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-            val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
-            val mode = getMode(context, appWidgetId)
             val state = loadWidgetState(context)
-            // El tamaño físico del launcher manda, también para widgets existentes.
-            // Un antiguo ajuste COMPACT/DETAIL no debe bloquear el redimensionado.
-            val views = if (NexumTodaySizePolicy.compact(mode, minWidth, minHeight)) {
-                buildCompactRemoteViews(context, state)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // Android 12+ elige el diseño más grande que quepa al cambiar
+                // las celdas; no dependemos de OPTION_APPWIDGET_MIN_HEIGHT,
+                // que puede describir otra orientación en algunas tablets.
+                val layouts: Map<SizeF, RemoteViews> = mapOf(
+                    SizeF(105f, 70f) to buildCompactRemoteViews(context, state),
+                    SizeF(175f, 170f) to buildExpandedRemoteViews(context, state, 190),
+                    SizeF(175f, 285f) to buildExpandedRemoteViews(context, state, 310)
+                )
+                appWidgetManager.updateAppWidget(appWidgetId, RemoteViews(layouts))
             } else {
-                buildExpandedRemoteViews(context, state, minHeight)
+                val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+                val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+                val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+                val compact = NexumTodaySizePolicy.compact(
+                    getMode(context, appWidgetId), minWidth, minHeight)
+                val views = if (compact) buildCompactRemoteViews(context, state)
+                    else buildExpandedRemoteViews(context, state, minHeight)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
             }
-            appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 
         private fun buildCompactRemoteViews(
