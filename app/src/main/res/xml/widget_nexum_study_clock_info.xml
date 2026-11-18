@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/nexum_study_clock_widget_description"
+    android:initialLayout="@layout/widget_nexum_study_clock"
+    android:previewLayout="@layout/widget_nexum_study_clock"
+    android:minWidth="230dp"
+    android:minHeight="125dp"
+    android:minResizeWidth="215dp"
+    android:minResizeHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="3"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="0"
+    android:configure="com.example.planario.app.widget.NexumStudyClockWidgetConfigurationActivity"
+    android:widgetFeatures="reconfigurable"
+    android:widgetCategory="home_screen" />
