@@ -85,6 +85,26 @@
             android:exported="true" />
 
         <receiver
+            android:name="com.example.planario.app.widget.NexumStudyClockWidgetReceiver"
+            android:label="@string/nexum_study_clock_widget_title"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_nexum_study_clock_info" />
+        </receiver>
+
+        <activity
+            android:name="com.example.planario.app.widget.NexumStudyClockWidgetConfigurationActivity"
+            android:exported="true" />
+
+        <activity
+            android:name="com.example.planario.app.widget.PlanarioTodayWidgetConfigurationActivity"
+            android:exported="true" />
+
+        <receiver
             android:name="com.example.planario.app.widget.PlanarioTodayWidgetReceiver"
             android:label="@string/nexum_today_widget_title"
             android:exported="true">
