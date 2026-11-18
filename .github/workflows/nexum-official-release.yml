@@ -125,27 +125,32 @@ jobs:
           El APK está firmado con la clave permanente de NEXUM y se puede
           instalar encima de la versión oficial anterior conservando los datos.
 
-          Novedades de NEXUM 1.7:
-          - Widget Estudio y Pomodoro con dos vistas, navegación mediante flechas
-            izquierda/derecha y controles de iniciar, pausar, reanudar y guardar
-            el tiempo de estudio. El Pomodoro no suma horas por sí mismo.
-          - Widget Hoy adaptable al espacio disponible, con progreso, objetivos
-            y acceso al test vinculado desde el formato grande.
-          - Test rápido compacto 2×1 con plantilla configurable por widget.
-          - Nombres y vistas previas diferenciadas en el selector Android y
-            previsualización al configurar widgets.
-          - Notificación del cronómetro simplificada; controles de Biblioteca
-            sin marcos neón superfluos.
-          - Recuperación conservadora del Pomodoro y controles de widget
-            canalizados por un receptor Android no exportado.
-          - Conserva los bancos de preguntas, las planificaciones, los backups
-            existentes, el identificador Android y la firma permanente.
+          Novedades de NEXUM 1.8:
+          - Widgets del escritorio de Android redimensionables, con formatos
+            compactos y ampliados y diseños adaptables a las celdas disponibles.
+          - Widget Hoy compacto: tema activo, tiempo de estudio de hoy,
+            objetivo y barra de progreso. Al ampliarlo muestra los objetivos
+            diarios y sus estados y conserva el acceso al test vinculado.
+          - Test rápido configurable por instancia: preguntas de todos los
+            temas, un tema concreto con cantidad de preguntas a elegir, o
+            plantilla guardada con todas sus opciones.
+          - Reloj de estudio y Pomodoro con diseño compacto, sin accesos en
+            las esquinas; al pulsar la esfera se abre la pantalla Reloj.
+            Controles de iniciar, pausar, reanudar y guardar independientes.
+          - El widget Pomodoro utiliza la duración que tengas configurada
+            en Plan y muestra los minutos en pausa sin perder un segundo
+            visualmente por la latencia del launcher.
+          - Se conservan los bancos de preguntas, el estudio acumulado,
+            ajustes y backups. No cambia el identificador Android ni la firma.
 
-          Importante: exporta una copia global desde Ajustes antes de actualizar.
-          El cambio entre las vistas Estudio/Pomodoro del widget se realiza
-          mediante flechas, porque el launcher Android reserva los gestos
-          horizontales. Esta versión necesita pruebas en dispositivos reales;
-          una compilación correcta no equivale a validación física.
+          Para actualizar, instala NEXUM 1.8 encima de la versión oficial
+          anterior, sin desinstalar. Recomendamos exportar previamente una
+          copia global de seguridad.
+          Si tu launcher conserva tamaños antiguos de widgets, elimina y
+          vuelve a colocar solamente esos widgets, no la aplicación.
+          El redimensionamiento exacto depende del launcher; se requieren
+          pruebas físicas de todos los formatos.
+
           NOTES
           gh release create "$TAG" "$APK#NEXUM-$TAG.apk" \
             --repo "$GITHUB_REPOSITORY" \
