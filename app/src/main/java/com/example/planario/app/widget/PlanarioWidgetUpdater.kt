@@ -11,13 +11,11 @@ object PlanarioWidgetUpdater {
 
     private const val UPDATE_INTERVAL_MILLIS = 60_000L
     private const val TODAY_WIDGET_REQUEST_CODE = 5101
-    private const val CALENDAR_WIDGET_REQUEST_CODE = 5102
 
     fun updateTodayWidget(context: Context) {
         val appContext = context.applicationContext
 
         PlanarioTodayWidgetReceiver.updateAllWidgets(appContext)
-        PlanarioCalendarWidgetReceiver.updateAllWidgets(appContext)
 
         appContext.sendBroadcast(
             Intent(
@@ -25,15 +23,6 @@ object PlanarioWidgetUpdater {
                 PlanarioTodayWidgetReceiver::class.java
             ).apply {
                 action = PlanarioTodayWidgetReceiver.ACTION_REFRESH_PLANARIO_WIDGET
-            }
-        )
-
-        appContext.sendBroadcast(
-            Intent(
-                appContext,
-                PlanarioCalendarWidgetReceiver::class.java
-            ).apply {
-                action = PlanarioCalendarWidgetReceiver.ACTION_REFRESH_PLANARIO_CALENDAR_WIDGET
             }
         )
 
@@ -45,7 +34,6 @@ object PlanarioWidgetUpdater {
         val alarmManager = appContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
         val todayPendingIntent = createTodayWidgetPendingIntent(appContext)
-        val calendarPendingIntent = createCalendarWidgetPendingIntent(appContext)
 
         val activeTimer = StudyLocalDataSource(appContext).loadActiveStudyTimerSnapshot()
 
@@ -59,15 +47,8 @@ object PlanarioWidgetUpdater {
                 todayPendingIntent
             )
 
-            alarmManager.setRepeating(
-                AlarmManager.RTC,
-                triggerAtMillis,
-                UPDATE_INTERVAL_MILLIS,
-                calendarPendingIntent
-            )
         } else {
             alarmManager.cancel(todayPendingIntent)
-            alarmManager.cancel(calendarPendingIntent)
         }
     }
 
@@ -84,24 +65,6 @@ object PlanarioWidgetUpdater {
         return PendingIntent.getBroadcast(
             context,
             TODAY_WIDGET_REQUEST_CODE,
-            intent,
-            pendingIntentFlags()
-        )
-    }
-
-    private fun createCalendarWidgetPendingIntent(
-        context: Context
-    ): PendingIntent {
-        val intent = Intent(
-            context,
-            PlanarioCalendarWidgetReceiver::class.java
-        ).apply {
-            action = PlanarioCalendarWidgetReceiver.ACTION_REFRESH_PLANARIO_CALENDAR_WIDGET
-        }
-
-        return PendingIntent.getBroadcast(
-            context,
-            CALENDAR_WIDGET_REQUEST_CODE,
             intent,
             pendingIntentFlags()
         )
