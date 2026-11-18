@@ -23,6 +23,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -49,8 +50,8 @@ class NexumStudyClockWidgetConfigurationActivity : ComponentActivity() {
             return
         }
         PlanarioDependencies.init(applicationContext)
-        val state = PlanarioDependencies.studyTimerController.state.value
         setContent {
+            val state by PlanarioDependencies.studyTimerController.state.collectAsState()
             var page by rememberSaveable {
                 mutableIntStateOf(NexumStudyClockWidgetReceiver.getPage(applicationContext, id))
             }
