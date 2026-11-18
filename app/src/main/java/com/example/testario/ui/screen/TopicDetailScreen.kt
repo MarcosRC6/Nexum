@@ -28,7 +28,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import com.example.testario.ui.theme.NeonIconButton as IconButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -342,14 +342,7 @@ fun TopicDetailScreen(
                                     TestarioSurface
                                 }
                             ),
-                            border = BorderStroke(
-                                1.dp,
-                                if (filterFlagged || selectedDifficultyFilter != null || searchScope != QuestionSearchScope.ALL) {
-                                    TestarioPrimary
-                                } else {
-                                    TestarioSurfaceLight
-                                }
-                            )
+                            border = BorderStroke(1.dp, TestarioSurfaceLight)
                         ) {
                             Box(
                                 contentAlignment = Alignment.Center,

@@ -18,6 +18,7 @@ import androidx.core.content.res.ResourcesCompat
 import com.example.testario.MainActivity
 import com.example.testario.R
 import com.example.planario.app.PlanarioDependencies
+import com.example.planario.app.widget.NexumStudyClockWidgetReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -34,6 +35,10 @@ class StudyTimerForegroundService : Service() {
     private var autoCloseObserverJob: Job? = null
     private var lastPublishedTimerState: StudyTimerState? = null
     private var lastPublishedPausedSeconds: Long = -1L
+    private var lastPublishedPomodoroState: PomodoroTimerState? = null
+    private var lastPublishedPomodoroSeconds: Long = -1L
+    private var lastWidgetStudyState: StudyTimerState? = null
+    private var lastWidgetPomodoroState: PomodoroTimerState? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -82,8 +87,17 @@ class StudyTimerForegroundService : Service() {
                 // A stop action must finish and save the clock, not merely hide
                 // its notification while the timer continues unobserved.
                 PlanarioDependencies.finishStudyTimerAndSave()
-                stopServiceSafely()
-                START_NOT_STICKY
+                if (PlanarioDependencies.studyTimerController.state.value.pomodoroTimerState ==
+                    PomodoroTimerState.RUNNING ||
+                    PlanarioDependencies.studyTimerController.state.value.pomodoroTimerState ==
+                    PomodoroTimerState.PAUSED) {
+                    startForegroundNow()
+                    NexumStudyClockWidgetReceiver.updateAllWidgets(applicationContext)
+                    START_STICKY
+                } else {
+                    stopServiceSafely()
+                    START_NOT_STICKY
+                }
             }
 
             else -> {
@@ -103,11 +117,13 @@ class StudyTimerForegroundService : Service() {
         // Swiping the task away is different from pressing Back. Android cannot
         // show a dialog after task removal; preserve the running timer instead.
         PlanarioDependencies.studyTimerController.persistCurrentStudyTimerNow()
+        PlanarioDependencies.studyTimerController.persistCurrentPomodoroNow()
         super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
         PlanarioDependencies.studyTimerController.persistCurrentStudyTimerNow()
+        PlanarioDependencies.studyTimerController.persistCurrentPomodoroNow()
 
         observerJob?.cancel()
         observerJob = null
@@ -165,6 +181,9 @@ class StudyTimerForegroundService : Service() {
         val state = PlanarioDependencies.studyTimerController.state.value
         lastPublishedTimerState = state.studyTimerState
         lastPublishedPausedSeconds = state.studyElapsedSeconds
+        lastPublishedPomodoroState = state.pomodoroTimerState
+        lastPublishedPomodoroSeconds = state.pomodoroRemainingSeconds
+        NexumStudyClockWidgetReceiver.updateAllWidgets(applicationContext)
     }
 
     private fun observeTimer() {
@@ -172,7 +191,14 @@ class StudyTimerForegroundService : Service() {
 
         observerJob = serviceScope.launch {
             PlanarioDependencies.studyTimerController.state.collectLatest { state ->
-                if (state.studyTimerState == StudyTimerState.STOPPED) {
+                if (state.studyTimerState != lastWidgetStudyState ||
+                    state.pomodoroTimerState != lastWidgetPomodoroState) {
+                    lastWidgetStudyState = state.studyTimerState
+                    lastWidgetPomodoroState = state.pomodoroTimerState
+                    NexumStudyClockWidgetReceiver.updateAllWidgets(applicationContext)
+                }
+                if (!StudyForegroundPolicy.shouldKeepRunning(
+                        state.studyTimerState, state.pomodoroTimerState)) {
                     stopServiceSafely()
                 } else {
                     updateNotification(state)
@@ -195,7 +221,8 @@ class StudyTimerForegroundService : Service() {
                     )
                 }
 
-                stopServiceSafely()
+                if (PlanarioDependencies.studyTimerController.state.value.pomodoroTimerState !=
+                    PomodoroTimerState.RUNNING) stopServiceSafely()
             }
         }
     }
@@ -204,10 +231,15 @@ class StudyTimerForegroundService : Service() {
         // Android's chronometer animates independently, even if background
         // notification updates are throttled. Rebuild on state transitions only.
         if (lastPublishedTimerState == state.studyTimerState &&
+            lastPublishedPomodoroState == state.pomodoroTimerState &&
             (state.studyTimerState == StudyTimerState.RUNNING ||
-                lastPublishedPausedSeconds == state.studyElapsedSeconds)) return
+                lastPublishedPausedSeconds == state.studyElapsedSeconds) &&
+            (state.pomodoroTimerState == PomodoroTimerState.RUNNING ||
+                lastPublishedPomodoroSeconds == state.pomodoroRemainingSeconds)) return
         lastPublishedTimerState = state.studyTimerState
         lastPublishedPausedSeconds = state.studyElapsedSeconds
+        lastPublishedPomodoroState = state.pomodoroTimerState
+        lastPublishedPomodoroSeconds = state.pomodoroRemainingSeconds
         val notification = buildNotification(state)
 
         val notificationManager = getSystemService(NotificationManager::class.java)
@@ -223,24 +255,37 @@ class StudyTimerForegroundService : Service() {
         val title = when (state.studyTimerState) {
             StudyTimerState.RUNNING -> "Estudio en curso"
             StudyTimerState.PAUSED -> "Estudio pausado"
-            StudyTimerState.STOPPED -> "Cronómetro detenido"
+            StudyTimerState.STOPPED -> if (state.pomodoroTimerState == PomodoroTimerState.RUNNING)
+                "Pomodoro en marcha" else "Pomodoro pausado"
         }
 
-        val content = if (state.studyTimerState == StudyTimerState.RUNNING)
-            "El tiempo sigue contando. Pausa o guarda cuando termines."
-        else "Tiempo: ${state.studyElapsedSeconds.toTimerText()}"
+        // El cronómetro del sistema ya muestra los segundos en vivo.
+        // No repetir un texto explicativo que ocupa espacio en la notificación.
+        val content = when {
+            state.studyTimerState == StudyTimerState.RUNNING -> null
+            state.studyTimerState == StudyTimerState.PAUSED ->
+                "Tiempo: ${state.studyElapsedSeconds.toTimerText()}"
+            else -> "Restante: ${state.pomodoroRemainingSeconds.toTimerText()}"
+        }
+        val isStudyRunning = state.studyTimerState == StudyTimerState.RUNNING
+        val isPomoRunning = state.studyTimerState == StudyTimerState.STOPPED &&
+            state.pomodoroTimerState == PomodoroTimerState.RUNNING
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setLargeIcon(getLargeNotificationIcon())
             .setContentTitle(title)
             .setContentText(content)
-            .setOngoing(state.studyTimerState != StudyTimerState.STOPPED)
+            .setOngoing(state.studyTimerState != StudyTimerState.STOPPED ||
+                state.pomodoroTimerState == PomodoroTimerState.RUNNING)
             .setOnlyAlertOnce(true)
-            .setShowWhen(state.studyTimerState == StudyTimerState.RUNNING)
-            .setUsesChronometer(state.studyTimerState == StudyTimerState.RUNNING)
-            .setWhen(System.currentTimeMillis() -
-                state.studyElapsedSeconds.coerceAtMost(86400L * 365L) * 1000L)
+            .setShowWhen(isStudyRunning || isPomoRunning)
+            .setUsesChronometer(isStudyRunning || isPomoRunning)
+            .setChronometerCountDown(isPomoRunning)
+            .setWhen(if (isPomoRunning)
+                System.currentTimeMillis() + state.pomodoroRemainingSeconds * 1000L
+                else System.currentTimeMillis() -
+                    state.studyElapsedSeconds.coerceAtMost(86400L * 365L) * 1000L)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setContentIntent(createOpenAppPendingIntent())

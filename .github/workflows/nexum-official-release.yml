@@ -125,27 +125,27 @@ jobs:
           El APK está firmado con la clave permanente de NEXUM y se puede
           instalar encima de la versión oficial anterior conservando los datos.
 
-          Novedades de NEXUM 1.6:
-          - Actualizar la Biblioteca con un gesto hacia abajo en Temas y Grupos.
-          - Importación de ZIP con varios archivos JSON de temas, validación
-            completa, tratamiento de duplicados en el tema de destino y un
-            resumen de los temas y preguntas realmente incorporados.
-          - Protecciones frente al descarte de tiempo de estudio al sustituir
-            una copia o planificación, incluso con el cronómetro pausado.
-          - Cronómetro Android en la notificación y recuperación conservadora
-            de sesiones después de un cierre inesperado del proceso.
-          - Sincronización local Nearby entre dos móviles: comparación
-            orientativa de Biblioteca y Plan, selección del móvil prevaleciente
-            desde cualquiera de los dos, confirmaciones del envío y de la
-            sustitución y copia de recuperación previa.
-          - Se conservan nombres NEXUM en exportaciones y compatibilidad
-            con datos de versiones anteriores.
+          Novedades de NEXUM 1.7:
+          - Widget Estudio y Pomodoro con dos vistas, navegación mediante flechas
+            izquierda/derecha y controles de iniciar, pausar, reanudar y guardar
+            el tiempo de estudio. El Pomodoro no suma horas por sí mismo.
+          - Widget Hoy adaptable al espacio disponible, con progreso, objetivos
+            y acceso al test vinculado desde el formato grande.
+          - Test rápido compacto 2×1 con plantilla configurable por widget.
+          - Nombres y vistas previas diferenciadas en el selector Android y
+            previsualización al configurar widgets.
+          - Notificación del cronómetro simplificada; controles de Biblioteca
+            sin marcos neón superfluos.
+          - Recuperación conservadora del Pomodoro y controles de widget
+            canalizados por un receptor Android no exportado.
+          - Conserva los bancos de preguntas, las planificaciones, los backups
+            existentes, el identificador Android y la firma permanente.
 
-          Importante: se recomienda exportar una copia global de seguridad
-          antes de actualizar. Nearby sigue siendo una sincronización local
-          bajo demanda, NO una sincronización automática por Internet.
-          La verificación de la conexión real requiere DOS dispositivos
-          Android; las pruebas de CI no sustituyen esa comprobación.
+          Importante: exporta una copia global desde Ajustes antes de actualizar.
+          El cambio entre las vistas Estudio/Pomodoro del widget se realiza
+          mediante flechas, porque el launcher Android reserva los gestos
+          horizontales. Esta versión necesita pruebas en dispositivos reales;
+          una compilación correcta no equivale a validación física.
           NOTES
           gh release create "$TAG" "$APK#NEXUM-$TAG.apk" \
             --repo "$GITHUB_REPOSITORY" \

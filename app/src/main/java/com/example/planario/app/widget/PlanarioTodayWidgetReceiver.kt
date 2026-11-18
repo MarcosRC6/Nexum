@@ -46,6 +46,18 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
         )
     }
 
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        appWidgetIds.forEach { id -> prefs(context).edit().remove("density_$id").apply() }
+    }
+
+    override fun onRestored(context: Context, oldWidgetIds: IntArray, newWidgetIds: IntArray) {
+        oldWidgetIds.zip(newWidgetIds).forEach { (oldId, newId) ->
+            saveMode(context, newId, getMode(context, oldId))
+            prefs(context).edit().remove("density_$oldId").apply()
+        }
+        updateAllWidgets(context)
+    }
+
     override fun onReceive(
         context: Context,
         intent: Intent
@@ -61,9 +73,24 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
         const val ACTION_REFRESH_PLANARIO_WIDGET =
             "com.example.planario.action.REFRESH_PLANARIO_TODAY_WIDGET"
 
-        private const val MEDIUM_MIN_HEIGHT_DP = 105
-        private const val LARGE_MIN_HEIGHT_DP = 210
+        // RemoteViews lacks flexible Compose measurement. Choose a truly short
+        // layout for 2x2 launchers; show detail only when the host grants space.
+        private const val FULL_MIN_HEIGHT_DP = 205
+        private const val MEDIUM_MIN_HEIGHT_DP = 310
+        private const val LARGE_MIN_HEIGHT_DP = 425
         private const val LARGE_MIN_WIDTH_DP = 250
+
+        private fun prefs(context: Context) = context.applicationContext
+            .getSharedPreferences("nexum_today_widget_settings", Context.MODE_PRIVATE)
+
+        fun getMode(context: Context, id: Int): String =
+            prefs(context).getString("density_$id", "AUTO")
+                ?.takeIf { it in setOf("AUTO", "COMPACT", "DETAIL") } ?: "AUTO"
+
+        fun saveMode(context: Context, id: Int, mode: String) {
+            prefs(context).edit().putString("density_$id",
+                if (mode in setOf("AUTO", "COMPACT", "DETAIL")) mode else "AUTO").apply()
+        }
 
         fun updateAllWidgets(context: Context) {
             val appContext = context.applicationContext
@@ -99,6 +126,10 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             }
         }
 
+        fun updateWidget(context: Context, appWidgetId: Int) {
+            updateWidget(context, AppWidgetManager.getInstance(context), appWidgetId)
+        }
+
         private fun updateWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -107,23 +138,37 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
             val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
             val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
-
-            val showMedium = minHeight >= MEDIUM_MIN_HEIGHT_DP || minWidth >= LARGE_MIN_WIDTH_DP
-            val showLarge = minHeight >= LARGE_MIN_HEIGHT_DP && minWidth >= LARGE_MIN_WIDTH_DP
-
+            val mode = getMode(context, appWidgetId)
             val state = loadWidgetState(context)
+            val showCompact = NexumTodaySizePolicy.compact(mode, minWidth, minHeight)
+            val views = if (showCompact) {
+                buildCompactRemoteViews(context, state)
+            } else {
+                val showMedium = NexumTodaySizePolicy.details(mode, minHeight)
+                val showLarge = NexumTodaySizePolicy.week(minWidth, minHeight)
+                buildRemoteViews(context, state, showMedium, showLarge)
+            }
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
 
-            val views = buildRemoteViews(
-                context = context,
-                state = state,
-                showMedium = showMedium,
-                showLarge = showLarge
-            )
-
-            appWidgetManager.updateAppWidget(
-                appWidgetId,
-                views
-            )
+        private fun buildCompactRemoteViews(
+            context: Context,
+            state: PlanarioTodayWidgetState
+        ): RemoteViews = RemoteViews(context.packageName,
+            R.layout.widget_planario_today_compact).apply {
+            setInt(R.id.widgetCompactRoot, "setBackgroundResource",
+                if (state.darkMode) R.drawable.widget_today_background_dark
+                else R.drawable.widget_today_background_light)
+            setTextViewText(R.id.widgetCompactStatus, state.statusText)
+            setTextViewText(R.id.widgetCompactProgress, state.progressText)
+            setTextViewText(R.id.widgetCompactObjectives,
+                "${state.completedFixedObjectives}/${state.totalFixedObjectives} objetivos · ${state.topicText}")
+            setProgressBar(R.id.widgetCompactBar, 100, state.progressPercent, false)
+            setTextColor(R.id.widgetCompactTitle, state.primaryTextColor)
+            setTextColor(R.id.widgetCompactProgress, state.primaryTextColor)
+            setTextColor(R.id.widgetCompactObjectives, state.secondaryTextColor)
+            setOnClickPendingIntent(R.id.widgetCompactRoot,
+                createOpenAppPendingIntent(context, PlanarioDestination.Home.route, 4101))
         }
 
         private fun buildRemoteViews(
@@ -341,7 +386,7 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
 
                 setTextViewText(
                     R.id.widgetCalendarButton,
-                    "Calendario"
+                    if (state.hasLinkedTest) "Iniciar test" else "Calendario"
                 )
 
                 setTextColor(
@@ -388,7 +433,8 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
 
                 setOnClickPendingIntent(
                     R.id.widgetCalendarButton,
-                    createOpenAppPendingIntent(
+                    if (state.hasLinkedTest) createLinkedTestPendingIntent(context, state)
+                    else createOpenAppPendingIntent(
                         context = context,
                         route = PlanarioDestination.Calendar.route,
                         requestCode = 4104
@@ -481,6 +527,25 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             )
         }
 
+        private fun createLinkedTestPendingIntent(
+            context: Context,
+            state: PlanarioTodayWidgetState
+        ): PendingIntent {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                action = "com.example.estudario.action.TODAY_LINKED_TEST"
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(MainActivity.EXTRA_START_DESTINATION_ROUTE, "widget_quick_test")
+                putStringArrayListExtra(MainActivity.EXTRA_QUICK_TEST_TOPIC_IDS,
+                    ArrayList(state.linkedTestTopicIds))
+                putExtra(MainActivity.EXTRA_QUICK_TEST_COUNT, state.linkedTestCount)
+                state.linkedTestTemplateId?.let {
+                    putExtra(MainActivity.EXTRA_QUICK_TEST_TEMPLATE_ID, it)
+                }
+            }
+            return PendingIntent.getActivity(context, 4110, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        }
+
         private fun loadWidgetState(context: Context): PlanarioTodayWidgetState {
             val dataSource = StudyLocalDataSource(context)
             val data = dataSource.load()
@@ -554,6 +619,11 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
                 context = context,
                 darkMode = darkMode
             )
+            val linkedObjective = enabledFixedObjectives
+                .filter { it.linkedTestTopicIds.isNotEmpty() ||
+                    !it.linkedTestTemplateId.isNullOrBlank() }
+                .sortedBy { if (it.id in completedFixedObjectiveIds) 1 else 0 }
+                .firstOrNull()
 
             return PlanarioTodayWidgetState(
                 darkMode = darkMode,
@@ -566,7 +636,10 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
                 pendingObjectiveNames = pendingObjectiveNames,
                 dayStatus = dayStatus,
                 isFinishedManually = isFinishedManually,
-                weekCells = weekCells
+                weekCells = weekCells,
+                linkedTestTopicIds = linkedObjective?.linkedTestTopicIds?.toList() ?: emptyList(),
+                linkedTestCount = linkedObjective?.linkedTestQuestionCount?.coerceIn(1, 500) ?: 10,
+                linkedTestTemplateId = linkedObjective?.linkedTestTemplateId
             )
         }
 
@@ -682,8 +755,13 @@ private data class PlanarioTodayWidgetState(
     val pendingObjectiveNames: List<String>,
     val dayStatus: DayStatus,
     val isFinishedManually: Boolean,
-    val weekCells: List<PlanarioWeekCell>
+    val weekCells: List<PlanarioWeekCell>,
+    val linkedTestTopicIds: List<String>,
+    val linkedTestCount: Int,
+    val linkedTestTemplateId: String?
 ) {
+    val hasLinkedTest: Boolean
+        get() = linkedTestTopicIds.isNotEmpty() || !linkedTestTemplateId.isNullOrBlank()
     val primaryTextColor: Int
         get() = if (darkMode) {
             0xFFF8FAFC.toInt()

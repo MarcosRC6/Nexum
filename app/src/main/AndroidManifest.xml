@@ -70,6 +70,7 @@
 
         <receiver
             android:name="com.example.testario.widget.NexumQuickTestWidgetProvider"
+            android:label="@string/nexum_quick_widget_title"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -83,8 +84,34 @@
             android:name="com.example.testario.widget.NexumQuickTestWidgetConfigurationActivity"
             android:exported="true" />
 
+        <!-- Sólo PendingIntent inmutables internos controlan los relojes. -->
+        <receiver
+            android:name="com.example.planario.app.widget.NexumStudyClockWidgetActionReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name="com.example.planario.app.widget.NexumStudyClockWidgetReceiver"
+            android:label="@string/nexum_study_clock_widget_title"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_nexum_study_clock_info" />
+        </receiver>
+
+        <activity
+            android:name="com.example.planario.app.widget.NexumStudyClockWidgetConfigurationActivity"
+            android:exported="true" />
+
+        <activity
+            android:name="com.example.planario.app.widget.PlanarioTodayWidgetConfigurationActivity"
+            android:exported="true" />
+
         <receiver
             android:name="com.example.planario.app.widget.PlanarioTodayWidgetReceiver"
+            android:label="@string/nexum_today_widget_title"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -94,16 +121,7 @@
                 android:resource="@xml/planario_today_widget_info" />
         </receiver>
 
-        <receiver
-            android:name="com.example.planario.app.widget.PlanarioCalendarWidgetReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/planario_calendar_widget_info" />
-        </receiver>
+        <!-- El calendario interno de Plan permanece disponible, pero su widget redundante se oculta del selector Android. -->
 
         <activity
             android:name="com.example.testario.MainActivity"
