@@ -62,17 +62,20 @@ class TimerViewModel(
 
         repository.startActiveStudyTimerTracking(today)
         PlanarioDependencies.startStudyTimerForegroundService()
+        PlanarioDependencies.refreshStudyClockWidgets()
     }
 
     fun pauseStudyTimer() {
         studyTimerController.pauseStudyTimer()
         repository.pauseActiveStudyTimerTracking()
+        PlanarioDependencies.refreshStudyClockWidgets()
     }
 
     fun resumeStudyTimer() {
         studyTimerController.resumeStudyTimer()
         repository.resumeActiveStudyTimerTracking()
         PlanarioDependencies.startStudyTimerForegroundService()
+        PlanarioDependencies.refreshStudyClockWidgets()
     }
 
     fun finishStudyTimer() {
@@ -82,33 +85,43 @@ class TimerViewModel(
         saveFinishedStudyTimerSession(finishedSession)
 
         PlanarioDependencies.stopStudyTimerForegroundService()
+        PlanarioDependencies.refreshStudyClockWidgets()
     }
 
     fun discardStudyTimer() {
         studyTimerController.discardStudyTimer()
         repository.clearActiveStudyTimerTracking()
         PlanarioDependencies.stopStudyTimerForegroundService()
+        PlanarioDependencies.refreshStudyClockWidgets()
     }
 
     fun setPomodoroDuration(minutes: Int) {
         repository.setLastPomodoroMinutes(minutes)
         studyTimerController.setPomodoroDuration(minutes)
+        PlanarioDependencies.refreshStudyClockWidgets()
     }
 
     fun startPomodoro() {
         studyTimerController.startPomodoro()
+        PlanarioDependencies.startStudyTimerForegroundService()
+        PlanarioDependencies.refreshStudyClockWidgets()
     }
 
     fun pausePomodoro() {
         studyTimerController.pausePomodoro()
+        PlanarioDependencies.refreshStudyClockWidgets()
     }
 
     fun resumePomodoro() {
         studyTimerController.resumePomodoro()
+        PlanarioDependencies.startStudyTimerForegroundService()
+        PlanarioDependencies.refreshStudyClockWidgets()
     }
 
     fun resetPomodoro() {
         studyTimerController.resetPomodoro()
+        PlanarioDependencies.stopStudyTimerForegroundService()
+        PlanarioDependencies.refreshStudyClockWidgets()
     }
 
     private fun recoverPendingStudyTimerIfNeeded() {
