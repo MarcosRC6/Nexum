@@ -3,4 +3,6 @@
     <string name="nexum_quick_widget_description">Test rápido compacto (2 × 1). Inicia 10 preguntas o una plantilla guardada. Configurable por widget.</string>
     <string name="nexum_quick_widget_title">NEXUM · Test rápido</string>
     <string name="nexum_today_widget_title">NEXUM · Hoy</string>
+    <string name="nexum_study_clock_widget_title">NEXUM · Estudio y Pomodoro</string>
+    <string name="nexum_study_clock_widget_description">Cronómetro de estudio y Pomodoro en dos vistas, controles para iniciar, pausar, reanudar y guardar tiempo.</string>
 </resources>
