@@ -7,6 +7,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
+import android.os.Build
+import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
 import com.example.planario.app.PlanarioDependencies
@@ -167,16 +169,28 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
         private fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int) {
             if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) return
             PlanarioDependencies.init(context.applicationContext)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val views: Map<SizeF, RemoteViews> = mapOf(
+                    SizeF(105f, 90f) to buildClockViews(context, widgetId, compact = true),
+                    SizeF(215f, 160f) to buildClockViews(context, widgetId, compact = false)
+                )
+                manager.updateAppWidget(widgetId, RemoteViews(views))
+            } else {
+                val options = manager.getAppWidgetOptions(widgetId)
+                val width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+                val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+                val compact = NexumClockSizePolicy.compact(width, height)
+                manager.updateAppWidget(widgetId, buildClockViews(context, widgetId, compact))
+            }
+        }
+
+        private fun buildClockViews(
+            context: Context, widgetId: Int, compact: Boolean
+        ): RemoteViews {
             val state = PlanarioDependencies.studyTimerController.state.value
             val page = getPage(context, widgetId)
-            val options = manager.getAppWidgetOptions(widgetId)
-            val width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
-            val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-            val layoutId = if (NexumClockSizePolicy.compact(width, height)) {
-                R.layout.widget_nexum_study_clock_compact
-            } else {
-                R.layout.widget_nexum_study_clock
-            }
+            val layoutId = if (compact) R.layout.widget_nexum_study_clock_compact
+                else R.layout.widget_nexum_study_clock
             val views = RemoteViews(context.packageName, layoutId)
             views.setTextViewText(R.id.studyWidgetTitle,
                 if (page == 0) "ESTUDIO" else "POMODORO")
@@ -237,7 +251,7 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.studyWidgetPageIndicator, open)
             views.setOnClickPendingIntent(R.id.studyWidgetStudyClock, open)
             views.setOnClickPendingIntent(R.id.studyWidgetPomodoroClock, open)
-            manager.updateAppWidget(widgetId, views)
+            return views
         }
     }
 }
