@@ -140,15 +140,12 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
             val mode = getMode(context, appWidgetId)
             val state = loadWidgetState(context)
-            val showCompact = mode == "COMPACT" ||
-                minHeight < FULL_MIN_HEIGHT_DP || minWidth < 180
+            val showCompact = NexumTodaySizePolicy.compact(mode, minWidth, minHeight)
             val views = if (showCompact) {
                 buildCompactRemoteViews(context, state)
             } else {
-                val showMedium = minHeight >= MEDIUM_MIN_HEIGHT_DP || mode == "DETAIL" &&
-                    minHeight >= 285
-                val showLarge = minHeight >= LARGE_MIN_HEIGHT_DP &&
-                    minWidth >= LARGE_MIN_WIDTH_DP
+                val showMedium = NexumTodaySizePolicy.details(mode, minHeight)
+                val showLarge = NexumTodaySizePolicy.week(minWidth, minHeight)
                 buildRemoteViews(context, state, showMedium, showLarge)
             }
             appWidgetManager.updateAppWidget(appWidgetId, views)
