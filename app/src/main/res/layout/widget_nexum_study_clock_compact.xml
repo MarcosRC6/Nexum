@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista 2x2, las acciones permanecen táctiles y el resto abre Reloj. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/studyWidgetClockRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:background="@drawable/widget_nexum_quick_compact_background"
+    android:padding="7dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="23dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/studyWidgetSwitchLeft"
+            android:layout_width="30dp"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="‹"
+            android:textSize="23sp"
+            android:textColor="#D9BCFF" />
+
+        <TextView
+            android:id="@+id/studyWidgetTitle"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="ESTUDIO"
+            android:textStyle="bold"
+            android:textSize="11sp"
+            android:textColor="#D9BCFF" />
+
+        <TextView
+            android:id="@+id/studyWidgetSwitchRight"
+            android:layout_width="30dp"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="›"
+            android:textSize="23sp"
+            android:textColor="#D9BCFF" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/studyWidgetPageIndicator"
+        android:layout_width="match_parent"
+        android:layout_height="11dp"
+        android:gravity="center"
+        android:text="● ○"
+        android:textSize="9sp"
+        android:textColor="#B46BFF" />
+
+    <LinearLayout
+        android:id="@+id/studyWidgetStudyPane"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <Chronometer
+            android:id="@+id/studyWidgetStudyClock"
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:gravity="center"
+            android:textSize="25sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="31dp"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/studyWidgetStudyButton"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/widget_nexum_quick_button"
+                android:gravity="center"
+                android:text="Iniciar"
+                android:textSize="11sp"
+                android:textColor="#FFFFFF" />
+            <TextView
+                android:id="@+id/studyWidgetSave"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="5dp"
+                android:background="@drawable/widget_today_section_dark"
+                android:gravity="center"
+                android:text="Guardar"
+                android:textSize="11sp"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/studyWidgetPomodoroPane"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <Chronometer
+            android:id="@+id/studyWidgetPomodoroClock"
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:gravity="center"
+            android:textSize="25sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/studyWidgetPomodoroMeta"
+            android:layout_width="match_parent"
+            android:layout_height="13dp"
+            android:gravity="center"
+            android:text="60 min configurados"
+            android:textSize="9sp"
+            android:textColor="#D9BCFF" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="31dp"
+            android:orientation="horizontal">
+            <TextView
+                android:id="@+id/studyWidgetPomodoroButton"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/widget_nexum_quick_button"
+                android:gravity="center"
+                android:text="Iniciar"
+                android:textSize="11sp"
+                android:textColor="#FFFFFF" />
+            <TextView
+                android:id="@+id/studyWidgetPomodoroReset"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="5dp"
+                android:layout_weight="1"
+                android:background="@drawable/widget_today_section_dark"
+                android:gravity="center"
+                android:text="Reiniciar"
+                android:textSize="11sp"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
