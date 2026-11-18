@@ -41,9 +41,12 @@ class PlanarioTodayWidgetConfigurationActivity : ComponentActivity() {
         val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,
             AppWidgetManager.INVALID_APPWIDGET_ID)
         if (id == AppWidgetManager.INVALID_APPWIDGET_ID) { finish(); return }
-        val data = StudyLocalDataSource(applicationContext).load()
+        val dataSource = StudyLocalDataSource(applicationContext)
+        val data = dataSource.load()
         val today = LocalDate.now()
-        val minutes = data.timeEntries.filter { it.date == today }.sumOf { it.minutes }
+        val active = dataSource.loadActiveStudyTimerSnapshot()
+        val minutes = data.timeEntries.filter { it.date == today }.sumOf { it.minutes } +
+            (if (active.isActive && active.date == today) active.elapsedMinutes() else 0)
         val goal = (data.studyDays[today]?.dailyGoalMinutes
             ?: data.settings.dailyGoalMinutes).coerceAtLeast(0)
         val topic = data.topics.filter { !it.isArchived }
