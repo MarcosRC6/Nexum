@@ -42,13 +42,9 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
         updateAllWidgets(context)
     }
 
-    override fun onReceive(context: Context, intent: Intent) {
-        super.onReceive(context, intent)
-        val action = intent.action ?: return
-        if (action == ACTION_REFRESH) {
-            updateAllWidgets(context)
-            return
-        }
+    companion object {
+        internal fun handleWidgetAction(context: Context, intent: Intent) {
+            val action = intent.action ?: return
         if (action !in ACTIONS) return
         val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,
             AppWidgetManager.INVALID_APPWIDGET_ID)
@@ -100,7 +96,7 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
         PlanarioWidgetUpdater.updateTodayWidget(context)
     }
 
-    companion object {
+
         const val ACTION_REFRESH = "com.example.estudario.STUDY_WIDGET_REFRESH"
         private const val ACTION_SWITCH_PAGE = "com.example.estudario.STUDY_WIDGET_SWITCH"
         private const val ACTION_STUDY_TOGGLE = "com.example.estudario.STUDY_WIDGET_TOGGLE_STUDY"
@@ -135,7 +131,7 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
         }
 
         private fun action(context: Context, widgetId: Int, code: Int, action: String): PendingIntent {
-            val intent = Intent(context, NexumStudyClockWidgetReceiver::class.java).apply {
+            val intent = Intent(context, NexumStudyClockWidgetActionReceiver::class.java).apply {
                 this.action = action
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
             }
