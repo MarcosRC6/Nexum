@@ -63,7 +63,8 @@ class NexumStudyClockWidgetConfigurationActivity : ComponentActivity() {
                     Text("Configurar widget · Estudio", color = Color.White)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Tamaño recomendado: 4 × 3. Dos vistas con flechas: estudio acumulado y Pomodoro. " +
+                        "Tamaño adaptable desde el escritorio (compacto 2 × 2 o ampliado). " +
+                            "Dos vistas con flechas: tiempo de estudio y Pomodoro. " +
                             "El Pomodoro no añade horas al estudio.",
                         color = Color(0xFFCFD2E6)
                     )

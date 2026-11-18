@@ -8,8 +8,11 @@ class NexumTodaySizePolicyTest {
     @Test fun compactWidgetUsesCompactLayout() {
         assertTrue(NexumTodaySizePolicy.compact("AUTO", 250, 140))
         assertTrue(NexumTodaySizePolicy.compact("DETAIL", 250, 140))
-        assertTrue(NexumTodaySizePolicy.compact("COMPACT", 300, 500))
+        assertFalse(NexumTodaySizePolicy.compact("COMPACT", 300, 500))
         assertTrue(NexumTodaySizePolicy.compact("AUTO", 170, 450))
+        assertFalse(NexumTodaySizePolicy.compact("AUTO", 220, 190))
+        assertFalse(NexumTodaySizePolicy.compact("DETAIL", 260, 180))
+        assertTrue(NexumTodaySizePolicy.compact("DETAIL", 260, 120))
     }
 
     @Test fun largeWidgetsRevealInformationOnlyWhenRoomAllows() {

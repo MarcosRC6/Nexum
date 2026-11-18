@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
+import android.util.SizeF
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
@@ -135,20 +136,27 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
-            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
-            val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-            val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
-            val mode = getMode(context, appWidgetId)
             val state = loadWidgetState(context)
-            val showCompact = NexumTodaySizePolicy.compact(mode, minWidth, minHeight)
-            val views = if (showCompact) {
-                buildCompactRemoteViews(context, state)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // Android 12+ elige el diseño más grande que quepa al cambiar
+                // las celdas; no dependemos de OPTION_APPWIDGET_MIN_HEIGHT,
+                // que puede describir otra orientación en algunas tablets.
+                val layouts: Map<SizeF, RemoteViews> = mapOf(
+                    SizeF(105f, 70f) to buildCompactRemoteViews(context, state),
+                    SizeF(175f, 170f) to buildExpandedRemoteViews(context, state, 190),
+                    SizeF(175f, 285f) to buildExpandedRemoteViews(context, state, 310)
+                )
+                appWidgetManager.updateAppWidget(appWidgetId, RemoteViews(layouts))
             } else {
-                val showMedium = NexumTodaySizePolicy.details(mode, minHeight)
-                val showLarge = NexumTodaySizePolicy.week(minWidth, minHeight)
-                buildRemoteViews(context, state, showMedium, showLarge)
+                val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+                val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+                val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+                val compact = NexumTodaySizePolicy.compact(
+                    getMode(context, appWidgetId), minWidth, minHeight)
+                val views = if (compact) buildCompactRemoteViews(context, state)
+                    else buildExpandedRemoteViews(context, state, minHeight)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
             }
-            appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 
         private fun buildCompactRemoteViews(
@@ -159,16 +167,57 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             setInt(R.id.widgetCompactRoot, "setBackgroundResource",
                 if (state.darkMode) R.drawable.widget_today_background_dark
                 else R.drawable.widget_today_background_light)
-            setTextViewText(R.id.widgetCompactStatus, state.statusText)
+            setTextViewText(R.id.widgetCompactTitle, "Tema activo")
+            setTextViewText(R.id.widgetCompactObjectives, state.topicText)
             setTextViewText(R.id.widgetCompactProgress, state.progressText)
-            setTextViewText(R.id.widgetCompactObjectives,
-                "${state.completedFixedObjectives}/${state.totalFixedObjectives} objetivos · ${state.topicText}")
             setProgressBar(R.id.widgetCompactBar, 100, state.progressPercent, false)
-            setTextColor(R.id.widgetCompactTitle, state.primaryTextColor)
+            setTextColor(R.id.widgetCompactTitle, state.secondaryTextColor)
             setTextColor(R.id.widgetCompactProgress, state.primaryTextColor)
-            setTextColor(R.id.widgetCompactObjectives, state.secondaryTextColor)
+            setTextColor(R.id.widgetCompactObjectives, state.primaryTextColor)
             setOnClickPendingIntent(R.id.widgetCompactRoot,
                 createOpenAppPendingIntent(context, PlanarioDestination.Home.route, 4101))
+        }
+
+        private fun buildExpandedRemoteViews(
+            context: Context,
+            state: PlanarioTodayWidgetState,
+            heightDp: Int
+        ): RemoteViews = RemoteViews(context.packageName,
+            R.layout.widget_planario_today_expanded).apply {
+            setInt(R.id.widgetTodayExpandedRoot, "setBackgroundResource",
+                if (state.darkMode) R.drawable.widget_today_background_dark
+                else R.drawable.widget_today_background_light)
+            setTextViewText(R.id.widgetTodayExpandedTopic, state.topicText)
+            setTextViewText(R.id.widgetTodayExpandedProgress, state.progressText)
+            setProgressBar(R.id.widgetTodayExpandedBar, 100, state.progressPercent, false)
+            setTextViewText(R.id.widgetTodayExpandedObjectivesTitle,
+                "Objetivos diarios · ${state.completedFixedObjectives}/${state.totalFixedObjectives}")
+            val visibleCount = when {
+                heightDp < 210 -> 1
+                heightDp < 275 -> 2
+                else -> 4
+            }
+            val preview = state.objectiveLines.take(visibleCount).joinToString("\n")
+            val hidden = state.objectiveLines.size - visibleCount
+            setTextViewText(R.id.widgetTodayExpandedObjectives,
+                if (state.objectiveLines.isEmpty()) "Sin objetivos diarios"
+                else preview + if (hidden > 0) "\n+ $hidden más en Plan" else "")
+            setViewVisibility(R.id.widgetTodayExpandedActions,
+                if (heightDp >= 290) View.VISIBLE else View.GONE)
+            setTextColor(R.id.widgetTodayExpandedTopicLabel, state.secondaryTextColor)
+            setTextColor(R.id.widgetTodayExpandedTopic, state.primaryTextColor)
+            setTextColor(R.id.widgetTodayExpandedProgress, state.primaryTextColor)
+            setTextColor(R.id.widgetTodayExpandedObjectives, state.secondaryTextColor)
+            setViewVisibility(R.id.widgetTodayExpandedTest,
+                if (state.hasLinkedTest) View.VISIBLE else View.GONE)
+            setOnClickPendingIntent(R.id.widgetTodayExpandedRoot,
+                createOpenAppPendingIntent(context, PlanarioDestination.Plan.route, 4101))
+            setOnClickPendingIntent(R.id.widgetTodayExpandedPlan,
+                createOpenAppPendingIntent(context, PlanarioDestination.Plan.route, 4103))
+            if (state.hasLinkedTest) {
+                setOnClickPendingIntent(R.id.widgetTodayExpandedTest,
+                    createLinkedTestPendingIntent(context, state))
+            }
         }
 
         private fun buildRemoteViews(
@@ -599,6 +648,11 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
                 }
                 .map { it.name }
 
+            val objectiveLines = enabledFixedObjectives.map { objective ->
+                (if (objective.id in completedFixedObjectiveIds) "✓ " else "○ ") +
+                    objective.name
+            }
+
             val isFreeDay = when {
                 todayDay?.forceStudyDay == true -> false
                 todayDay?.isRestDay == true -> true
@@ -634,6 +688,7 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
                 completedFixedObjectives = completedFixedObjectives,
                 totalFixedObjectives = enabledFixedObjectives.size,
                 pendingObjectiveNames = pendingObjectiveNames,
+                objectiveLines = objectiveLines,
                 dayStatus = dayStatus,
                 isFinishedManually = isFinishedManually,
                 weekCells = weekCells,
@@ -753,6 +808,7 @@ private data class PlanarioTodayWidgetState(
     val completedFixedObjectives: Int,
     val totalFixedObjectives: Int,
     val pendingObjectiveNames: List<String>,
+    val objectiveLines: List<String>,
     val dayStatus: DayStatus,
     val isFinishedManually: Boolean,
     val weekCells: List<PlanarioWeekCell>,
@@ -762,6 +818,11 @@ private data class PlanarioTodayWidgetState(
 ) {
     val hasLinkedTest: Boolean
         get() = linkedTestTopicIds.isNotEmpty() || !linkedTestTemplateId.isNullOrBlank()
+
+    val objectivesExpandedText: String
+        get() = if (objectiveLines.isEmpty()) "Sin objetivos diarios"
+            else objectiveLines.take(4).joinToString("\n") +
+                (if (objectiveLines.size > 4) "\n+ ${objectiveLines.size - 4} más en Plan" else "")
     val primaryTextColor: Int
         get() = if (darkMode) {
             0xFFF8FAFC.toInt()

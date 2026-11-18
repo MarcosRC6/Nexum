@@ -7,20 +7,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,7 +33,7 @@ import com.example.planario.data.local.StudyLocalDataSource
 import com.example.testario.ui.theme.TestarioTheme
 import java.time.LocalDate
 
-/** Previsualización de datos reales y configuración aislada por instancia de Hoy. */
+/** El tamaño físico elige el formato; la previsualización no bloquea el redimensionado. */
 class PlanarioTodayWidgetConfigurationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,6 +41,7 @@ class PlanarioTodayWidgetConfigurationActivity : ComponentActivity() {
         val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,
             AppWidgetManager.INVALID_APPWIDGET_ID)
         if (id == AppWidgetManager.INVALID_APPWIDGET_ID) { finish(); return }
+
         val dataSource = StudyLocalDataSource(applicationContext)
         val data = dataSource.load()
         val today = LocalDate.now()
@@ -51,58 +52,68 @@ class PlanarioTodayWidgetConfigurationActivity : ComponentActivity() {
             ?: data.settings.dailyGoalMinutes).coerceAtLeast(0)
         val topic = data.topics.filter { !it.isArchived }
             .minByOrNull { it.queuePosition }?.name ?: "Sin tema activo"
-        val allObjectives = data.fixedObjectives.filter { it.isEnabled }
-        val completed = data.studyDays[today]?.completedFixedObjectiveIds ?: emptySet()
-        val completedCount = allObjectives.count { it.id in completed }
+        val objectives = data.fixedObjectives.filter { it.isEnabled }.sortedBy { it.order }
+        val done = data.studyDays[today]?.completedFixedObjectiveIds ?: emptySet()
+        val progress = if (goal > 0) (minutes.toFloat() / goal).coerceIn(0f, 1f) else 0f
+
         setContent {
-            var mode by rememberSaveable {
-                mutableStateOf(PlanarioTodayWidgetReceiver.getMode(applicationContext, id))
-            }
+            var expanded by rememberSaveable { mutableStateOf(false) }
             TestarioTheme(darkTheme = true) {
-                Column(Modifier.fillMaxSize().background(Color(0xFF070A16)).padding(20.dp)) {
+                Column(
+                    Modifier.fillMaxSize().background(Color(0xFF070A16))
+                        .verticalScroll(rememberScrollState()).padding(20.dp)
+                ) {
                     Text("Configurar widget · Hoy", color = Color.White)
-                    Spacer(Modifier.height(10.dp))
-                    Text("Ajusta el tamaño en el escritorio. El widget cambia su información " +
-                        "sin borrar objetivos ni tiempo registrado.", color = Color(0xFFCFD2E6))
+                    Spacer(Modifier.height(9.dp))
+                    Text(
+                        "El tamaño se ajusta desde el escritorio: pequeño muestra tema y tiempo; " +
+                            "ampliado añade los objetivos diarios. Puedes probar ambos aquí.",
+                        color = Color(0xFFCFD2E6)
+                    )
                     Spacer(Modifier.height(14.dp))
-                    Card(shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF101827)),
-                        modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(17.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF101827))
+                    ) {
                         Column(Modifier.padding(15.dp)) {
-                            Text("Estudio de hoy", color = Color(0xFFD9BCFF))
-                            Spacer(Modifier.height(6.dp))
+                            Text("Tema activo", color = Color(0xFFCBD5E1))
+                            Text(topic, color = Color.White)
+                            Spacer(Modifier.height(7.dp))
                             Text("${minutes} min / ${goal} min", color = Color.White)
-                            Spacer(Modifier.height(5.dp))
+                            Spacer(Modifier.height(6.dp))
                             LinearProgressIndicator(
-                                progress = { if (goal > 0) (minutes.toFloat()/goal).coerceIn(0f, 1f) else 0f },
-                                modifier = Modifier.fillMaxWidth()
+                                progress = { progress }, modifier = Modifier.fillMaxWidth()
                             )
-                            Spacer(Modifier.height(8.dp))
-                            Text("${completedCount}/${allObjectives.size} objetivos", color = Color.White)
-                            if (mode != "COMPACT") {
-                                Spacer(Modifier.height(8.dp))
-                                Text("Tema activo: $topic", color = Color(0xFFCFD2E6))
-                                Text("Plan · Reloj · Calendario", color = Color(0xFFCFD2E6))
+                            if (expanded) {
+                                Spacer(Modifier.height(12.dp))
+                                Text("Objetivos diarios", color = Color(0xFFD9BCFF))
+                                if (objectives.isEmpty()) {
+                                    Text("Sin objetivos diarios", color = Color(0xFFCBD5E1))
+                                } else {
+                                    objectives.take(4).forEach { obj ->
+                                        Text(
+                                            (if (obj.id in done) "✓ " else "○ ") + obj.name,
+                                            color = Color(0xFFCFD2E6)
+                                        )
+                                    }
+                                    if (objectives.size > 4) {
+                                        Text("+${objectives.size - 4} más en Plan",
+                                            color = Color(0xFFCFD2E6))
+                                    }
+                                }
                             }
                         }
                     }
-                    Spacer(Modifier.height(12.dp))
-                    listOf(
-                        "AUTO" to "Automático (recomendado)",
-                        "COMPACT" to "Compacto: progreso y objetivos",
-                        "DETAIL" to "Detallado si hay espacio"
-                    ).forEach { (value, label) ->
-                        androidx.compose.foundation.layout.Row(
-                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                        ) {
-                            RadioButton(selected = mode == value, onClick = { mode = value })
-                            Text(label, color = Color.White,
-                                modifier = Modifier.clickable { mode = value })
-                        }
-                    }
                     Spacer(Modifier.height(10.dp))
+                    OutlinedButton(onClick = { expanded = !expanded },
+                        modifier = Modifier.fillMaxWidth()) {
+                        Text(if (expanded) "Ver formato compacto" else "Ver formato ampliado")
+                    }
+                    Spacer(Modifier.height(14.dp))
                     Button(onClick = {
-                        PlanarioTodayWidgetReceiver.saveMode(applicationContext, id, mode)
+                        // Restablece AUTO en widgets 1.7 sin alterar el estudio.
+                        PlanarioTodayWidgetReceiver.saveMode(applicationContext, id, "AUTO")
                         PlanarioTodayWidgetReceiver.updateWidget(applicationContext, id)
                         setResult(Activity.RESULT_OK,
                             Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id))
