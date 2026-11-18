@@ -386,7 +386,7 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
 
                 setTextViewText(
                     R.id.widgetCalendarButton,
-                    "Calendario"
+                    if (state.hasLinkedTest) "Iniciar test" else "Calendario"
                 )
 
                 setTextColor(
@@ -433,7 +433,8 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
 
                 setOnClickPendingIntent(
                     R.id.widgetCalendarButton,
-                    createOpenAppPendingIntent(
+                    if (state.hasLinkedTest) createLinkedTestPendingIntent(context, state)
+                    else createOpenAppPendingIntent(
                         context = context,
                         route = PlanarioDestination.Calendar.route,
                         requestCode = 4104
@@ -526,6 +527,25 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             )
         }
 
+        private fun createLinkedTestPendingIntent(
+            context: Context,
+            state: PlanarioTodayWidgetState
+        ): PendingIntent {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                action = "com.example.estudario.action.TODAY_LINKED_TEST"
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(MainActivity.EXTRA_START_DESTINATION_ROUTE, "widget_quick_test")
+                putStringArrayListExtra(MainActivity.EXTRA_QUICK_TEST_TOPIC_IDS,
+                    ArrayList(state.linkedTestTopicIds))
+                putExtra(MainActivity.EXTRA_QUICK_TEST_COUNT, state.linkedTestCount)
+                state.linkedTestTemplateId?.let {
+                    putExtra(MainActivity.EXTRA_QUICK_TEST_TEMPLATE_ID, it)
+                }
+            }
+            return PendingIntent.getActivity(context, 4110, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        }
+
         private fun loadWidgetState(context: Context): PlanarioTodayWidgetState {
             val dataSource = StudyLocalDataSource(context)
             val data = dataSource.load()
@@ -599,6 +619,11 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
                 context = context,
                 darkMode = darkMode
             )
+            val linkedObjective = enabledFixedObjectives
+                .filter { it.linkedTestTopicIds.isNotEmpty() ||
+                    !it.linkedTestTemplateId.isNullOrBlank() }
+                .sortedBy { if (it.id in completedFixedObjectiveIds) 1 else 0 }
+                .firstOrNull()
 
             return PlanarioTodayWidgetState(
                 darkMode = darkMode,
@@ -611,7 +636,10 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
                 pendingObjectiveNames = pendingObjectiveNames,
                 dayStatus = dayStatus,
                 isFinishedManually = isFinishedManually,
-                weekCells = weekCells
+                weekCells = weekCells,
+                linkedTestTopicIds = linkedObjective?.linkedTestTopicIds?.toList() ?: emptyList(),
+                linkedTestCount = linkedObjective?.linkedTestQuestionCount?.coerceIn(1, 500) ?: 10,
+                linkedTestTemplateId = linkedObjective?.linkedTestTemplateId
             )
         }
 
@@ -727,8 +755,13 @@ private data class PlanarioTodayWidgetState(
     val pendingObjectiveNames: List<String>,
     val dayStatus: DayStatus,
     val isFinishedManually: Boolean,
-    val weekCells: List<PlanarioWeekCell>
+    val weekCells: List<PlanarioWeekCell>,
+    val linkedTestTopicIds: List<String>,
+    val linkedTestCount: Int,
+    val linkedTestTemplateId: String?
 ) {
+    val hasLinkedTest: Boolean
+        get() = linkedTestTopicIds.isNotEmpty() || !linkedTestTemplateId.isNullOrBlank()
     val primaryTextColor: Int
         get() = if (darkMode) {
             0xFFF8FAFC.toInt()
