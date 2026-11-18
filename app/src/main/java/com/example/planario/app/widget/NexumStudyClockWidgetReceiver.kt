@@ -11,6 +11,7 @@ import android.view.View
 import android.widget.RemoteViews
 import com.example.planario.app.PlanarioDependencies
 import com.example.planario.domain.timer.StudyTimerState
+import com.example.planario.domain.timer.StudyForegroundPolicy
 import com.example.planario.domain.timer.PomodoroTimerState
 import com.example.testario.MainActivity
 import com.example.testario.R
@@ -89,9 +90,8 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
             ACTION_POMODORO_RESET -> controller.resetPomodoro()
         }
         val current = controller.state.value
-        if (current.studyTimerState != StudyTimerState.STOPPED ||
-            current.pomodoroTimerState == PomodoroTimerState.RUNNING ||
-            current.pomodoroTimerState == PomodoroTimerState.PAUSED) {
+        if (StudyForegroundPolicy.shouldKeepRunning(
+                current.studyTimerState, current.pomodoroTimerState)) {
             PlanarioDependencies.startStudyTimerForegroundService()
         } else {
             PlanarioDependencies.stopStudyTimerForegroundService()
