@@ -12,6 +12,7 @@ import com.example.planario.domain.timer.StudyTimerForegroundService
 import com.example.planario.domain.timer.StudyTimerState
 import com.example.planario.domain.timer.StudyForegroundPolicy
 import com.example.planario.domain.timer.PomodoroTimerState
+import com.example.planario.domain.timer.PomodoroDurationPolicy
 import com.example.planario.app.widget.NexumStudyClockWidgetReceiver
 import java.time.LocalDate
 
@@ -24,6 +25,7 @@ object PlanarioDependencies {
 
         appContext = context.applicationContext
         studyTimerController.attachContext(appContext)
+        synchronizeConfiguredPomodoroDuration()
 
         val trackedSnapshot = studyRepository.getActiveStudyTimerSnapshot()
         val recoveredPreviousDay = studyTimerController.recoverPendingStudyTimerIfNeeded()
@@ -61,6 +63,17 @@ object PlanarioDependencies {
                     elapsedSeconds = elapsedSeconds
                 )
             }
+        }
+    }
+
+    /** También se usa al iniciar el Pomodoro desde el widget, sin entrar en Plan. */
+    fun synchronizeConfiguredPomodoroDuration() {
+        if (!::appContext.isInitialized) return
+        val configured = studyRepository.settings.value.lastPomodoroMinutes
+        val state = studyTimerController.state.value
+        if (PomodoroDurationPolicy.shouldApplyConfiguredMinutes(
+                state.pomodoroTimerState, state.lastPomodoroMinutes, configured)) {
+            studyTimerController.setPomodoroDuration(configured)
         }
     }
 
