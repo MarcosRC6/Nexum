@@ -94,8 +94,11 @@ object PlanarioDependencies {
 
     fun stopStudyTimerForegroundService() {
         // El mismo servicio sostiene el Pomodoro si el cronómetro de estudio terminó.
-        val pomodoro = studyTimerController.state.value.pomodoroTimerState
-        if (pomodoro == PomodoroTimerState.RUNNING || pomodoro == PomodoroTimerState.PAUSED) return
+        val state = studyTimerController.state.value
+        val pomodoro = state.pomodoroTimerState
+        if (state.studyTimerState != StudyTimerState.STOPPED ||
+            pomodoro == PomodoroTimerState.RUNNING ||
+            pomodoro == PomodoroTimerState.PAUSED) return
         val intent = Intent(
             appContext,
             StudyTimerForegroundService::class.java
