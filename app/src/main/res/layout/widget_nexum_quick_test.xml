@@ -3,57 +3,55 @@
     android:id="@+id/nexumQuickWidgetRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@drawable/widget_today_background_dark"
-    android:padding="14dp">
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="NEXUM · TEST RÁPIDO"
-        android:textColor="#D9BCFF"
-        android:textStyle="bold"
-        android:textSize="12sp"
-        android:maxLines="1"/>
-    <TextView
-        android:id="@+id/nexumQuickWidgetSelection"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="6dp"
-        android:text="10 preguntas aleatorias"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:textSize="16sp"
-        android:gravity="center_vertical"
-        android:ellipsize="end"
-        android:maxLines="2"/>
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/widget_nexum_quick_compact_background"
+    android:padding="5dp">
+
+    <!-- Pulsar cualquier punto del área principal inicia el test configurado. -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:id="@+id/nexumQuickWidgetTapArea"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="3dp">
+
         <TextView
             android:id="@+id/nexumQuickWidgetStart"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:background="@drawable/widget_nexum_quick_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:text="Iniciar test"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
-            android:textSize="13sp"/>
+            android:textSize="14sp"
+            android:ellipsize="end"
+            android:maxLines="1" />
+
         <TextView
-            android:id="@+id/nexumQuickWidgetConfigure"
-            android:layout_width="0dp"
-            android:layout_height="44dp"
-            android:layout_weight="1"
-            android:layout_marginStart="7dp"
-            android:gravity="center"
-            android:background="@drawable/widget_today_section_dark"
-            android:text="Plantilla"
-            android:textColor="#EADFFF"
-            android:textStyle="bold"
-            android:textSize="13sp"/>
+            android:id="@+id/nexumQuickWidgetSelection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="10 preguntas aleatorias"
+            android:textColor="#D9BCFF"
+            android:textSize="10sp"
+            android:ellipsize="end"
+            android:maxLines="1" />
     </LinearLayout>
+
+    <!-- Selector de plantilla por instancia. Siempre disponible. -->
+    <TextView
+        android:id="@+id/nexumQuickWidgetConfigure"
+        android:layout_width="35dp"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:background="@drawable/widget_today_section_dark"
+        android:text="⚙"
+        android:textColor="#EADFFF"
+        android:textStyle="bold"
+        android:textSize="18sp"
+        android:contentDescription="Elegir plantilla" />
 </LinearLayout>
