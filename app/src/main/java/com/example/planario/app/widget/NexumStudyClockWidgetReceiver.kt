@@ -149,14 +149,13 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         }
 
-        private fun openHome(context: Context, id: Int): PendingIntent {
-            val intent = Intent(context, MainActivity::class.java).apply {
-                action = "com.example.estudario.STUDY_WIDGET_OPEN_HOME"
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra(MainActivity.EXTRA_START_DESTINATION_ROUTE, "home")
-            }
-            return PendingIntent.getActivity(context, id * 16 + 8, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        private fun formatRemaining(seconds: Long): String {
+            val safe = seconds.coerceAtLeast(0L)
+            val hours = safe / 3600L
+            val minutes = (safe % 3600L) / 60L
+            val secs = safe % 60L
+            return if (hours > 0L) "%d:%02d:%02d".format(hours, minutes, secs)
+                else "%02d:%02d".format(minutes, secs)
         }
 
         private fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int) {
@@ -164,7 +163,15 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
             PlanarioDependencies.init(context.applicationContext)
             val state = PlanarioDependencies.studyTimerController.state.value
             val page = getPage(context, widgetId)
-            val views = RemoteViews(context.packageName, R.layout.widget_nexum_study_clock)
+            val options = manager.getAppWidgetOptions(widgetId)
+            val width = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+            val height = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+            val layoutId = if (NexumClockSizePolicy.compact(width, height)) {
+                R.layout.widget_nexum_study_clock_compact
+            } else {
+                R.layout.widget_nexum_study_clock
+            }
+            val views = RemoteViews(context.packageName, layoutId)
             views.setTextViewText(R.id.studyWidgetTitle,
                 if (page == 0) "ESTUDIO" else "POMODORO")
             views.setTextViewText(R.id.studyWidgetPageIndicator,
@@ -191,13 +198,19 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
             views.setChronometer(R.id.studyWidgetPomodoroClock, basePomo, null,
                 state.pomodoroTimerState == PomodoroTimerState.RUNNING)
             views.setChronometerCountDown(R.id.studyWidgetPomodoroClock, true)
+            if (state.pomodoroTimerState != PomodoroTimerState.RUNNING) {
+                // El Chronometer parado puede mostrar 59:59 en vez de 60:00 por
+                // la latencia entre crear el base y renderizar las RemoteViews.
+                views.setTextViewText(R.id.studyWidgetPomodoroClock,
+                    formatRemaining(state.pomodoroRemainingSeconds))
+            }
             views.setTextViewText(R.id.studyWidgetPomodoroButton, when (state.pomodoroTimerState) {
                 PomodoroTimerState.STOPPED, PomodoroTimerState.FINISHED -> "Iniciar"
                 PomodoroTimerState.RUNNING -> "Pausar"
                 PomodoroTimerState.PAUSED -> "Reanudar"
             })
             views.setTextViewText(R.id.studyWidgetPomodoroMeta,
-                "${state.lastPomodoroMinutes} min · no suma estudio")
+                "${state.lastPomodoroMinutes} min configurados")
             views.setOnClickPendingIntent(R.id.studyWidgetSwitchLeft,
                 action(context, widgetId, 1, ACTION_SWITCH_PAGE))
             views.setOnClickPendingIntent(R.id.studyWidgetSwitchRight,
@@ -210,10 +223,14 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
                 action(context, widgetId, 4, ACTION_POMODORO_TOGGLE))
             views.setOnClickPendingIntent(R.id.studyWidgetPomodoroReset,
                 action(context, widgetId, 5, ACTION_POMODORO_RESET))
-            views.setOnClickPendingIntent(R.id.studyWidgetOpen,
-                openTimer(context, widgetId))
-            views.setOnClickPendingIntent(R.id.studyWidgetHome,
-                openHome(context, widgetId))
+            val open = openTimer(context, widgetId)
+            // El área del reloj abre la pantalla Reloj. Los botones y flechas
+            // mantienen sus PendingIntent específicos y no navegan.
+            views.setOnClickPendingIntent(R.id.studyWidgetClockRoot, open)
+            views.setOnClickPendingIntent(R.id.studyWidgetTitle, open)
+            views.setOnClickPendingIntent(R.id.studyWidgetPageIndicator, open)
+            views.setOnClickPendingIntent(R.id.studyWidgetStudyClock, open)
+            views.setOnClickPendingIntent(R.id.studyWidgetPomodoroClock, open)
             manager.updateAppWidget(widgetId, views)
         }
     }
