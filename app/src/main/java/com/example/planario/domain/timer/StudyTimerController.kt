@@ -74,9 +74,40 @@ class StudyTimerController {
     private var pomodoroTickerJob: Job? = null
     private var pomodoroStartedAtMillis: Long? = null
     private var pomodoroRemainingSecondsBeforeRun: Long = 25L * 60L
+    private var pomodoroRestored = false
+    private var lastPomodoroPersistWallMillis = 0L
 
     fun attachContext(context: Context) {
         appContext = context.applicationContext
+        if (!pomodoroRestored) {
+            pomodoroRestored = true
+            val saved = NexumPomodoroStore.load(context.applicationContext)
+            pomodoroRemainingSecondsBeforeRun = saved.remainingSeconds
+            pomodoroStartedAtMillis = if (saved.state == PomodoroTimerState.RUNNING)
+                SystemClock.elapsedRealtime() else null
+            _state.value = _state.value.copy(
+                pomodoroRemainingSeconds = saved.remainingSeconds,
+                pomodoroTotalSeconds = saved.minutes * 60L,
+                pomodoroTimerState = saved.state,
+                lastPomodoroMinutes = saved.minutes
+            )
+            savePomodoroState()
+            if (saved.state == PomodoroTimerState.RUNNING) startPomodoroTicker()
+        }
+    }
+
+    private fun savePomodoroState() {
+        appContext?.let { NexumPomodoroStore.save(it, _state.value) }
+        lastPomodoroPersistWallMillis = System.currentTimeMillis()
+    }
+
+    fun persistCurrentPomodoroNow() {
+        if (_state.value.pomodoroTimerState == PomodoroTimerState.RUNNING) {
+            _state.value = _state.value.copy(
+                pomodoroRemainingSeconds = calculateCurrentPomodoroRemainingSeconds()
+            )
+        }
+        savePomodoroState()
     }
 
     fun recoverPendingStudyTimerIfNeeded(
@@ -306,9 +337,10 @@ class StudyTimerController {
 
     fun setPomodoroDuration(minutes: Int) {
         if (minutes <= 0) return
-        if (_state.value.pomodoroTimerState == PomodoroTimerState.RUNNING) return
+        if (_state.value.pomodoroTimerState == PomodoroTimerState.RUNNING ||
+            _state.value.pomodoroTimerState == PomodoroTimerState.PAUSED) return
 
-        val totalSeconds = minutes * 60L
+        val totalSeconds = minutes.coerceIn(1, 1440) * 60L
 
         pomodoroTickerJob?.cancel()
         pomodoroTickerJob = null
@@ -319,8 +351,9 @@ class StudyTimerController {
             pomodoroRemainingSeconds = totalSeconds,
             pomodoroTotalSeconds = totalSeconds,
             pomodoroTimerState = PomodoroTimerState.STOPPED,
-            lastPomodoroMinutes = minutes
+            lastPomodoroMinutes = minutes.coerceIn(1, 1440)
         )
+        savePomodoroState()
     }
 
     fun startPomodoro() {
@@ -341,6 +374,7 @@ class StudyTimerController {
             pomodoroTimerState = PomodoroTimerState.RUNNING
         )
 
+        savePomodoroState()
         startPomodoroTicker()
     }
 
@@ -358,6 +392,7 @@ class StudyTimerController {
             pomodoroRemainingSeconds = remainingSeconds,
             pomodoroTimerState = PomodoroTimerState.PAUSED
         )
+        savePomodoroState()
     }
 
     fun resumePomodoro() {
@@ -370,6 +405,7 @@ class StudyTimerController {
             pomodoroTimerState = PomodoroTimerState.RUNNING
         )
 
+        savePomodoroState()
         startPomodoroTicker()
     }
 
@@ -386,6 +422,7 @@ class StudyTimerController {
             pomodoroRemainingSeconds = totalSeconds,
             pomodoroTimerState = PomodoroTimerState.STOPPED
         )
+        savePomodoroState()
     }
 
     private fun startStudyTicker() {
@@ -424,11 +461,15 @@ class StudyTimerController {
                         pomodoroTimerState = PomodoroTimerState.FINISHED
                     )
 
+                    savePomodoroState()
                     break
                 } else {
                     _state.value = _state.value.copy(
                         pomodoroRemainingSeconds = remaining
                     )
+                if (System.currentTimeMillis() - lastPomodoroPersistWallMillis >= 10_000L) {
+                        savePomodoroState()
+                    }
                 }
 
                 delay(500L)
