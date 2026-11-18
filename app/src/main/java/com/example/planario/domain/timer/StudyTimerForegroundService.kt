@@ -226,9 +226,10 @@ class StudyTimerForegroundService : Service() {
             StudyTimerState.STOPPED -> "Cronómetro detenido"
         }
 
-        val content = if (state.studyTimerState == StudyTimerState.RUNNING)
-            "El tiempo sigue contando. Pausa o guarda cuando termines."
-        else "Tiempo: ${state.studyElapsedSeconds.toTimerText()}"
+        // El cronómetro del sistema ya muestra los segundos en vivo.
+        // No repetir un texto explicativo que ocupa espacio en la notificación.
+        val content = if (state.studyTimerState == StudyTimerState.RUNNING) null
+            else "Tiempo: ${state.studyElapsedSeconds.toTimerText()}"
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
