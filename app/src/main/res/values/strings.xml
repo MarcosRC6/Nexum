@@ -1,4 +1,6 @@
 <resources>
     <string name="app_name">NEXUM</string>
-    <string name="nexum_quick_widget_description">Inicia un test de 10 preguntas o una plantilla guardada directamente desde el escritorio.</string>
+    <string name="nexum_quick_widget_description">Test rápido compacto (2 × 1). Inicia 10 preguntas o una plantilla guardada. Configurable por widget.</string>
+    <string name="nexum_quick_widget_title">NEXUM · Test rápido</string>
+    <string name="nexum_today_widget_title">NEXUM · Hoy</string>
 </resources>
