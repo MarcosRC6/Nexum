@@ -3,6 +3,7 @@
     android:description="@string/nexum_study_clock_widget_description"
     android:initialLayout="@layout/widget_nexum_study_clock"
     android:previewLayout="@layout/widget_nexum_study_clock"
+    android:previewImage="@drawable/nexum_widget_preview_study"
     android:minWidth="230dp"
     android:minHeight="125dp"
     android:minResizeWidth="215dp"
