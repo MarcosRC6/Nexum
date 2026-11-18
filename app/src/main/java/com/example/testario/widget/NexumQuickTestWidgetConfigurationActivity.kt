@@ -63,7 +63,7 @@ class NexumQuickTestWidgetConfigurationActivity : ComponentActivity() {
                         .padding(22.dp),
                     verticalArrangement = Arrangement.Top
                 ) {
-                    Text("Test rápido · Widget", color = Color.White)
+                    Text("Configurar widget · Test rápido", color = Color.White)
                     Spacer(Modifier.height(10.dp))
                     Text(
                         "Elige qué test se iniciará desde esta pantalla de inicio. " +
