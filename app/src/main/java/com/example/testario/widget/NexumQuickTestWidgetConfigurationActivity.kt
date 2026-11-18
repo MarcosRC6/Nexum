@@ -16,9 +16,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -71,6 +74,25 @@ class NexumQuickTestWidgetConfigurationActivity : ComponentActivity() {
                             "Podrás cambiar la selección desde el engranaje del widget.",
                         color = Color(0xFFCFD2E6)
                     )
+                    Spacer(Modifier.height(16.dp))
+                    Card(
+                        shape = RoundedCornerShape(15.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF121324)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.padding(14.dp)) {
+                            Text("NEXUM · TEST RÁPIDO", color = Color(0xFFD9BCFF))
+                            Spacer(Modifier.height(5.dp))
+                            Text(
+                                if (selectedId.isEmpty()) "10 preguntas aleatorias"
+                                else templates.firstOrNull { it.id == selectedId }?.name
+                                    ?: "Plantilla eliminada: elige otra",
+                                color = Color.White
+                            )
+                            Spacer(Modifier.height(7.dp))
+                            Text("▶ Iniciar test      ⚙ Plantilla", color = Color(0xFFB46BFF))
+                        }
+                    }
                     Spacer(Modifier.height(20.dp))
 
                     ChoiceRow(
