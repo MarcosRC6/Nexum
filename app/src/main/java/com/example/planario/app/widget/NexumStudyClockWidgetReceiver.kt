@@ -58,6 +58,12 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
         PlanarioDependencies.init(context.applicationContext)
         val controller = PlanarioDependencies.studyTimerController
         val repository = PlanarioDependencies.studyRepository
+        if (action == ACTION_POMODORO_TOGGLE &&
+            controller.state.value.pomodoroTimerState in listOf(
+                PomodoroTimerState.STOPPED, PomodoroTimerState.FINISHED)) {
+            // En modo widget no hay TimerViewModel: leer la duración guardada en Plan.
+            PlanarioDependencies.synchronizeConfiguredPomodoroDuration()
+        }
         when (action) {
             ACTION_STUDY_TOGGLE -> when (controller.state.value.studyTimerState) {
                 StudyTimerState.STOPPED -> {
