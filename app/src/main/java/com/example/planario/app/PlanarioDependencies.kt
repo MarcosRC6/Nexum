@@ -10,6 +10,7 @@ import com.example.planario.data.repository.StudyRepository
 import com.example.planario.domain.timer.StudyTimerController
 import com.example.planario.domain.timer.StudyTimerForegroundService
 import com.example.planario.domain.timer.StudyTimerState
+import com.example.planario.domain.timer.StudyForegroundPolicy
 import com.example.planario.domain.timer.PomodoroTimerState
 import com.example.planario.app.widget.NexumStudyClockWidgetReceiver
 import java.time.LocalDate
@@ -95,10 +96,8 @@ object PlanarioDependencies {
     fun stopStudyTimerForegroundService() {
         // El mismo servicio sostiene el Pomodoro si el cronómetro de estudio terminó.
         val state = studyTimerController.state.value
-        val pomodoro = state.pomodoroTimerState
-        if (state.studyTimerState != StudyTimerState.STOPPED ||
-            pomodoro == PomodoroTimerState.RUNNING ||
-            pomodoro == PomodoroTimerState.PAUSED) return
+        if (StudyForegroundPolicy.shouldKeepRunning(
+                state.studyTimerState, state.pomodoroTimerState)) return
         val intent = Intent(
             appContext,
             StudyTimerForegroundService::class.java
