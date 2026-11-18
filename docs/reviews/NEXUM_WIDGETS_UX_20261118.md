@@ -46,3 +46,9 @@ Fuente: nota «Añadir a app», cuatro capturas del usuario.
 7. Validar controles y notificaciones en **Android real**. El sistema puede variar según launcher; no se ha probado físicamente al crear esta rama.
 
 **Estado**: cambios sólo en rama `feature/widget-ux-neutral-icons-20261118` y PR #25 borrador; prohibido merge/release sin autorización.
+
+### Acceso «Iniciar test» en Hoy ampliado
+- En el tamaño grande, cuando hay un objetivo diario con temas o plantilla de Testario vinculados, la tercera acción de Hoy pasa de «Calendario» a **«Iniciar test»**; si no hay vínculo, sigue siendo «Calendario».
+- Se reutiliza la ruta del widget Test rápido y `QuickTestLaunchResolver`; el widget comunica la lista de IDs del objetivo, su cantidad de preguntas y su plantilla (si existe), sin generar un banco ni inventar configuraciones nuevas.
+- Si hay varios objetivos vinculados se prioriza el primero pendiente según orden; el selector de objetivos y todas las configuraciones históricas permanecen intactos.
+- Comprobar física y funcionalmente que la plantilla con sus opciones reales abre correctamente y que una vinculación obsoleta informa del error sin iniciar un test distinto.
