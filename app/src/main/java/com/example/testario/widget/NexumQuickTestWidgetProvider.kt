@@ -108,7 +108,7 @@ class NexumQuickTestWidgetProvider : AppWidgetProvider() {
                 context, widgetId * 2, launchIntent, flags
             )
             views.setOnClickPendingIntent(
-                R.id.nexumQuickWidgetStart, if (valid) start else configure
+                R.id.nexumQuickWidgetTapArea, if (valid) start else configure
             )
             views.setOnClickPendingIntent(R.id.nexumQuickWidgetConfigure, configure)
             manager.updateAppWidget(widgetId, views)
