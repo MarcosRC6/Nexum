@@ -46,6 +46,18 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
         )
     }
 
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        appWidgetIds.forEach { id -> prefs(context).edit().remove("density_$id").apply() }
+    }
+
+    override fun onRestored(context: Context, oldWidgetIds: IntArray, newWidgetIds: IntArray) {
+        oldWidgetIds.zip(newWidgetIds).forEach { (oldId, newId) ->
+            saveMode(context, newId, getMode(context, oldId))
+            prefs(context).edit().remove("density_$oldId").apply()
+        }
+        updateAllWidgets(context)
+    }
+
     override fun onReceive(
         context: Context,
         intent: Intent
@@ -61,9 +73,24 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
         const val ACTION_REFRESH_PLANARIO_WIDGET =
             "com.example.planario.action.REFRESH_PLANARIO_TODAY_WIDGET"
 
-        private const val MEDIUM_MIN_HEIGHT_DP = 105
-        private const val LARGE_MIN_HEIGHT_DP = 210
+        // RemoteViews lacks flexible Compose measurement. Choose a truly short
+        // layout for 2x2 launchers; show detail only when the host grants space.
+        private const val FULL_MIN_HEIGHT_DP = 205
+        private const val MEDIUM_MIN_HEIGHT_DP = 310
+        private const val LARGE_MIN_HEIGHT_DP = 425
         private const val LARGE_MIN_WIDTH_DP = 250
+
+        private fun prefs(context: Context) = context.applicationContext
+            .getSharedPreferences("nexum_today_widget_settings", Context.MODE_PRIVATE)
+
+        fun getMode(context: Context, id: Int): String =
+            prefs(context).getString("density_$id", "AUTO")
+                ?.takeIf { it in setOf("AUTO", "COMPACT", "DETAIL") } ?: "AUTO"
+
+        fun saveMode(context: Context, id: Int, mode: String) {
+            prefs(context).edit().putString("density_$id",
+                if (mode in setOf("AUTO", "COMPACT", "DETAIL")) mode else "AUTO").apply()
+        }
 
         fun updateAllWidgets(context: Context) {
             val appContext = context.applicationContext
@@ -99,6 +126,10 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             }
         }
 
+        fun updateWidget(context: Context, appWidgetId: Int) {
+            updateWidget(context, AppWidgetManager.getInstance(context), appWidgetId)
+        }
+
         private fun updateWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -107,23 +138,40 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
             val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
             val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
-
-            val showMedium = minHeight >= MEDIUM_MIN_HEIGHT_DP || minWidth >= LARGE_MIN_WIDTH_DP
-            val showLarge = minHeight >= LARGE_MIN_HEIGHT_DP && minWidth >= LARGE_MIN_WIDTH_DP
-
+            val mode = getMode(context, appWidgetId)
             val state = loadWidgetState(context)
+            val showCompact = mode == "COMPACT" ||
+                minHeight < FULL_MIN_HEIGHT_DP || minWidth < 180
+            val views = if (showCompact) {
+                buildCompactRemoteViews(context, state)
+            } else {
+                val showMedium = minHeight >= MEDIUM_MIN_HEIGHT_DP || mode == "DETAIL" &&
+                    minHeight >= 285
+                val showLarge = minHeight >= LARGE_MIN_HEIGHT_DP &&
+                    minWidth >= LARGE_MIN_WIDTH_DP
+                buildRemoteViews(context, state, showMedium, showLarge)
+            }
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
 
-            val views = buildRemoteViews(
-                context = context,
-                state = state,
-                showMedium = showMedium,
-                showLarge = showLarge
-            )
-
-            appWidgetManager.updateAppWidget(
-                appWidgetId,
-                views
-            )
+        private fun buildCompactRemoteViews(
+            context: Context,
+            state: PlanarioTodayWidgetState
+        ): RemoteViews = RemoteViews(context.packageName,
+            R.layout.widget_planario_today_compact).apply {
+            setInt(R.id.widgetCompactRoot, "setBackgroundResource",
+                if (state.darkMode) R.drawable.widget_today_background_dark
+                else R.drawable.widget_today_background_light)
+            setTextViewText(R.id.widgetCompactStatus, state.statusText)
+            setTextViewText(R.id.widgetCompactProgress, state.progressText)
+            setTextViewText(R.id.widgetCompactObjectives,
+                "${state.completedFixedObjectives}/${state.totalFixedObjectives} objetivos · ${state.topicText}")
+            setProgressBar(R.id.widgetCompactBar, 100, state.progressPercent, false)
+            setTextColor(R.id.widgetCompactTitle, state.primaryTextColor)
+            setTextColor(R.id.widgetCompactProgress, state.primaryTextColor)
+            setTextColor(R.id.widgetCompactObjectives, state.secondaryTextColor)
+            setOnClickPendingIntent(R.id.widgetCompactRoot,
+                createOpenAppPendingIntent(context, PlanarioDestination.Home.route, 4101))
         }
 
         private fun buildRemoteViews(
