@@ -60,7 +60,9 @@ import com.example.testario.viewmodel.ThemeViewModel
 fun TestarioApp(
     requestedDestinationRoute: String? = null,
     navigationRequestId: Int = 0,
-    requestedQuickTestTemplateId: String? = null
+    requestedQuickTestTemplateId: String? = null,
+    requestedQuickTestTopicIds: List<String>? = null,
+    requestedQuickTestQuestionCount: Int? = null
 ) {
     val themeViewModel: ThemeViewModel = viewModel()
     val behaviorSettingsViewModel: BehaviorSettingsViewModel = viewModel()
@@ -172,7 +174,8 @@ fun TestarioApp(
         }
     }
 
-    LaunchedEffect(requestedDestinationRoute, navigationRequestId, requestedQuickTestTemplateId) {
+    LaunchedEffect(requestedDestinationRoute, navigationRequestId, requestedQuickTestTemplateId,
+        requestedQuickTestTopicIds, requestedQuickTestQuestionCount) {
         when (requestedDestinationRoute) {
             "plan" -> goPlan("plan")
             "timer" -> goPlan("timer")
@@ -183,8 +186,10 @@ fun TestarioApp(
                 // Reuse the same resolver as linked tests: no duplicated logic,
                 // database migrations, or guessed template defaults.
                 launchLinkedQuickTest(
-                    topicIds = NexumQuickTestWidgetModel.defaultTopicIds(libraryViewModel.database.value),
-                    count = NexumQuickTestWidgetModel.DEFAULT_QUESTION_COUNT,
+                    topicIds = requestedQuickTestTopicIds
+                        ?: NexumQuickTestWidgetModel.defaultTopicIds(libraryViewModel.database.value),
+                    count = requestedQuickTestQuestionCount
+                        ?: NexumQuickTestWidgetModel.DEFAULT_QUESTION_COUNT,
                     templateId = requestedQuickTestTemplateId
                 )
             }
