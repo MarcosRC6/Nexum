@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/studyWidgetClockRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_nexum_quick_compact_background"
@@ -137,36 +138,12 @@
                 android:textColor="#FFFFFF" />
         </LinearLayout>
     </LinearLayout>
-    <LinearLayout
+    <TextView
+        android:id="@+id/studyWidgetPageIndicator"
         android:layout_width="match_parent"
-        android:layout_height="24dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-        <TextView
-            android:id="@+id/studyWidgetHome"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:gravity="center_vertical"
-            android:textColor="#D9BCFF"
-            android:text="NEXUM · Inicio"
-            android:textSize="10sp" />
-        <TextView
-            android:id="@+id/studyWidgetPageIndicator"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:text="● ○"
-            android:textColor="#B46BFF"
-            android:textSize="11sp" />
-        <TextView
-            android:id="@+id/studyWidgetOpen"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:gravity="center_vertical|right"
-            android:text="Reloj ↗"
-            android:textColor="#D9BCFF"
-            android:textSize="10sp" />
-    </LinearLayout>
+        android:layout_height="20dp"
+        android:gravity="center"
+        android:text="● ○"
+        android:textColor="#B46BFF"
+        android:textSize="11sp" />
 </LinearLayout>
