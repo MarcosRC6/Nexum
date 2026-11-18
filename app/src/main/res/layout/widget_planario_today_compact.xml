@@ -1,61 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Vista mínima: tema activo, tiempo real de hoy y progreso; sin cabeceras ni objetivos. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widgetCompactRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:gravity="center_vertical"
     android:background="@drawable/widget_today_background_dark"
-    android:padding="12dp">
-    <LinearLayout
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/widgetCompactTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-        <TextView
-            android:id="@+id/widgetCompactTitle"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Estudio de hoy"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:textColor="#F8FAFC" />
-        <TextView
-            android:id="@+id/widgetCompactStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="En curso"
-            android:textSize="10sp"
-            android:textColor="#D9BCFF"/>
-    </LinearLayout>
+        android:maxLines="1"
+        android:text="Tema activo"
+        android:textSize="10sp"
+        android:textColor="#CBD5E1" />
+
+    <TextView
+        android:id="@+id/widgetCompactObjectives"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:text="Sin tema activo"
+        android:textStyle="bold"
+        android:textSize="13sp"
+        android:textColor="#F8FAFC" />
+
     <TextView
         android:id="@+id/widgetCompactProgress"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="7dp"
-        android:ellipsize="end"
+        android:layout_marginTop="3dp"
         android:maxLines="1"
-        android:text="0 min / 2 h"
-        android:textSize="16sp"
-        android:textStyle="bold"
+        android:ellipsize="end"
+        android:text="0 min / 6 h"
+        android:textSize="12sp"
         android:textColor="#F8FAFC" />
+
     <ProgressBar
         android:id="@+id/widgetCompactBar"
         style="@android:style/Widget.ProgressBar.Horizontal"
         android:layout_width="match_parent"
         android:layout_height="5dp"
-        android:layout_marginTop="6dp"
-        android:max="100"/>
-    <TextView
-        android:id="@+id/widgetCompactObjectives"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="7dp"
-        android:ellipsize="end"
-        android:maxLines="1"
-        android:text="0/0 objetivos"
-        android:textColor="#CBD5E1"
-        android:textSize="11sp" />
+        android:layout_marginTop="4dp"
+        android:max="100"
+        android:progress="0" />
 </LinearLayout>
