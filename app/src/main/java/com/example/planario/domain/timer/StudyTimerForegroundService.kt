@@ -197,9 +197,8 @@ class StudyTimerForegroundService : Service() {
                     lastWidgetPomodoroState = state.pomodoroTimerState
                     NexumStudyClockWidgetReceiver.updateAllWidgets(applicationContext)
                 }
-                if (state.studyTimerState == StudyTimerState.STOPPED &&
-                    state.pomodoroTimerState != PomodoroTimerState.RUNNING &&
-                    state.pomodoroTimerState != PomodoroTimerState.PAUSED) {
+                if (!StudyForegroundPolicy.shouldKeepRunning(
+                        state.studyTimerState, state.pomodoroTimerState)) {
                     stopServiceSafely()
                 } else {
                     updateNotification(state)
