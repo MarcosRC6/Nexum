@@ -145,7 +145,7 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             val views = if (NexumTodaySizePolicy.compact(mode, minWidth, minHeight)) {
                 buildCompactRemoteViews(context, state)
             } else {
-                buildExpandedRemoteViews(context, state)
+                buildExpandedRemoteViews(context, state, minHeight)
             }
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
@@ -171,7 +171,8 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
 
         private fun buildExpandedRemoteViews(
             context: Context,
-            state: PlanarioTodayWidgetState
+            state: PlanarioTodayWidgetState,
+            heightDp: Int
         ): RemoteViews = RemoteViews(context.packageName,
             R.layout.widget_planario_today_expanded).apply {
             setInt(R.id.widgetTodayExpandedRoot, "setBackgroundResource",
@@ -182,7 +183,18 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             setProgressBar(R.id.widgetTodayExpandedBar, 100, state.progressPercent, false)
             setTextViewText(R.id.widgetTodayExpandedObjectivesTitle,
                 "Objetivos diarios · ${state.completedFixedObjectives}/${state.totalFixedObjectives}")
-            setTextViewText(R.id.widgetTodayExpandedObjectives, state.objectivesExpandedText)
+            val visibleCount = when {
+                heightDp < 210 -> 1
+                heightDp < 275 -> 2
+                else -> 4
+            }
+            val preview = state.objectiveLines.take(visibleCount).joinToString("\n")
+            val hidden = state.objectiveLines.size - visibleCount
+            setTextViewText(R.id.widgetTodayExpandedObjectives,
+                if (state.objectiveLines.isEmpty()) "Sin objetivos diarios"
+                else preview + if (hidden > 0) "\n+ $hidden más en Plan" else "")
+            setViewVisibility(R.id.widgetTodayExpandedActions,
+                if (heightDp >= 290) View.VISIBLE else View.GONE)
             setTextColor(R.id.widgetTodayExpandedTopicLabel, state.secondaryTextColor)
             setTextColor(R.id.widgetTodayExpandedTopic, state.primaryTextColor)
             setTextColor(R.id.widgetTodayExpandedProgress, state.primaryTextColor)
