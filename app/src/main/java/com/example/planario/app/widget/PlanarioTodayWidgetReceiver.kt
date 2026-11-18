@@ -140,13 +140,12 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
             val mode = getMode(context, appWidgetId)
             val state = loadWidgetState(context)
-            val showCompact = NexumTodaySizePolicy.compact(mode, minWidth, minHeight)
-            val views = if (showCompact) {
+            // El tamaño físico del launcher manda, también para widgets existentes.
+            // Un antiguo ajuste COMPACT/DETAIL no debe bloquear el redimensionado.
+            val views = if (NexumTodaySizePolicy.compact(mode, minWidth, minHeight)) {
                 buildCompactRemoteViews(context, state)
             } else {
-                val showMedium = NexumTodaySizePolicy.details(mode, minHeight)
-                val showLarge = NexumTodaySizePolicy.week(minWidth, minHeight)
-                buildRemoteViews(context, state, showMedium, showLarge)
+                buildExpandedRemoteViews(context, state)
             }
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
@@ -159,16 +158,45 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             setInt(R.id.widgetCompactRoot, "setBackgroundResource",
                 if (state.darkMode) R.drawable.widget_today_background_dark
                 else R.drawable.widget_today_background_light)
-            setTextViewText(R.id.widgetCompactStatus, state.statusText)
+            setTextViewText(R.id.widgetCompactTitle, "Tema activo")
+            setTextViewText(R.id.widgetCompactObjectives, state.topicText)
             setTextViewText(R.id.widgetCompactProgress, state.progressText)
-            setTextViewText(R.id.widgetCompactObjectives,
-                "${state.completedFixedObjectives}/${state.totalFixedObjectives} objetivos · ${state.topicText}")
             setProgressBar(R.id.widgetCompactBar, 100, state.progressPercent, false)
-            setTextColor(R.id.widgetCompactTitle, state.primaryTextColor)
+            setTextColor(R.id.widgetCompactTitle, state.secondaryTextColor)
             setTextColor(R.id.widgetCompactProgress, state.primaryTextColor)
-            setTextColor(R.id.widgetCompactObjectives, state.secondaryTextColor)
+            setTextColor(R.id.widgetCompactObjectives, state.primaryTextColor)
             setOnClickPendingIntent(R.id.widgetCompactRoot,
                 createOpenAppPendingIntent(context, PlanarioDestination.Home.route, 4101))
+        }
+
+        private fun buildExpandedRemoteViews(
+            context: Context,
+            state: PlanarioTodayWidgetState
+        ): RemoteViews = RemoteViews(context.packageName,
+            R.layout.widget_planario_today_expanded).apply {
+            setInt(R.id.widgetTodayExpandedRoot, "setBackgroundResource",
+                if (state.darkMode) R.drawable.widget_today_background_dark
+                else R.drawable.widget_today_background_light)
+            setTextViewText(R.id.widgetTodayExpandedTopic, state.topicText)
+            setTextViewText(R.id.widgetTodayExpandedProgress, state.progressText)
+            setProgressBar(R.id.widgetTodayExpandedBar, 100, state.progressPercent, false)
+            setTextViewText(R.id.widgetTodayExpandedObjectivesTitle,
+                "Objetivos diarios · ${state.completedFixedObjectives}/${state.totalFixedObjectives}")
+            setTextViewText(R.id.widgetTodayExpandedObjectives, state.objectivesExpandedText)
+            setTextColor(R.id.widgetTodayExpandedTopicLabel, state.secondaryTextColor)
+            setTextColor(R.id.widgetTodayExpandedTopic, state.primaryTextColor)
+            setTextColor(R.id.widgetTodayExpandedProgress, state.primaryTextColor)
+            setTextColor(R.id.widgetTodayExpandedObjectives, state.secondaryTextColor)
+            setViewVisibility(R.id.widgetTodayExpandedTest,
+                if (state.hasLinkedTest) View.VISIBLE else View.GONE)
+            setOnClickPendingIntent(R.id.widgetTodayExpandedRoot,
+                createOpenAppPendingIntent(context, PlanarioDestination.Plan.route, 4101))
+            setOnClickPendingIntent(R.id.widgetTodayExpandedPlan,
+                createOpenAppPendingIntent(context, PlanarioDestination.Plan.route, 4103))
+            if (state.hasLinkedTest) {
+                setOnClickPendingIntent(R.id.widgetTodayExpandedTest,
+                    createLinkedTestPendingIntent(context, state))
+            }
         }
 
         private fun buildRemoteViews(
@@ -599,6 +627,11 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
                 }
                 .map { it.name }
 
+            val objectiveLines = enabledFixedObjectives.map { objective ->
+                (if (objective.id in completedFixedObjectiveIds) "✓ " else "○ ") +
+                    objective.name
+            }
+
             val isFreeDay = when {
                 todayDay?.forceStudyDay == true -> false
                 todayDay?.isRestDay == true -> true
@@ -634,6 +667,7 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
                 completedFixedObjectives = completedFixedObjectives,
                 totalFixedObjectives = enabledFixedObjectives.size,
                 pendingObjectiveNames = pendingObjectiveNames,
+                objectiveLines = objectiveLines,
                 dayStatus = dayStatus,
                 isFinishedManually = isFinishedManually,
                 weekCells = weekCells,
@@ -753,6 +787,7 @@ private data class PlanarioTodayWidgetState(
     val completedFixedObjectives: Int,
     val totalFixedObjectives: Int,
     val pendingObjectiveNames: List<String>,
+    val objectiveLines: List<String>,
     val dayStatus: DayStatus,
     val isFinishedManually: Boolean,
     val weekCells: List<PlanarioWeekCell>,
@@ -762,6 +797,11 @@ private data class PlanarioTodayWidgetState(
 ) {
     val hasLinkedTest: Boolean
         get() = linkedTestTopicIds.isNotEmpty() || !linkedTestTemplateId.isNullOrBlank()
+
+    val objectivesExpandedText: String
+        get() = if (objectiveLines.isEmpty()) "Sin objetivos diarios"
+            else objectiveLines.take(4).joinToString("\n") +
+                (if (objectiveLines.size > 4) "\n+ ${objectiveLines.size - 4} más en Plan" else "")
     val primaryTextColor: Int
         get() = if (darkMode) {
             0xFFF8FAFC.toInt()
