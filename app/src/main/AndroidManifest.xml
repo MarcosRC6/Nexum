@@ -84,6 +84,11 @@
             android:name="com.example.testario.widget.NexumQuickTestWidgetConfigurationActivity"
             android:exported="true" />
 
+        <!-- Sólo PendingIntent inmutables internos controlan los relojes. -->
+        <receiver
+            android:name="com.example.planario.app.widget.NexumStudyClockWidgetActionReceiver"
+            android:exported="false" />
+
         <receiver
             android:name="com.example.planario.app.widget.NexumStudyClockWidgetReceiver"
             android:label="@string/nexum_study_clock_widget_title"
