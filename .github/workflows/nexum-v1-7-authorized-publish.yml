@@ -1,0 +1,58 @@
+# Only a user-authorized merge with the exact release commit title can publish v1.7.
+# The private keystore stays exclusively in nexum-official-release.yml.
+name: NEXUM - one-time authorized v1.7 publication
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/build.gradle.kts'
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch-official-release:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      startsWith(github.event.head_commit.message, 'release(v1.7): authorized signed publication')
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout protected main commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Confirm exact authorized version and predecessor release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          grep -Eq '^[[:space:]]*versionCode = 13[[:space:]]*$' app/build.gradle.kts
+          grep -Eq '^[[:space:]]*versionName = "1.7"[[:space:]]*$' app/build.gradle.kts
+          grep -Fq 'applicationId = "com.example.estudario"' app/build.gradle.kts
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)" = "v1.6"
+          if gh release view v1.7 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v1.7 already published; refusing overwrite."
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v1.7" >/dev/null 2>&1; then
+            echo "v1.7 tag already exists; refusing overwrite."
+            exit 1
+          fi
+
+      - name: Request signed official APK publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run nexum-official-release.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f publish_release=true
+          echo "Requested verified official NEXUM v1.7 publication."
