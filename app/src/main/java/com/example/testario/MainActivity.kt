@@ -40,6 +40,8 @@ class MainActivity : ComponentActivity() {
     private val requestedDestinationRoute = mutableStateOf<String?>(null)
     private val navigationRequestId = mutableIntStateOf(0)
     private val requestedQuickTestTemplateId = mutableStateOf<String?>(null)
+    private val requestedQuickTestTopicIds = mutableStateOf<List<String>?>(null)
+    private val requestedQuickTestCount = mutableStateOf<Int?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +51,9 @@ class MainActivity : ComponentActivity() {
         val previousCrash = NexumCrashReporter.lastCrash(applicationContext)
         requestedDestinationRoute.value = intent.getStringExtra(EXTRA_START_DESTINATION_ROUTE)
         requestedQuickTestTemplateId.value = intent.getStringExtra(EXTRA_QUICK_TEST_TEMPLATE_ID)
+        requestedQuickTestTopicIds.value = intent.getStringArrayListExtra(EXTRA_QUICK_TEST_TOPIC_IDS)?.toList()
+        requestedQuickTestCount.value = intent.getIntExtra(EXTRA_QUICK_TEST_COUNT, -1)
+            .takeIf { it in 1..500 }
         setContent {
             var recoveryMessage by remember { mutableStateOf(previousCrash) }
             var startupReady by remember { mutableStateOf(false) }
@@ -111,7 +116,9 @@ class MainActivity : ComponentActivity() {
                     TestarioApp(
                         requestedDestinationRoute = requestedDestinationRoute.value,
                         navigationRequestId = navigationRequestId.intValue,
-                        requestedQuickTestTemplateId = requestedQuickTestTemplateId.value
+                        requestedQuickTestTemplateId = requestedQuickTestTemplateId.value,
+                        requestedQuickTestTopicIds = requestedQuickTestTopicIds.value,
+                        requestedQuickTestQuestionCount = requestedQuickTestCount.value
                     )
                     if (showTutorial) {
                         NexumTutorialDialog(initialSection = 0, onClose = {
@@ -129,12 +136,17 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         requestedDestinationRoute.value = intent.getStringExtra(EXTRA_START_DESTINATION_ROUTE)
         requestedQuickTestTemplateId.value = intent.getStringExtra(EXTRA_QUICK_TEST_TEMPLATE_ID)
+        requestedQuickTestTopicIds.value = intent.getStringArrayListExtra(EXTRA_QUICK_TEST_TOPIC_IDS)?.toList()
+        requestedQuickTestCount.value = intent.getIntExtra(EXTRA_QUICK_TEST_COUNT, -1)
+            .takeIf { it in 1..500 }
         navigationRequestId.intValue += 1
     }
 
     companion object {
         const val EXTRA_START_DESTINATION_ROUTE = "extra_start_destination_route"
         const val EXTRA_QUICK_TEST_TEMPLATE_ID = "extra_quick_test_template_id"
+        const val EXTRA_QUICK_TEST_TOPIC_IDS = "extra_quick_test_topic_ids"
+        const val EXTRA_QUICK_TEST_COUNT = "extra_quick_test_count"
     }
 }
 
