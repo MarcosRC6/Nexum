@@ -66,8 +66,9 @@ class NexumQuickTestWidgetConfigurationActivity : ComponentActivity() {
                     Text("Configurar widget · Test rápido", color = Color.White)
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Elige qué test se iniciará desde esta pantalla de inicio. " +
-                            "No cambia las plantillas guardadas.",
+                        "Este widget compacto ocupa 2 × 1 celdas. " +
+                            "Elige un test predeterminado o una plantilla guardada. " +
+                            "Podrás cambiar la selección desde el engranaje del widget.",
                         color = Color(0xFFCFD2E6)
                     )
                     Spacer(Modifier.height(20.dp))
