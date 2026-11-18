@@ -425,7 +425,7 @@ private fun GroupTreeNode(
                 Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(
+                androidx.compose.material3.IconButton(
                     onClick = { if (hasContents) onToggleExpanded(group.id) },
                     enabled = hasContents
                 ) {
