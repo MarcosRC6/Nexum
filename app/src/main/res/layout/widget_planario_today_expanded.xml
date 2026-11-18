@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista ampliada: resumen y lista real de objetivos diarios en un solo panel. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widgetTodayExpandedRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:background="@drawable/widget_today_background_dark"
+    android:padding="13dp">
+
+    <TextView
+        android:id="@+id/widgetTodayExpandedTopicLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tema activo"
+        android:textSize="11sp"
+        android:textColor="#CBD5E1" />
+
+    <TextView
+        android:id="@+id/widgetTodayExpandedTopic"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:text="Sin tema activo"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        android:textColor="#F8FAFC" />
+
+    <TextView
+        android:id="@+id/widgetTodayExpandedProgress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:maxLines="1"
+        android:text="0 min / 6 h"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="#F8FAFC" />
+
+    <ProgressBar
+        android:id="@+id/widgetTodayExpandedBar"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="7dp"
+        android:layout_marginTop="5dp"
+        android:max="100" />
+
+    <TextView
+        android:id="@+id/widgetTodayExpandedObjectivesTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="Objetivos diarios"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="#D9BCFF" />
+
+    <TextView
+        android:id="@+id/widgetTodayExpandedObjectives"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:maxLines="5"
+        android:ellipsize="end"
+        android:text="Sin objetivos diarios"
+        android:textSize="12sp"
+        android:lineSpacingExtra="2dp"
+        android:textColor="#CBD5E1" />
+
+    <LinearLayout
+        android:id="@+id/widgetTodayExpandedActions"
+        android:layout_width="match_parent"
+        android:layout_height="37dp"
+        android:layout_marginTop="9dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/widgetTodayExpandedPlan"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/widget_today_section_dark"
+            android:gravity="center"
+            android:text="Abrir Plan"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#EADFFF" />
+
+        <TextView
+            android:id="@+id/widgetTodayExpandedTest"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_nexum_quick_button"
+            android:gravity="center"
+            android:text="Iniciar test"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>
