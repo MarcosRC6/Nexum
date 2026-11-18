@@ -2,7 +2,6 @@ package com.example.planario.domain.timer
 
 import android.content.Context
 import android.os.SystemClock
-import kotlin.math.abs
 
 /** Persistencia independiente del cronómetro de estudio, sin duplicar sus registros. */
 internal object NexumPomodoroStore {
@@ -22,23 +21,15 @@ internal object NexumPomodoroStore {
         val storedState = runCatching {
             PomodoroTimerState.valueOf(prefs.getString("state", "STOPPED") ?: "STOPPED")
         }.getOrDefault(PomodoroTimerState.STOPPED)
-        val nowUptime = SystemClock.elapsedRealtime()
-        val nowWall = System.currentTimeMillis()
-        val beforeUptime = prefs.getLong("uptime", -1L)
-        val beforeWall = prefs.getLong("wall", -1L)
-        val delta = nowUptime - beforeUptime
-        val wallDelta = nowWall - beforeWall
-        val safe = beforeUptime >= 0L && beforeWall > 0L && delta >= 0L &&
-            wallDelta >= 0L && abs(delta - wallDelta) <= 5_000L
-        val finalRemaining = if (storedState == PomodoroTimerState.RUNNING && safe)
-            (remaining - delta / 1000L).coerceAtLeast(0L) else remaining
-        val finalState = when {
-            storedState != PomodoroTimerState.RUNNING -> storedState
-            !safe -> PomodoroTimerState.PAUSED
-            finalRemaining == 0L -> PomodoroTimerState.FINISHED
-            else -> PomodoroTimerState.RUNNING
-        }
-        return Snapshot(minutes, finalRemaining, finalState)
+        val recovered = PomodoroRecoveryPolicy.recover(
+            storedState = storedState,
+            storedRemainingSeconds = remaining,
+            beforeElapsedRealtimeMillis = prefs.getLong("uptime", -1L),
+            beforeWallMillis = prefs.getLong("wall", -1L),
+            nowElapsedRealtimeMillis = SystemClock.elapsedRealtime(),
+            nowWallMillis = System.currentTimeMillis()
+        )
+        return Snapshot(minutes, recovered.remainingSeconds, recovered.state)
     }
 
     fun save(context: Context, state: StudyTimerControllerState) {
