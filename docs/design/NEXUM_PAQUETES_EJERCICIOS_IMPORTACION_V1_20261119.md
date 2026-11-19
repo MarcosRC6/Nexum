@@ -22,6 +22,16 @@ Revisión del código de `main` (SHA `9ca83d6557ba85e445820f49d2225c66caac48a9`,
 6. Nueva migración de esquema cuando se implemente (posterior a v3). Abrir bases antiguas añade colecciones vacías sin tocar preguntas, estadísticas, grupos ni sesiones. Un formato más reciente no reconocido se rechaza con mensaje; no convertirlo a banco vacío.
 7. **Semántica de grupos:** hoy un grupo agrupa **temas**, no ejercicios individualizados. En el editor puede elegirse un tema y visualizar/seleccionar sus grupos; para «asignar a un grupo» el usuario seleccionará un tema existente de dicho grupo o añadirá explícitamente el tema al grupo. Un mismo ejercicio no debe duplicarse por pertenecer su tema a varios grupos. Si se quiere pertenencia por ejercicio independiente de su tema, requerirá un cambio deliberado del modelo y su correspondiente UX/migración.
 
+## Decisión funcional de formatos de archivo (19/11/2026)
+
+**Aprobado por el usuario:** interfaz simplificada con **exportación únicamente ZIP** para cualquier biblioteca/tema/copia de seguridad; **importación automática ZIP y JSON** sin obligar a elegir el formato por separado. Los ZIP son obligatorios para material que incluya imágenes y marcadores, porque permiten transportar todos los assets y comprobar su integridad.
+- Seguir aceptando bancos clásicos en JSON como **entrada**; conservar TXT/CSV de legado mediante detección automática si el lector existente los soporta, aunque no sean opciones destacadas ni formatos nuevos de exportación.
+- Si se selecciona un JSON cuyo contenido refiere imágenes externas ausentes, informar claramente de que **no es autocontenido**; rechazar el ejercicio que dependa de esos ficheros o exigir un ZIP completo, sin importar un resultado mutilado.
+- Un ZIP puede contener varios JSON antiguos de temas; la importación los cuenta y verifica **todos**. Para contenido nuevo se prefiere manifiesto de `nexum_library_bundle` y `library.json`, manteniendo el antiguo lector para los paquetes previos.
+- Las exportaciones clásicas en JSON dejan de ofrecerse como opción pública en la nueva interfaz; **el lector JSON permanece**. No confundir esto con borrar clases de modelo, invalidar backups antiguos o eliminar de golpe rutas usadas internamente antes de migrarlas y probarlas.
+- La exportación de temas sin imágenes sigue entregándose como ZIP. **No alterar ni vaciar la biblioteca** al no reconocer una entrada.
+- **Estado:** decisión de UX acordada; implementación pendiente.
+
 ## 3. Nuevo ZIP de biblioteca para compartir (`nexum_library_bundle` v1)
 
 Estructura:
@@ -40,7 +50,7 @@ nexum_biblioteca_YYYYMMDD.zip
 - La clave raíz `collections` es deliberada: el importador actual de JSON de temas no debe poder tratar `library.json` como un `TestarioDatabase` y cargar una biblioteca **vacía o parcial**. Se construirá un lector específico que reconozca primero el manifiesto. Los paquetes nuevos no contendrán `testario_database.json`.
 - `assets/<sha256>.<ext>`: originales legibles identificados por huella de contenido. Reutilizar un mismo archivo si es compartido por varias preguntas. Los nombres internos reales de Android se asignarán en importación; nunca usar el nombre de archivo del ZIP como ruta final sin validación.
 - Ningún paquete de **biblioteca compartida** incorpora ajustes privados, rachas, estadísticas, historial de sesiones, respuestas del alumno, calendario personal Anki, cronómetro ni tokens de sincronización.
-- Para compatibilidad, seguir **ofreciendo una exportación clásica** de tests cuando el usuario lo solicite y el material sea enteramente compatible; no convertir silenciosamente ejercicios escritos o tarjetas nuevas a tests. En una exportación clásica que excluya formatos, mostrar recuentos exactos antes de continuar.
+- Para compatibilidad, seguir **ofreciendo una exportación clásica en ZIP** de tests cuando el usuario lo solicite y el material sea enteramente compatible; **no ofrecer JSON como exportación en la interfaz nueva**, ni convertir silenciosamente ejercicios escritos o tarjetas nuevas a tests. En una exportación clásica que excluya formatos, mostrar recuentos exactos antes de continuar.
 
 ### Fragmento ilustrativo de `library.json` (no constituye un ZIP listo para importar)
 
