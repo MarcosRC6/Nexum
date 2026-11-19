@@ -60,7 +60,12 @@ class ExportManager(private val context: Context, private val localStore: Testar
             .mapNotNull { path -> path?.takeIf { it.isNotBlank() } }
             .map { path -> File(path).name }
             .filter { it.isNotBlank() }
-            .toSet()
+            .toSet() + cleanTopics.asSequence()
+                .flatMap { it.exercises.asSequence() }
+                .flatMap { it.referencedImageUris().asSequence() }
+                .map { File(it).name }
+                .filter { it.isNotBlank() }
+                .toSet()
 
         packageZip(outputStream, jsonString, referencedImageNames)
     }
