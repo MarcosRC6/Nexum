@@ -120,6 +120,13 @@
 - El siguiente paso funcional es revisar la **propuesta del editor de tarjetas tipo Anki y su programación opcional** en [NEXUM_TARJETAS_ANKI_REPASO_20261119.md](NEXUM_TARJETAS_ANKI_REPASO_20261119.md). Incluye editor anverso/reverso, estudio libre, «Otra vez / Difícil / Bien / Fácil», intervalos configurables y reglas para no confundir la autoevaluación con la nota objetiva de exámenes mixtos.
 - **Importante:** el diseño de tarjetas está propuesto **para revisión, no aprobado en todos sus detalles**. No se han realizado cambios funcionales en Android.
 
+## Acuerdo sobre tipos de tarjetas Anki y presentación de soluciones (19/11/2026)
+
+- **El usuario ha elegido** que, al pulsar «Mostrar respuesta», la **pregunta NO se sustituye**: permanece visible arriba y la **respuesta aparece debajo**. Para tarjetas Cloze y ocultación de imagen se destapa además el hueco/área en su sitio, con explicación debajo.
+- Las tarjetas incorporarán **selector «Tipo de tarjeta»** y editores específicos para Básica, Bidireccional, Completar huecos/Cloze, Respuesta escrita y Ocultación de imagen. No crear una pestaña de navegación distinta para cada variedad. Mantener la repetición espaciada optativa en todas.
+- Conservar el contenido común de una nota y los IDs/programaciones individuales de las tarjetas derivadas (inversas, varios huecos o máscaras), sin duplicaciones en Biblioteca, ZIP ni estadísticas.
+- Detalle en [NEXUM_TARJETAS_ANKI_REPASO_20261119.md](NEXUM_TARJETAS_ANKI_REPASO_20261119.md). **Pendiente** de implementar y de confirmar las decisiones sobre algoritmo y examen mixto.
+
 ## Seguridad y consistencia antes de programar
 - Diseñar esquema versionado/migraciones de nuevos ejercicios y respaldos, exportación/importación y deduplicación semántica por tipo de ejercicio; no alterar el esquema actual por improvisación.
 - Validar alias vacíos/repetidos/ambiguos, puntuación con respuestas múltiples, cancelaciones, guardar progreso, corrección en Entrenamiento vs Examen, accesibilidad de teclado Enter, tamaños de pantalla, imágenes perdidas/desplazadas, marcadores fuera del 0..1, backups antiguos y restauraciones.
