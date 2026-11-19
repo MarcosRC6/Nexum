@@ -284,6 +284,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
         return try {
             val fileType = detectImportFileType(rawText, fileName)
             val topics = decodeTopicsFromAnyFormat(rawText, fileType)
+            validateStudyMediaForImport(topics)
 
             ImportPreview(
                 fileType = fileType,
@@ -304,7 +305,10 @@ class ImportManager(private val context: Context, private val localStore: Testar
 
     fun getTopicsFromRawText(rawText: String, fileName: String? = null): List<Topic> {
         val fileType = detectImportFileType(rawText, fileName)
-        return decodeTopicsFromAnyFormat(rawText, fileType).also(::validateStudyExercises)
+        return decodeTopicsFromAnyFormat(rawText, fileType).also {
+            validateStudyExercises(it)
+            validateStudyMediaForImport(it)
+        }
     }
 
     // NUEVO: Motor de sincronización
@@ -431,6 +435,21 @@ class ImportManager(private val context: Context, private val localStore: Testar
         localStore.saveDatabase(db.copy(topics = topics))
         return ImportTopicOutcome(created, merged, fresh.questions.size, duplicates, destination,
             fresh.exercises.size, duplicateExercises)
+    }
+
+    private fun validateStudyMediaForImport(topics: List<Topic>) {
+        val stagedNames = pendingImageStage?.listFiles()?.mapTo(hashSetOf()) { it.name }
+            ?: emptySet()
+        val safeRoot = imagesDir.canonicalPath + File.separator
+        topics.asSequence().flatMap { it.exercises.asSequence() }
+            .flatMap { it.referencedImageUris().asSequence() }.forEach { reference ->
+                val image = File(reference)
+                val isStaged = image.name in stagedNames
+                val isOwnFile = image.isFile && image.canonicalPath.startsWith(safeRoot)
+                require(isStaged || isOwnFile) {
+                    "El ejercicio necesita una imagen no incluida. Importa el ZIP con sus recursos."
+                }
+            }
     }
 
     private fun validateStudyExercises(topics: List<Topic>) {
