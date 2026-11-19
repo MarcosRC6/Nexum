@@ -127,6 +127,13 @@
 - Conservar el contenido común de una nota y los IDs/programaciones individuales de las tarjetas derivadas (inversas, varios huecos o máscaras), sin duplicaciones en Biblioteca, ZIP ni estadísticas.
 - Detalle en [NEXUM_TARJETAS_ANKI_REPASO_20261119.md](NEXUM_TARJETAS_ANKI_REPASO_20261119.md). **Pendiente** de implementar y de confirmar las decisiones sobre algoritmo y examen mixto.
 
+## Formato interoperable Anki (.apkg) — decisión adicional (19/11/2026)
+
+- **Aprobado como objetivo:** importar y exportar tarjetas al formato nativo **`.apkg`** compatible con Anki Desktop y AnkiDroid, conservando mazos, tipos representables y recursos multimedia. Se accede desde una opción diferenciada «Importar mazo de Anki» / «Exportar para Anki».
+- Esto **no sustituye** el ZIP predeterminado de NEXUM para biblioteca general y copias de seguridad; es una **excepción de interoperabilidad** para tarjetas, ni vuelve a habilitar exportaciones JSON generales.
+- Preservar notas y tarjetas derivadas (inversas, cloze, oclusión), controlar tipos personalizados y conflictos, avisar antes de cualquier degradación. No equiparar `.apkg` con sincronización AnkiWeb ni asumir transferibles sus calendarios personales sin validación.
+- Diseño y condiciones de prueba en [NEXUM_TARJETAS_ANKI_REPASO_20261119.md](NEXUM_TARJETAS_ANKI_REPASO_20261119.md). **Pendiente de implementación**.
+
 ## Seguridad y consistencia antes de programar
 - Diseñar esquema versionado/migraciones de nuevos ejercicios y respaldos, exportación/importación y deduplicación semántica por tipo de ejercicio; no alterar el esquema actual por improvisación.
 - Validar alias vacíos/repetidos/ambiguos, puntuación con respuestas múltiples, cancelaciones, guardar progreso, corrección en Entrenamiento vs Examen, accesibilidad de teclado Enter, tamaños de pantalla, imágenes perdidas/desplazadas, marcadores fuera del 0..1, backups antiguos y restauraciones.
