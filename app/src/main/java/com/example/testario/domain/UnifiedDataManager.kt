@@ -7,6 +7,8 @@ import com.example.planario.data.local.StudyLocalDataSource
 import com.example.testario.data.model.TestarioDatabase
 import com.example.testario.data.local.MigrationManager
 import com.example.testario.data.local.QuickTestLinkManager
+import com.example.testario.data.local.WebQuickLinkStore
+import com.example.testario.data.local.WebQuickLinkPolicy
 import com.example.testario.data.local.SavedTestSessionStore
 import com.example.testario.data.local.TestarioLocalStore
 import kotlinx.serialization.decodeFromString
@@ -101,6 +103,7 @@ class UnifiedDataManager(private val context: Context) {
         val databaseJson = json.encodeToString(localStore.database.value)
         val planJson = PlanarioDependencies.studyRepository.exportBackupJson()
         val quickLinksJson = QuickTestLinkManager(context).exportJson()
+        val webQuickLinksJson = WebQuickLinkStore.get(context).exportJson()
         val settingsJson = exportTestarioSettings()
         val pendingTest = SavedTestSessionStore(context).exportJson()
 
@@ -114,6 +117,7 @@ class UnifiedDataManager(private val context: Context) {
             writeText(zos, "testario_database.json", databaseJson)
             writeText(zos, "planario_backup.json", planJson)
             writeText(zos, "quick_test_links.json", quickLinksJson)
+            writeText(zos, "quick_web_links.json", webQuickLinksJson)
             writeText(zos, "testario_settings.json", settingsJson)
             if (pendingTest != null) writeText(zos, "pending_test_session.json", pendingTest)
 
@@ -137,6 +141,7 @@ class UnifiedDataManager(private val context: Context) {
             "testario_database.json",
             "planario_backup.json",
             "quick_test_links.json",
+            "quick_web_links.json",
             "testario_settings.json",
             "pending_test_session.json"
         )
@@ -163,6 +168,13 @@ class UnifiedDataManager(private val context: Context) {
             return false
         }
 
+        // Se valida por completo ANTES de comenzar la restauración destructiva.
+        // Backups antiguos sin enlaces siguen siendo compatibles.
+        val webQuickLinksRaw = textEntries["quick_web_links.json"]
+        if (webQuickLinksRaw != null &&
+            runCatching { WebQuickLinkPolicy.parseBackup(webQuickLinksRaw) }.isFailure
+        ) return false
+
         val settingsRaw = textEntries["testario_settings.json"]
         if (settingsRaw != null && runCatching { JSONObject(settingsRaw) }.isFailure) {
             return false
@@ -188,6 +200,11 @@ class UnifiedDataManager(private val context: Context) {
         }
         if (quickLinksRaw != null) {
             runCatching { QuickTestLinkManager(context).importJson(quickLinksRaw) }.getOrElse { return false }
+        }
+        if (webQuickLinksRaw != null) {
+            if (!runCatching {
+                WebQuickLinkStore.get(context).importJson(webQuickLinksRaw)
+            }.getOrDefault(false)) return false
         }
         if (settingsRaw != null) {
             runCatching { restoreTestarioSettings(settingsRaw) }.getOrElse { return false }
