@@ -21,7 +21,8 @@ data class TestarioDatabase(
     val ankiReviewStates: List<AnkiReviewState> = emptyList(),
     val ankiReviewEvents: List<AnkiReviewEvent> = emptyList(),
     val ankiReviewEnabled: Boolean = false,
-    val ankiScheduleSettings: AnkiScheduleSettings = AnkiScheduleSettings()
+    val ankiScheduleSettings: AnkiScheduleSettings = AnkiScheduleSettings(),
+    val exerciseAttempts: List<ExerciseAttempt> = emptyList()
 )
 
 @Serializable
