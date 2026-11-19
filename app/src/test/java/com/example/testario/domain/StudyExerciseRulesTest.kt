@@ -58,11 +58,11 @@ class StudyExerciseRulesTest {
         assertTrue(StudyExerciseRules.errors(ex).any { it.contains("Alias ambiguo") })
     }
 
-    @Test fun onlyDefinedAliasesMatchNotFuzzySubstrings() {
+    @Test fun distinctiveSurnameIsAutomaticButTyposStillNeverMatch() {
         val ex = written(CanonicalSolution(text = "Thomas Edison"))
         val result = StudyExerciseRules.gradeWritten(ex, listOf("Edison", "Thomas Edisno"))
-        assertEquals(0, result.correct)
-        assertEquals(2, result.incorrect)
+        assertEquals(1, result.correct)
+        assertEquals(1, result.incorrect)
     }
 
     @Test fun markersMustBeOnBaseWithFiniteCoordinates() {
