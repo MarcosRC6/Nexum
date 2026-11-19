@@ -56,6 +56,8 @@ fun StudyExerciseEditorScreen(
     var back by remember(exerciseId) { mutableStateOf(original?.flashcard?.back.orEmpty()) }
     var flashKind by remember(exerciseId) { mutableStateOf(original?.flashcard?.kind ?: FlashcardKind.BASIC) }
     var gaps by remember(exerciseId) { mutableStateOf(original?.flashcard?.gaps.orEmpty()) }
+    var masks by remember(exerciseId) { mutableStateOf(original?.flashcard?.masks.orEmpty()) }
+    var aliasesText by remember(exerciseId) { mutableStateOf(original?.flashcard?.acceptedAnswers?.joinToString(", ").orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
     var showPreview by remember { mutableStateOf(false) }
     var imageUri by remember(exerciseId) { mutableStateOf(original?.baseImageUri) }
@@ -64,12 +66,19 @@ fun StudyExerciseEditorScreen(
     var pickerTarget by remember { mutableStateOf("written") }
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) when (pickerTarget) {
-            "written" -> imageUri = uri.toString()
+            "written" -> {
+                imageUri = uri.toString()
+                diagramEnabled = false
+            }
             "front" -> frontImageUri = uri.toString()
             "back" -> backImageUri = uri.toString()
         }
     }
     fun chooseImage(target: String) {
+        if (target == "written" && diagramEnabled && solutions.any { it.points.isNotEmpty() }) {
+            error = "Antes de reemplazar el esquema, elimina sus marcadores; no se pueden trasladar automáticamente a una fotografía."
+            return
+        }
         pickerTarget = target
         pickImage.launch("image/*")
     }
@@ -77,7 +86,8 @@ fun StudyExerciseEditorScreen(
         val card = if (exerciseKind == StudyExerciseKind.ANKI_CARD) FlashcardContent(
             kind = flashKind, front = front.text, back = back,
             frontImageUri = frontImageUri, backImageUri = backImageUri,
-            gaps = gaps
+            gaps = gaps, masks = masks,
+            acceptedAnswers = aliasesText.split(",").map(String::trim).filter(String::isNotBlank)
         ) else null
         return StudyExercise(
             id = original?.id ?: UUID.randomUUID().toString(),
@@ -169,8 +179,12 @@ fun StudyExerciseEditorScreen(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = diagramEnabled, onCheckedChange = { enabled ->
-                        diagramEnabled = enabled
-                        if (!enabled) solutions = solutions.map { it.copy(points = emptyList()) }
+                        if (!enabled && solutions.any { it.points.isNotEmpty() }) {
+                            error = "Borra los marcadores antes de cambiar de esquema a imagen."
+                        } else {
+                            diagramEnabled = enabled
+                            if (enabled) imageUri = null
+                        }
                     })
                     Text("Crear esquema lineal", color = TestarioText)
                 }
@@ -212,9 +226,28 @@ fun StudyExerciseEditorScreen(
                         }
                     }
                 }
-                if (imageUri != null) {
-                    Text("Imagen importada: se guardará como base sin marcadores. La colocación sobre fotografía aún no está habilitada en este editor.",
-                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                if (!diagramEnabled && imageUri != null) {
+                    Text("Toca la fotografía para añadir un marcador a la solución seleccionada.",
+                        color = TestarioMutedText)
+                    StudyVisualImage(
+                        imageUri = requireNotNull(imageUri),
+                        modifier = Modifier.fillMaxWidth().height(230.dp),
+                        markers = solutions.flatMap { it.points },
+                        showCorrection = true,
+                        onTapImage = { x, y ->
+                            val id = selectedSolutionId
+                            val number = (solutions.flatMap { it.points }.maxOfOrNull { it.order } ?: 0) + 1
+                            solutions = solutions.map { solution ->
+                                if (solution.id == id) solution.copy(points = solution.points +
+                                    ImagePoint(x = x, y = y, order = number)) else solution
+                            }
+                        }
+                    )
+                    TextButton(onClick = {
+                        if (solutions.any { it.points.isNotEmpty() }) error =
+                            "Retira primero los marcadores antes de cambiar de imagen."
+                        else imageUri = null
+                    }) { Text("Quitar imagen base") }
                 }
                 OutlinedButton(onClick = { chooseImage("written") }, modifier = Modifier.fillMaxWidth()) {
                     Text("Importar imagen base")
@@ -225,7 +258,8 @@ fun StudyExerciseEditorScreen(
                     FlashcardKind.BASIC to "Básica",
                     FlashcardKind.REVERSED to "Bidireccional",
                     FlashcardKind.CLOZE to "Completar huecos",
-                    FlashcardKind.TYPE_ANSWER to "Respuesta escrita"
+                    FlashcardKind.TYPE_ANSWER to "Respuesta escrita",
+                    FlashcardKind.IMAGE_OCCLUSION to "Ocultación de imagen"
                 )
                 var expanded by remember { mutableStateOf(false) }
                 Box {
@@ -267,6 +301,45 @@ fun StudyExerciseEditorScreen(
                     label = { Text(if (flashKind == FlashcardKind.CLOZE) "Explicación adicional (opcional)" else "Respuesta") },
                     modifier = Modifier.fillMaxWidth(), minLines = 2
                 )
+                if (flashKind == FlashcardKind.TYPE_ANSWER) {
+                    OutlinedTextField(
+                        value = aliasesText, onValueChange = { aliasesText = it },
+                        label = { Text("Otras respuestas aceptadas (separadas por coma)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
+                    Text("Importa una imagen y pulsa las zonas que quieras ocultar.",
+                        color = TestarioMutedText)
+                    frontImageUri?.let { image ->
+                        StudyVisualImage(
+                            imageUri = image,
+                            modifier = Modifier.fillMaxWidth().height(240.dp),
+                            masks = masks,
+                            onTapImage = { x, y ->
+                                masks = masks + ImageOcclusionMask(
+                                    x = x.coerceAtMost(0.82), y = y.coerceAtMost(0.82),
+                                    width = 0.18, height = 0.18
+                                )
+                            }
+                        )
+                    }
+                    masks.forEach { mask ->
+                        OutlinedTextField(
+                            value = mask.answer,
+                            onValueChange = { newText -> masks = masks.map {
+                                if (it.id == mask.id) it.copy(answer = newText) else it
+                            } },
+                            label = { Text("Respuesta de la zona ${masks.indexOf(mask) + 1}") },
+                            modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                TextButton(onClick = { masks = masks.filterNot { it.id == mask.id } }) {
+                                    Text("Quitar")
+                                }
+                            }
+                        )
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = { chooseImage("front") }) { Text("Imagen pregunta") }
                     OutlinedButton(onClick = { chooseImage("back") }) { Text("Imagen respuesta") }
