@@ -86,6 +86,20 @@ data class StudyExercise(
 }
 
 @Serializable
+data class AnkiScheduleSettings(
+    val againMinutes: Long = 1,
+    val hardMinutes: Long = 10,
+    val graduatingMinutes: Long = 1440,
+    val easyMinutes: Long = 5760,
+    val goodMultiplier: Double = 2.5,
+    val hardMultiplier: Double = 1.2,
+    val easyMultiplier: Double = 4.0,
+    val maxIntervalMinutes: Long = 5256000,
+    val newCardsPerDay: Int = 20,
+    val reviewsPerDay: Int = 200
+)
+
+@Serializable
 enum class ReviewRating { AGAIN, HARD, GOOD, EASY }
 
 @Serializable
