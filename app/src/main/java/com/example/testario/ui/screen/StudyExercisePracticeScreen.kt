@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.domain.StudyExerciseRules
+import com.example.testario.domain.ClozeMarkupEngine
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.LibraryViewModel
 import coil.compose.AsyncImage
@@ -49,21 +50,23 @@ fun StudyExercisePracticeScreen(
         val card = ex.flashcard
         when (card?.kind) {
             FlashcardKind.REVERSED -> listOf(ex to "direct", ex to "reverse")
-            FlashcardKind.CLOZE -> card.gaps.map { ex to it.id }
+            FlashcardKind.CLOZE -> listOf(ex to "cloze")
             FlashcardKind.IMAGE_OCCLUSION -> card.masks.map { ex to it.id }
             else -> listOf(ex to "direct")
         }
     }
     var tab by rememberSaveable { mutableStateOf(0) }
     var index by rememberSaveable(tab) { mutableIntStateOf(0) }
-    var entry by rememberSaveable(tab, index) { mutableStateOf("") }
-    var answers by rememberSaveable(tab, index) { mutableStateOf(arrayListOf<String>()) }
-    var completed by rememberSaveable(tab, index) { mutableStateOf(false) }
-    var revealed by rememberSaveable(tab, index) { mutableStateOf(false) }
+    var retryCycle by rememberSaveable(tab) { mutableIntStateOf(0) }
+    var entry by rememberSaveable(tab, index, retryCycle) { mutableStateOf("") }
+    var answers by rememberSaveable(tab, index, retryCycle) { mutableStateOf(arrayListOf<String>()) }
+    var completed by rememberSaveable(tab, index, retryCycle) { mutableStateOf(false) }
+    var revealed by rememberSaveable(tab, index, retryCycle) { mutableStateOf(false) }
+    var scheduledReview by rememberSaveable { mutableStateOf(false) }
     var points by rememberSaveable { mutableStateOf("1") }
     var penalty by rememberSaveable { mutableStateOf("-0.25") }
     var error by remember { mutableStateOf<String?>(null) }
-    val attemptId = rememberSaveable(tab, index) { UUID.randomUUID().toString() }
+    val attemptId = rememberSaveable(tab, index, retryCycle) { UUID.randomUUID().toString() }
     val keyboard = LocalSoftwareKeyboardController.current
 
     val schematicLineColor = TestarioPrimary
@@ -163,12 +166,29 @@ fun StudyExercisePracticeScreen(
                         enabled = !completed
                     ) { Text("Añadir") }
                 }
-                answers.forEach { value ->
+                val graded = if (completed) runCatching {
+                    StudyExerciseRules.gradeWritten(exercise, answers,
+                        points.replace(",", ".").toDouble(), penalty.replace(",", ".").toDouble())
+                }.getOrNull() else null
+                answers.forEachIndexed { i, value ->
+                    val acceptedId = StudyExerciseRules.findAcceptedSolution(exercise, value)?.id
+                    val correct = acceptedId != null && acceptedId in graded?.correctIds.orEmpty()
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(value, color = TestarioText, modifier = Modifier.weight(1f))
+                        val feedbackColor = if (!completed) TestarioText
+                            else if (correct) TestarioGreen else TestarioRed
+                        Text("${i + 1}.", color = feedbackColor,
+                            modifier = Modifier.width(34.dp))
+                        Text(value, color = feedbackColor, modifier = Modifier.weight(1f))
                         if (!completed) TextButton(onClick = {
-                            answers = ArrayList(answers.filterNot { it == value })
+                            answers = ArrayList(answers.filterIndexed { j, _ -> j != i })
                         }) { Text("Quitar") }
+                        else if (correct) {
+                            val canonical = exercise.solutions.find { it.id == acceptedId }?.text
+                            if (canonical != null && StudyExerciseRules.normalize(canonical) !=
+                                StudyExerciseRules.normalize(value)) {
+                                Text("✓ ${canonical}", color = TestarioGreen)
+                            }
+                        }
                     }
                 }
                 if (!completed) {
@@ -200,16 +220,28 @@ fun StudyExercisePracticeScreen(
                         color = TestarioGreen, style = MaterialTheme.typography.titleLarge)
                     Text("Aciertos: ${result.correct} · Errores: ${result.incorrect} · Omitidas: ${result.omitted}",
                         color = TestarioText)
-                    Text("Soluciones correctas", color = TestarioPrimary)
-                    exercise.solutions.forEach { solution ->
-                        Text("• ${solution.text}", color = if (solution.id in result.correctIds)
-                            TestarioGreen else TestarioText)
+                    val missing = exercise.solutions.filterNot { it.id in result.correctIds }
+                    if (missing.isNotEmpty()) {
+                        Text("Faltaban", color = TestarioPrimary)
+                        missing.forEach { solution ->
+                            Text("✓ ${solution.text}", color = TestarioGreen)
+                        }
                     }
                 }
-                OutlinedButton(
-                    onClick = { index = (index + 1) % written.size; error = null },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Siguiente ejercicio") }
+                if (completed) {
+                    if (index < written.lastIndex) {
+                        OutlinedButton(onClick = { index++; error = null },
+                            modifier = Modifier.fillMaxWidth()) { Text("Siguiente ejercicio") }
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { retryCycle++; error = null },
+                                modifier = Modifier.weight(1f)) { Text("Repetir") }
+                            Button(onClick = onBack, modifier = Modifier.weight(1f)) {
+                                Text("Terminar")
+                            }
+                        }
+                    }
+                }
             } else {
                 if (cards.isEmpty()) {
                     Text("Este tema no tiene tarjetas publicadas.", color = TestarioMutedText)
@@ -220,14 +252,21 @@ fun StudyExercisePracticeScreen(
                 val isReverse = variant == "reverse"
                 val question = if (isReverse) card.back else card.front
                 val solution = if (isReverse) card.front else card.back
-                val gap = card.gaps.find { it.id == variant }
-                val maskedQuestion = if (gap != null &&
-                    gap.start >= 0 && gap.end <= question.length && gap.start < gap.end)
-                    question.replaceRange(gap.start, gap.end, "[________]")
-                    else question
+                val cursor = remember(tab, index, retryCycle, exercise.id) {
+                    database.ankiClozeCursors[exercise.id] ?: 0
+                }
+                val currentGroup = ClozeMarkupEngine.activeGroup(card.gaps, cursor)
+                val activeGaps = if (card.kind == FlashcardKind.CLOZE)
+                    ClozeMarkupEngine.activeGaps(card.gaps, cursor) else emptyList()
+                val maskedQuestion = if (card.kind == FlashcardKind.CLOZE)
+                    ClozeMarkupEngine.mask(question, card.gaps, cursor) else question
                 Text("Tarjeta ${index + 1} de ${cards.size}", color = TestarioMutedText)
                 Text(if (revealed) question else maskedQuestion,
                     color = TestarioText, style = MaterialTheme.typography.titleLarge)
+                if (card.kind == FlashcardKind.CLOZE && currentGroup != null) {
+                    Text("Turno ${currentGroup} · los fragmentos sin número se preguntan siempre",
+                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                }
                 val promptImage = if (isReverse) card.backImageUri else card.frontImageUri
                 promptImage?.let { path ->
                     if (card.kind == FlashcardKind.IMAGE_OCCLUSION) {
@@ -252,20 +291,25 @@ fun StudyExercisePracticeScreen(
                     )
                 }
                 if (!revealed) {
-                    Button(onClick = { revealed = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Mostrar respuesta")
-                    }
+                    Button(onClick = {
+                        revealed = true
+                        if (card.kind == FlashcardKind.CLOZE) {
+                            libraryViewModel.advanceClozeRound(exercise.id, cursor)
+                        }
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Mostrar respuesta") }
                 } else {
                     Divider(color = TestarioSurfaceLight)
                     Text("Respuesta", color = TestarioGreen)
                     val mask = card.masks.find { it.id == variant }
                     val gapAnswer = when {
-                        gap != null -> question.substring(gap.start, gap.end)
+                        card.kind == FlashcardKind.CLOZE -> activeGaps.joinToString(" · ") { gap ->
+                            question.substring(gap.start, gap.end)
+                        }
                         mask != null -> mask.answer.ifBlank { solution }
                         else -> solution
                     }
                     Text(gapAnswer, color = TestarioText, style = MaterialTheme.typography.titleMedium)
-                    if (gap != null && solution.isNotBlank())
+                    if (card.kind == FlashcardKind.CLOZE && solution.isNotBlank())
                         Text(solution, color = TestarioMutedText)
                     val answerImage = if (isReverse) card.frontImageUri else card.backImageUri
                     answerImage?.let { path ->
@@ -278,7 +322,7 @@ fun StudyExercisePracticeScreen(
                             else "No coincide literalmente; revisa la solución.",
                             color = TestarioMutedText)
                     }
-                    if (database.ankiReviewEnabled) {
+                    if (database.ankiReviewEnabled && scheduledReview) {
                         Text("Repaso programado", color = TestarioMutedText)
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             listOf(
@@ -288,22 +332,50 @@ fun StudyExercisePracticeScreen(
                                 ReviewRating.EASY to "Fácil"
                             ).forEach { (rating, label) ->
                                 OutlinedButton(onClick = {
-                                    val cardId = "${exercise.id}:$variant"
+                                    val cardId = if (card.kind == FlashcardKind.CLOZE)
+                                        "${exercise.id}:cloze:${currentGroup ?: 0}"
+                                        else "${exercise.id}:$variant"
                                     runCatching { libraryViewModel.recordAnkiReview(cardId, rating, attemptId) }
                                         .onFailure { error = it.message }
-                                        .onSuccess { if (it) index = (index + 1) % cards.size }
+                                        .onSuccess {
+                                            if (it) {
+                                                if (index < cards.lastIndex) index++
+                                                else onBack()
+                                            }
+                                        }
                                 }, modifier = Modifier.weight(1f)) { Text(label) }
                             }
                         }
                     }
-                    OutlinedButton(onClick = { index = (index + 1) % cards.size },
-                        modifier = Modifier.fillMaxWidth()) { Text("Siguiente tarjeta") }
+                    if (index < cards.lastIndex) {
+                        OutlinedButton(onClick = { index++ }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Siguiente tarjeta")
+                        }
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { retryCycle++ },
+                                modifier = Modifier.weight(1f)) { Text("Repetir") }
+                            Button(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Terminar") }
+                        }
+                    }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = database.ankiReviewEnabled, onCheckedChange = {
                         libraryViewModel.setAnkiReviewEnabled(it)
+                        if (!it) scheduledReview = false
                     })
-                    Text("Usar repetición espaciada", color = TestarioText)
+                    Text("Activar repetición espaciada", color = TestarioText)
+                }
+                if (database.ankiReviewEnabled) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = scheduledReview, onCheckedChange = {
+                            scheduledReview = it
+                        })
+                        Text("Esta sesión sí cuenta como repaso programado", color = TestarioText)
+                    }
+                } else {
+                    Text("Modo libre: no se modifican las fechas de repaso.",
+                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 }
             }
             if (error != null) Text(error.orEmpty(), color = TestarioRed)
