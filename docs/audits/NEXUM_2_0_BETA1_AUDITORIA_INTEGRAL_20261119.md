@@ -158,6 +158,12 @@
 
 **Acción:** guardado de borradores cada cambio con debounce y copia segura, confirmación de salida si hay cambios, recuperación por ID de sesión, bloqueo mientras se guarda y validación/no pérdida de texto y fotos ante cambio de orientación.
 
+### P1-16 · Verificación de descarga de actualizaciones tiene una salida permisiva
+
+**Evidencia:** `NexumUpdateManager.kt:201-219` usa `val expected = release.expectedSha256 ?: return true`: si GitHub no proporciona digest válido, la aplicación marca la descarga como verificada sin comprobar SHA-256. Android sigue exigiendo firma para actualizar el mismo paquete, pero **el mensaje de integridad no debería garantizar una comprobación no realizada**.
+
+**Acción:** exigir hash fiable en el canal automático, o mostrar «Sin hash publicado; instalación manual bajo responsabilidad» y verificar firma/paquete/versionCode cuando proceda. Probar digest ausente, equivocado, válido, archivo truncado y enlace ajeno.
+
 ### P2-01 · Interfaz visual no alineada con la Biblioteca existente
 
 **Evidencia:** capturas 1 y 4: botones grandes con borde brillante repetido, pantallas largas, falta estructura compacta; captura 3: tarjeta nueva con botones destacados rompiendo el patrón `⋮`. `QuestionEditorScreen` ya posee `EditorSectionCard`, radios de dificultad y espacios coherentes.
