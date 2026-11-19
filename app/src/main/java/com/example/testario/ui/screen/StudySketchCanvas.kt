@@ -31,7 +31,7 @@ internal fun StudySketchCanvas(
     markerStatuses: Map<String, Boolean> = emptyMap(),
     onDrawStroke: (SketchStroke) -> Unit = {},
     onEraseStroke: (String) -> Unit = {},
-    onMarkTap: (Double, Double) -> Unit = {}
+    onMarkTap: (Double, Double) -> Unit = { _, _ -> }
 ) {
     var inProgress by remember { mutableStateOf<List<SketchPoint>>(emptyList()) }
     val latestDraw by rememberUpdatedState(onDrawStroke)
