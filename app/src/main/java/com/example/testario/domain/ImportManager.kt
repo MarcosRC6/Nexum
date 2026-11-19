@@ -237,7 +237,9 @@ class ImportManager(private val context: Context, private val localStore: Testar
         commitPendingImages()
         val topicIdMap = imported.topics.associate { it.id to UUID.randomUUID().toString() }
         val regeneratedTopics = imported.topics.map { topic ->
-            regenerateTopicIds(topic, topicIdMap[topic.id] ?: UUID.randomUUID().toString())
+            resolveTopicImagePaths(regenerateTopicIds(
+                topic, topicIdMap[topic.id] ?: UUID.randomUUID().toString()
+            ))
         }
         val remappedGroups = imported.groups.map { group ->
             group.copy(topicIds = group.topicIds.mapNotNull(topicIdMap::get).distinct())
@@ -377,7 +379,9 @@ class ImportManager(private val context: Context, private val localStore: Testar
         }
 
         commitPendingImages()
-        val fresh = regenerateTopicIds(topic.copy(questions = uniqueQuestions, exercises = uniqueExercises))
+        val fresh = resolveTopicImagePaths(regenerateTopicIds(
+            topic.copy(questions = uniqueQuestions, exercises = uniqueExercises)
+        ))
         val destination: String
         val created: Boolean
         val merged: Boolean
