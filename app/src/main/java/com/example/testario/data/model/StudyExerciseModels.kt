@@ -32,7 +32,9 @@ data class ClozeGap(
     val id: String = UUID.randomUUID().toString(),
     val start: Int,
     val end: Int,
-    val hint: String? = null
+    val hint: String? = null,
+    /** null: hide on every viewing; positive number: hide on that numbered round. */
+    val groupNumber: Int? = null
 )
 
 @Serializable
