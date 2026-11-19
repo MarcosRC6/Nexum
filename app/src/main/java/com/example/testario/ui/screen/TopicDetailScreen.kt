@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.Question
 import com.example.testario.data.model.StudyExerciseKind
+import com.example.testario.data.model.StudyExercise
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioMutedText
@@ -64,6 +65,8 @@ import com.example.testario.ui.theme.TestarioYellow
 import com.example.testario.viewmodel.LibraryViewModel
 import com.example.testario.viewmodel.StatsViewModel
 import kotlinx.coroutines.delay
+
+private enum class LibraryTypeFilter { ALL, TEST, ENUMERATE, ANKI }
 
 @Composable
 fun TopicDetailScreen(
@@ -87,6 +90,7 @@ fun TopicDetailScreen(
     var filterFlagged by remember { mutableStateOf(false) }
     var selectedDifficultyFilter by remember { mutableStateOf<Int?>(null) }
     var filterMenuExpanded by remember { mutableStateOf(false) }
+    var typeFilter by remember(topicId) { mutableStateOf(LibraryTypeFilter.ALL) }
 
     var topicMenuExpanded by remember(topicId) { mutableStateOf(false) }
     var addMenuExpanded by remember(topicId) { mutableStateOf(false) }
@@ -180,6 +184,17 @@ fun TopicDetailScreen(
         }
     }
 
+    val visibleQuestions = if (typeFilter == LibraryTypeFilter.ALL ||
+        typeFilter == LibraryTypeFilter.TEST) filteredQuestions else emptyList()
+    val visibleExercises = filteredExercises.filter { ex ->
+        when (typeFilter) {
+            LibraryTypeFilter.ALL -> true
+            LibraryTypeFilter.TEST -> false
+            LibraryTypeFilter.ENUMERATE -> ex.kind == StudyExerciseKind.WRITTEN_MULTI
+            LibraryTypeFilter.ANKI -> ex.kind == StudyExerciseKind.ANKI_CARD
+        }
+    }
+
     val targetTopics = remember(database.topics, topicId) {
         database.topics
             .filterNot { it.id == topicId }
@@ -252,7 +267,7 @@ fun TopicDetailScreen(
                 .fillMaxSize()
         ) {
             TopicHeaderCard(
-                questionCount = topic.questions.size,
+                questionCount = topic.questions.size + topic.exercises.count { !it.draft },
                 failureCount = topic.questions.count { it.stats.inFailures },
                 answeredCount = topic.questions.sumOf { it.stats.timesAnswered }
             )
@@ -317,16 +332,6 @@ fun TopicDetailScreen(
                 }
             }
 
-            if (!selectionMode && topic.exercises.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("${topic.exercises.count { !it.draft }} ejercicios publicados · " +
-                        "${topic.exercises.count { it.draft }} borradores",
-                        color = TestarioMutedText, modifier = Modifier.weight(1f))
-                    OutlinedButton(onClick = onPracticeExercises) { Text("Practicar") }
-                }
-            }
-
             Spacer(modifier = Modifier.height(14.dp))
 
             Row(
@@ -365,7 +370,8 @@ fun TopicDetailScreen(
                         modifier = Modifier
                             .size(62.dp)
                             .then(
-                                if (filterFlagged || selectedDifficultyFilter != null || searchScope != QuestionSearchScope.ALL) {
+                                if (filterFlagged || selectedDifficultyFilter != null || searchScope != QuestionSearchScope.ALL ||
+                                    typeFilter != LibraryTypeFilter.ALL) {
                                     Modifier.padding(2.dp)
                                 } else {
                                     Modifier
@@ -377,7 +383,8 @@ fun TopicDetailScreen(
                             shape = RoundedCornerShape(18.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = if (
-                                    filterFlagged || selectedDifficultyFilter != null || searchScope != QuestionSearchScope.ALL
+                                    filterFlagged || selectedDifficultyFilter != null || searchScope != QuestionSearchScope.ALL ||
+                                    typeFilter != LibraryTypeFilter.ALL
                                 ) {
                                     TestarioPrimaryDark
                                 } else {
@@ -412,6 +419,22 @@ fun TopicDetailScreen(
                             style = MaterialTheme.typography.labelMedium,
                             color = TestarioMutedText
                         )
+                        Text("Tipo de ejercicio",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.labelMedium, color = TestarioMutedText)
+                        listOf(
+                            LibraryTypeFilter.ALL to "Todos",
+                            LibraryTypeFilter.TEST to "Test",
+                            LibraryTypeFilter.ENUMERATE to "Enumerar",
+                            LibraryTypeFilter.ANKI to "Tarjetas"
+                        ).forEach { (filter, name) ->
+                            DropdownMenuItem(
+                                text = { Text(name) },
+                                leadingIcon = { RadioButton(selected = typeFilter == filter, onClick = null) },
+                                onClick = { typeFilter = filter; filterMenuExpanded = false }
+                            )
+                        }
+                        Divider(color = TestarioSurfaceLight)
                         Text(
                             "Buscar en",
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -479,14 +502,15 @@ fun TopicDetailScreen(
                 }
             }
 
-            if (searchText.isNotBlank() || filterFlagged || selectedDifficultyFilter != null || searchScope != QuestionSearchScope.ALL) {
+            if (searchText.isNotBlank() || filterFlagged || selectedDifficultyFilter != null ||
+                searchScope != QuestionSearchScope.ALL || typeFilter != LibraryTypeFilter.ALL) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = if (searchText.isNotBlank() && debouncedSearchText != searchText) {
                             "Buscando…"
                         } else {
-                            "${filteredQuestions.size} resultados"
+                            "${visibleQuestions.size + visibleExercises.size} resultados"
                         },
                         color = TestarioMutedText,
                         style = MaterialTheme.typography.bodySmall,
@@ -498,6 +522,7 @@ fun TopicDetailScreen(
                             filterFlagged = false
                             selectedDifficultyFilter = null
                             searchScope = QuestionSearchScope.ALL
+                            typeFilter = LibraryTypeFilter.ALL
                         }
                     ) {
                         Text("Limpiar filtros", style = MaterialTheme.typography.bodySmall)
@@ -509,7 +534,7 @@ fun TopicDetailScreen(
 
             if (topic.questions.isEmpty() && topic.exercises.isEmpty()) {
                 EmptyTopicContent()
-            } else if (filteredQuestions.isEmpty() && filteredExercises.isEmpty()) {
+            } else if (visibleQuestions.isEmpty() && visibleExercises.isEmpty()) {
                 EmptySearchContent()
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -519,33 +544,21 @@ fun TopicDetailScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         if (!selectionMode) {
-                            items(items = filteredExercises, key = { "exercise-" + it.id }) { exercise ->
-                                Card(
-                                    colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-                                    shape = RoundedCornerShape(14.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Column(Modifier.padding(14.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text(if (exercise.draft) "Borrador" else
-                                            if (exercise.flashcard != null) "Tarjeta Anki · ${exercise.flashcard.kind}"
-                                            else "Respuesta múltiple escrita",
-                                            color = TestarioPrimary)
-                                        Text(exercise.prompt, color = TestarioText,
-                                            style = MaterialTheme.typography.titleMedium)
-                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                            OutlinedButton(onClick = { onEditExercise(exercise.id) }) {
-                                                Text("Editar")
-                                            }
-                                            if (!exercise.draft) OutlinedButton(onClick = onPracticeExercises) {
-                                                Text("Practicar")
-                                            }
-                                        }
-                                    }
-                                }
+                            items(items = visibleExercises, key = { "exercise-" + it.id }) { exercise ->
+                                StudyExerciseCard(
+                                    exercise = exercise,
+                                    onEdit = { onEditExercise(exercise.id) },
+                                    onDuplicate = {
+                                        libraryViewModel.duplicateStudyExercise(topicId, exercise.id)
+                                    },
+                                    onDeleteConfirmed = {
+                                        libraryViewModel.deleteStudyExercise(topicId, exercise.id)
+                                    },
+                                    onPractice = onPracticeExercises
+                                )
                             }
                         }
-                        items(items = filteredQuestions, key = { it.id }) { question ->
+                        items(items = visibleQuestions, key = { it.id }) { question ->
                             QuestionCard(
                                 question = question,
                                 selectionMode = selectionMode,
@@ -912,6 +925,71 @@ private fun EmptySearchContent() {
             color = TestarioMutedText
         )
     }
+}
+
+@Composable
+private fun StudyExerciseCard(
+    exercise: StudyExercise,
+    onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
+    onDeleteConfirmed: () -> Unit,
+    onPractice: () -> Unit
+) {
+    var expanded by remember(exercise.id) { mutableStateOf(false) }
+    var deleteConfirm by remember(exercise.id) { mutableStateOf(false) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = TestarioSurface)
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f)) {
+                    Text(exercise.prompt, color = TestarioText,
+                        style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(8.dp))
+                    Text(when (exercise.kind) {
+                        StudyExerciseKind.WRITTEN_MULTI -> "Enumerar · ${exercise.solutions.size} respuestas"
+                        StudyExerciseKind.ANKI_CARD -> "Tarjeta"
+                    } + if (exercise.draft) " · Borrador" else "",
+                        color = TestarioMutedText)
+                }
+                Box {
+                    IconButton(onClick = { expanded = true }) {
+                        Text("⋮", color = TestarioText,
+                            style = MaterialTheme.typography.titleLarge)
+                    }
+                    DropdownMenu(expanded = expanded,
+                        onDismissRequest = { expanded = false }) {
+                        DropdownMenuItem(text = { Text("Editar") }, onClick = {
+                            expanded = false; onEdit()
+                        })
+                        DropdownMenuItem(text = { Text("Duplicar") }, onClick = {
+                            expanded = false; onDuplicate()
+                        })
+                        if (!exercise.draft) DropdownMenuItem(
+                            text = { Text("Practicar") },
+                            onClick = { expanded = false; onPractice() }
+                        )
+                        DropdownMenuItem(text = { Text("Eliminar") }, onClick = {
+                            expanded = false; deleteConfirm = true
+                        })
+                    }
+                }
+            }
+        }
+    }
+    if (deleteConfirm) AlertDialog(
+        onDismissRequest = { deleteConfirm = false },
+        title = { Text("Eliminar ejercicio") },
+        text = { Text("¿Seguro que quieres eliminarlo? Se conservarán las imágenes que puedan usar otros ejercicios.") },
+        confirmButton = {
+            Button(onClick = { onDeleteConfirmed(); deleteConfirm = false }) { Text("Eliminar") }
+        },
+        dismissButton = {
+            TextButton(onClick = { deleteConfirm = false }) { Text("Cancelar") }
+        }
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
