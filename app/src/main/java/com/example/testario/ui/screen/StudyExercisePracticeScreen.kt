@@ -96,22 +96,44 @@ fun StudyExercisePracticeScreen(
                 Text("Ejercicio ${index + 1} de ${written.size}", color = TestarioMutedText)
                 Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
                 exercise.diagram?.let { diagram ->
-                    Box(Modifier.fillMaxWidth().height(140.dp)
+                    BoxWithConstraints(Modifier.fillMaxWidth().height(140.dp)
                         .background(TestarioSurface, RoundedCornerShape(12.dp))) {
                         Canvas(Modifier.fillMaxSize()) {
-                            drawLine(schematicLineColor,
-                                start = Offset(size.width * diagram.startX.toFloat(),
-                                    size.height * diagram.startY.toFloat()),
-                                end = Offset(size.width * diagram.endX.toFloat(),
-                                    size.height * diagram.endY.toFloat()),
-                                strokeWidth = 8f
-                            )
+                            val start = Offset(size.width * diagram.startX.toFloat(),
+                                size.height * diagram.startY.toFloat())
+                            val end = Offset(size.width * diagram.endX.toFloat(),
+                                size.height * diagram.endY.toFloat())
+                            drawLine(schematicLineColor, start = start, end = end, strokeWidth = 8f)
+                            if (diagram.directionArrow) {
+                                val dx = end.x - start.x
+                                val dy = end.y - start.y
+                                val length = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
+                                val ux = dx / length
+                                val uy = dy / length
+                                val at = Offset(start.x + dx * .80f, start.y + dy * .80f)
+                                drawLine(schematicLineColor, at,
+                                    Offset(at.x - ux * 20f + uy * 12f, at.y - uy * 20f - ux * 12f),
+                                    strokeWidth = 5f)
+                                drawLine(schematicLineColor, at,
+                                    Offset(at.x - ux * 20f - uy * 12f, at.y - uy * 20f + ux * 12f),
+                                    strokeWidth = 5f)
+                            }
+                        }
+                        if (completed) exercise.solutions.flatMap { it.points }.forEach { point ->
+                            Text(point.order.toString(), modifier = Modifier.offset(
+                                x = maxWidth * point.x.toFloat() - 8.dp,
+                                y = maxHeight * point.y.toFloat() - 12.dp),
+                                color = TestarioGreen)
                         }
                     }
                 }
                 exercise.baseImageUri?.let { path ->
-                    AsyncImage(model = imageModel(path), contentDescription = "Imagen del enunciado",
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp), contentScale = ContentScale.Fit)
+                    StudyVisualImage(
+                        imageUri = path,
+                        modifier = Modifier.fillMaxWidth().height(240.dp),
+                        markers = exercise.solutions.flatMap { it.points },
+                        showCorrection = completed
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     OutlinedTextField(
@@ -207,15 +229,20 @@ fun StudyExercisePracticeScreen(
                 Text(if (revealed) question else maskedQuestion,
                     color = TestarioText, style = MaterialTheme.typography.titleLarge)
                 val promptImage = if (isReverse) card.backImageUri else card.frontImageUri
-                // Image occlusion cannot reveal a hidden answer until masks are rendered safely.
-                if (card.kind == FlashcardKind.IMAGE_OCCLUSION) {
-                    Text("La ocultación de imagen requiere el visor de máscaras. No se muestran soluciones sin él.",
-                        color = TestarioRed)
-                    return@Column
-                }
                 promptImage?.let { path ->
-                    AsyncImage(model = imageModel(path), contentDescription = "Imagen de la pregunta",
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp), contentScale = ContentScale.Fit)
+                    if (card.kind == FlashcardKind.IMAGE_OCCLUSION) {
+                        // Hide every other mask even after revealing the selected one.
+                        val covered = if (!revealed) card.masks else card.masks.filterNot { it.id == variant }
+                        StudyVisualImage(
+                            imageUri = path,
+                            modifier = Modifier.fillMaxWidth().height(240.dp),
+                            masks = covered,
+                            showCorrection = false
+                        )
+                    } else {
+                        AsyncImage(model = imageModel(path), contentDescription = "Imagen de la pregunta",
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp), contentScale = ContentScale.Fit)
+                    }
                 }
                 if (card.kind == FlashcardKind.TYPE_ANSWER) {
                     OutlinedTextField(
@@ -231,7 +258,12 @@ fun StudyExercisePracticeScreen(
                 } else {
                     Divider(color = TestarioSurfaceLight)
                     Text("Respuesta", color = TestarioGreen)
-                    val gapAnswer = if (gap != null) question.substring(gap.start, gap.end) else solution
+                    val mask = card.masks.find { it.id == variant }
+                    val gapAnswer = when {
+                        gap != null -> question.substring(gap.start, gap.end)
+                        mask != null -> mask.answer.ifBlank { solution }
+                        else -> solution
+                    }
                     Text(gapAnswer, color = TestarioText, style = MaterialTheme.typography.titleMedium)
                     if (gap != null && solution.isNotBlank())
                         Text(solution, color = TestarioMutedText)
