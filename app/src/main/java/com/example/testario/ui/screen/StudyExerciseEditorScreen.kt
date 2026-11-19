@@ -148,13 +148,33 @@ fun StudyExerciseEditorScreen(
                 if (draft) ClozeMarkupEngine.Parsed(front.text, emptyList()) else throw failure
             }
         } else ClozeMarkupEngine.Parsed(front.text, gaps)
+        // Preserve stable gap IDs and hints while editing existing beta cards.
+        // First match unchanged position/text, then unique moved span with same group.
+        val oldCard = original?.flashcard
+        val originalGaps = oldCard?.gaps.orEmpty()
+        val keptGapIds = hashSetOf<String>()
+        val stableGaps = markup.gaps.map { gap ->
+            val value = markup.text.substring(gap.start, gap.end)
+            fun sameText(old: ClozeGap): Boolean =
+                old.start >= 0 && old.end <= (oldCard?.front?.length ?: 0) &&
+                    old.start < old.end &&
+                    oldCard?.front?.substring(old.start, old.end) == value &&
+                    old.groupNumber == gap.groupNumber && old.id !in keptGapIds
+            val matched = originalGaps.firstOrNull { old ->
+                sameText(old) && old.start == gap.start && old.end == gap.end
+            } ?: originalGaps.firstOrNull(::sameText)
+            if (matched != null) {
+                keptGapIds += matched.id
+                gap.copy(id = matched.id, hint = matched.hint)
+            } else gap
+        }
         val effectiveKind = if (flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)) {
             if (markup.gaps.isEmpty()) FlashcardKind.BASIC else FlashcardKind.CLOZE
         } else flashKind
         val card = if (exerciseKind == StudyExerciseKind.ANKI_CARD) FlashcardContent(
             kind = effectiveKind, front = markup.text, back = back,
             frontImageUri = frontImageUri, backImageUri = backImageUri,
-            gaps = markup.gaps, masks = masks,
+            gaps = stableGaps, masks = masks,
             acceptedAnswers = aliasesText.split(",").map(String::trim).filter(String::isNotBlank)
         ) else null
         return StudyExercise(
@@ -435,7 +455,11 @@ fun StudyExerciseEditorScreen(
                 }
                 OutlinedTextField(
                     value = back, onValueChange = { back = it },
-                    label = { Text(if (flashKind == FlashcardKind.CLOZE) "Explicación adicional (opcional)" else "Respuesta") },
+                    label = { Text(if (flashKind == FlashcardKind.CLOZE ||
+                        (flashKind == FlashcardKind.BASIC &&
+                            runCatching { ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty() }
+                                .getOrDefault(false))) "Explicación (opcional)"
+                        else "Respuesta") },
                     modifier = Modifier.fillMaxWidth(), minLines = 2
                 )
                 if (flashKind == FlashcardKind.TYPE_ANSWER) {
@@ -497,6 +521,15 @@ fun StudyExerciseEditorScreen(
                     candidate.onSuccess { ex ->
                         if (ex.kind == StudyExerciseKind.WRITTEN_MULTI) {
                             Text(ex.prompt, color = TestarioText)
+                            ex.sketch?.let { drawing ->
+                                StudySketchCanvas(
+                                    sketch = drawing,
+                                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                                    markers = ex.solutions.flatMap { it.points },
+                                    mode = SketchMode.PREVIEW,
+                                    showMarkers = previewRevealed
+                                )
+                            }
                             ex.baseImageUri?.let { image ->
                                 StudyVisualImage(image, modifier = Modifier.fillMaxWidth().height(220.dp),
                                     markers = ex.solutions.flatMap { it.points },
