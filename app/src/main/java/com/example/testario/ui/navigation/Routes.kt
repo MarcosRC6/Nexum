@@ -5,6 +5,8 @@ object Routes {
     const val LIBRARY = "library"
     const val TOPIC_DETAIL = "topic/{topicId}"
     const val QUESTION_EDITOR = "question/{topicId}?questionId={questionId}"
+    const val STUDY_EXERCISE_EDITOR = "studyExercise/{topicId}?exerciseId={exerciseId}"
+    const val STUDY_EXERCISE_PRACTICE = "studyPractice/{topicId}"
     const val TEST_CONFIG = "testConfig?preselectedTopicId={preselectedTopicId}&templateId={templateId}"
     const val GROUPS = "groups"
     const val TEST_SCREEN = "testScreen"
@@ -23,6 +25,11 @@ object Routes {
             "question/$topicId?questionId=$questionId"
         }
     }
+
+    fun studyExerciseEditor(topicId: String, exerciseId: String? = null): String =
+        if (exerciseId == null) "studyExercise/$topicId" else "studyExercise/$topicId?exerciseId=$exerciseId"
+
+    fun studyExercisePractice(topicId: String): String = "studyPractice/$topicId"
 
     fun testConfig(preselectedTopicId: String? = null, templateId: String? = null): String {
         val params = buildList {
