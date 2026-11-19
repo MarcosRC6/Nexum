@@ -46,12 +46,15 @@ object StudyExerciseRules {
         val tail = if (kind != null && words.size > 1) words.drop(1) else words
         if (kind != null && tail.isNotEmpty()) {
             val rest = tail.joinToString(" ")
-            result += "$kind $rest"
+            val spellings = roadType.filterValues { it == kind }.keys
+            spellings.forEach { prefix -> result += "$prefix $rest" }
             if (rest.isNotBlank()) result += rest
             val simplified = tail.dropWhile { it in setOf("de", "del", "la", "el", "los", "las") }
             if (simplified.isNotEmpty()) {
                 result += simplified.joinToString(" ")
-                result += "$kind ${simplified.joinToString(" ")}"
+                spellings.forEach { prefix ->
+                    result += "$prefix ${simplified.joinToString(" ")}"
+                }
             }
         }
         // A one-word distinctive surname/ending may stand for the full name,
