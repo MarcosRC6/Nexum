@@ -36,16 +36,19 @@ private fun imageModel(path: String): Any = if (path.startsWith("/")) File(path)
 /** Standalone Training for new exercises, without affecting existing Test sessions. */
 @Composable
 fun StudyExercisePracticeScreen(
-    topicId: String, libraryViewModel: LibraryViewModel, onBack: () -> Unit
+    topicId: String, libraryViewModel: LibraryViewModel, onBack: () -> Unit,
+    selectedExerciseId: String? = null
 ) {
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.find { it.id == topicId }
     val written = topic?.exercises.orEmpty().filter {
-        it.kind == StudyExerciseKind.WRITTEN_MULTI && !it.draft
+        it.kind == StudyExerciseKind.WRITTEN_MULTI && !it.draft &&
+            (selectedExerciseId == null || it.id == selectedExerciseId)
     }
     // One note may generate several independently scheduled cards.
     val cards = topic?.exercises.orEmpty().filter {
-        it.kind == StudyExerciseKind.ANKI_CARD && !it.draft
+        it.kind == StudyExerciseKind.ANKI_CARD && !it.draft &&
+            (selectedExerciseId == null || it.id == selectedExerciseId)
     }.flatMap { ex ->
         val card = ex.flashcard
         when (card?.kind) {
@@ -55,7 +58,9 @@ fun StudyExercisePracticeScreen(
             else -> listOf(ex to "direct")
         }
     }
-    var tab by rememberSaveable { mutableStateOf(0) }
+    var tab by rememberSaveable(selectedExerciseId) {
+        mutableStateOf(if (selectedExerciseId != null && cards.isNotEmpty() && written.isEmpty()) 1 else 0)
+    }
     var index by rememberSaveable(tab) { mutableIntStateOf(0) }
     var retryCycle by rememberSaveable(tab) { mutableIntStateOf(0) }
     var entry by rememberSaveable(tab, index, retryCycle) { mutableStateOf("") }
