@@ -113,6 +113,13 @@
 - Mantener formatos antiguos de Testario/NEXUM legibles por la nueva versión y evitar que un lector antiguo acepte silenciosamente ejercicios que no sabe interpretar. Un ZIP con múltiples temas debe mostrar recuentos por tema/ejercicio y jamás declarar éxito parcial como completo.
 - **Estado:** especificación escrita, NO implementada, aún sujeta a cerrar decisiones funcionales de grupos y sincronización antes del desarrollo.
 
+## Acuerdos de importación y siguiente diseño de tarjetas (19/11/2026)
+
+- **Decisión adoptada:** NEXUM **exportará exclusivamente ZIP** (temas, biblioteca y copias de seguridad), pero **importará ZIP y JSON automáticamente** según contenido, sin un selector de tipo de archivo. Se conserva la lectura heredada de TXT/CSV cuando aplique; las imágenes y los marcadores se comparten en ZIP para no perder assets.
+- Se actualiza el documento [NEXUM_PAQUETES_EJERCICIOS_IMPORTACION_V1_20261119.md](NEXUM_PAQUETES_EJERCICIOS_IMPORTACION_V1_20261119.md) con esa decisión.
+- El siguiente paso funcional es revisar la **propuesta del editor de tarjetas tipo Anki y su programación opcional** en [NEXUM_TARJETAS_ANKI_REPASO_20261119.md](NEXUM_TARJETAS_ANKI_REPASO_20261119.md). Incluye editor anverso/reverso, estudio libre, «Otra vez / Difícil / Bien / Fácil», intervalos configurables y reglas para no confundir la autoevaluación con la nota objetiva de exámenes mixtos.
+- **Importante:** el diseño de tarjetas está propuesto **para revisión, no aprobado en todos sus detalles**. No se han realizado cambios funcionales en Android.
+
 ## Seguridad y consistencia antes de programar
 - Diseñar esquema versionado/migraciones de nuevos ejercicios y respaldos, exportación/importación y deduplicación semántica por tipo de ejercicio; no alterar el esquema actual por improvisación.
 - Validar alias vacíos/repetidos/ambiguos, puntuación con respuestas múltiples, cancelaciones, guardar progreso, corrección en Entrenamiento vs Examen, accesibilidad de teclado Enter, tamaños de pantalla, imágenes perdidas/desplazadas, marcadores fuera del 0..1, backups antiguos y restauraciones.
