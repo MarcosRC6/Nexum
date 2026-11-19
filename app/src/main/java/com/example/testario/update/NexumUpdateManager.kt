@@ -211,7 +211,12 @@ object NexumUpdateManager {
         withContext(Dispatchers.IO) {
             val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             val uri = manager.getUriForDownloadedFile(id) ?: return@withContext false
-            val expected = release.expectedSha256 ?: return@withContext true
+            // A missing or malformed published digest is NOT proof of integrity.
+            // GitHub release assets currently publish valid sha256 digests;
+            // refuse installation rather than silently approving an unverified APK.
+            val expected = release.expectedSha256
+                ?.takeIf(::isValidExpectedSha256)
+                ?: return@withContext false
             val actual = MessageDigest.getInstance("SHA-256")
             context.contentResolver.openInputStream(uri)?.use { stream ->
                 val buffer = ByteArray(8192)
@@ -247,6 +252,10 @@ object NexumUpdateManager {
         return true
     }
 }
+
+/** A missing or invalid SHA-256 digest must never authorize an APK installation. */
+internal fun isValidExpectedSha256(digest: String): Boolean =
+    digest.matches(Regex("[a-f0-9]{64}"))
 
 /** Semantic app versions: stable 2.0 supersedes 2.0-beta.2; beta.3 > beta.2. */
 internal fun isNewerVersion(remote: String, installed: String): Boolean {
