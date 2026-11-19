@@ -90,6 +90,8 @@ fun StudyExerciseEditorScreen(
         )
     }
 
+    val schematicLineColor = TestarioPrimary
+
     Scaffold(
         containerColor = TestarioBackground,
         topBar = { TestarioTopBar("Editor de ejercicios", onBack = onBack) }
@@ -185,7 +187,7 @@ fun StudyExerciseEditorScreen(
                                     val id = selectedSolutionId ?: return@detectTapGestures
                                     val x = (offset.x / size.width).toDouble().coerceIn(0.0, 1.0)
                                     val y = (offset.y / size.height).toDouble().coerceIn(0.0, 1.0)
-                                    val number = solutions.sumOf { it.points.size } + 1
+                                    val number = (solutions.flatMap { it.points }.maxOfOrNull { it.order } ?: 0) + 1
                                     solutions = solutions.map { s ->
                                         if (s.id == id) s.copy(points = s.points + ImagePoint(x = x, y = y, order = number))
                                         else s
@@ -194,7 +196,7 @@ fun StudyExerciseEditorScreen(
                             }
                     ) {
                         Canvas(Modifier.fillMaxSize()) {
-                            drawLine(TestarioPrimary,
+                            drawLine(schematicLineColor,
                                 Offset(size.width * 0.1f, size.height * 0.5f),
                                 Offset(size.width * 0.9f, size.height * 0.5f), strokeWidth = 8f)
                         }
