@@ -43,8 +43,10 @@ sealed interface NexumDownloadStatus {
 /** GitHub Releases is our single official update source; there is no third-party APK mirror. */
 object NexumUpdateManager {
     const val RELEASES_URL = "https://github.com/MarcosRC6/Nexum/releases"
-    private const val API_URL = "https://api.github.com/repos/MarcosRC6/Nexum/releases/latest"
-    private const val PREFS = "nexum_update_status_v1"
+    private const val STABLE_API_URL = "https://api.github.com/repos/MarcosRC6/Nexum/releases/latest"
+    private const val BETA_API_URL = "https://api.github.com/repos/MarcosRC6/Nexum/releases?per_page=30"
+    private val betaBuild: Boolean get() = BuildConfig.VERSION_NAME.matches(Regex("""\d+\.\d+(?:\.\d+)?-beta\.\d+"""))
+    private const val PREFS = "nexum_update_status_v2"
     private const val CACHE_KEY = "release_json"
     private const val CHECKED_KEY = "last_checked"
     private const val CHECK_EVERY_MS = 12L * 60L * 60L * 1000L
@@ -55,10 +57,10 @@ object NexumUpdateManager {
             val now = System.currentTimeMillis()
             val cached = prefs.getString(CACHE_KEY, null)
             if (!force && now - prefs.getLong(CHECKED_KEY, 0) in 0 until CHECK_EVERY_MS && cached != null) {
-                return@withContext parseRelease(cached)
+                return@withContext if (betaBuild) parseBetaReleases(cached) else parseRelease(cached)
             }
             try {
-                val connection = URL(API_URL).openConnection() as HttpURLConnection
+                val connection = URL(if (betaBuild) BETA_API_URL else STABLE_API_URL).openConnection() as HttpURLConnection
                 try {
                     connection.requestMethod = "GET"
                     connection.connectTimeout = 7000
@@ -79,7 +81,7 @@ object NexumUpdateManager {
                         // Avoid holding arbitrarily large responses in memory.
                         reader.readText().take(512_000)
                     }
-                    val result = parseRelease(body)
+                    val result = if (betaBuild) parseBetaReleases(body) else parseRelease(body)
                     if (result !is NexumUpdateResult.Error) {
                         prefs.edit().putLong(CHECKED_KEY, now).putString(CACHE_KEY, body).apply()
                     }
@@ -134,6 +136,46 @@ object NexumUpdateManager {
         } catch (_: Exception) {
             NexumUpdateResult.Error("La respuesta de GitHub no pudo interpretarse.")
         }
+    }
+
+    /**
+     * Beta builds opt in to prereleases. Stable builds NEVER call this parser:
+     * they still read GitHub's stable /releases/latest endpoint.
+     * We compare semantic versions, not publication timestamps.
+     */
+    fun parseBetaReleases(body: String): NexumUpdateResult = try {
+        val releases = org.json.JSONArray(body)
+        var selected: NexumRelease? = null
+        for (i in 0 until releases.length()) {
+            val root = releases.optJSONObject(i) ?: continue
+            if (root.optBoolean("draft", false)) continue
+            val tag = root.optString("tag_name").trim()
+            val version = tag.removePrefix("v")
+            if (!isNewerVersion(version, BuildConfig.VERSION_NAME)) continue
+            val assets = root.optJSONArray("assets") ?: continue
+            for (j in 0 until assets.length()) {
+                val asset = assets.optJSONObject(j) ?: continue
+                val name = asset.optString("name")
+                val url = asset.optString("browser_download_url")
+                if (name != "NEXUM-$tag.apk" ||
+                    url != "https://github.com/MarcosRC6/Nexum/releases/download/$tag/$name" ||
+                    asset.optString("state") != "uploaded") continue
+                val digest = asset.optString("digest").removePrefix("sha256:")
+                    .lowercase(Locale.ROOT)
+                val candidate = NexumRelease(
+                    version = version, tag = tag,
+                    notes = root.optString("body").take(1800),
+                    apkUrl = url, apkName = name,
+                    expectedSha256 = digest.takeIf { it.matches(Regex("[a-f0-9]{64}")) }
+                )
+                if (selected == null || isNewerVersion(candidate.version, selected.version))
+                    selected = candidate
+            }
+        }
+        if (selected == null) NexumUpdateResult.UpToDate
+        else NexumUpdateResult.Available(selected)
+    } catch (_: Exception) {
+        NexumUpdateResult.Error("No se pudo interpretar la lista de actualizaciones beta.")
     }
 
     fun startDownload(context: Context, release: NexumRelease): Long {
@@ -206,13 +248,19 @@ object NexumUpdateManager {
     }
 }
 
-/** Semantic numeric version comparison (not lexicographic: 1.10 > 1.9). */
+/** Semantic app versions: stable 2.0 supersedes 2.0-beta.2; beta.3 > beta.2. */
 internal fun isNewerVersion(remote: String, installed: String): Boolean {
-    val a = remote.removePrefix("v").split('.').map { it.toIntOrNull() ?: return false }
-    val b = installed.removePrefix("v").split('.').map { it.toIntOrNull() ?: return false }
-    for (index in 0 until maxOf(a.size, b.size)) {
-        val diff = (a.getOrElse(index) { 0 }).compareTo(b.getOrElse(index) { 0 })
-        if (diff != 0) return diff > 0
+    val pattern = Regex("""^(\d+)\.(\d+)(?:\.(\d+))?(?:-beta\.(\d+))?$""")
+    val remoteMatch = pattern.matchEntire(remote.removePrefix("v")) ?: return false
+    val currentMatch = pattern.matchEntire(installed.removePrefix("v")) ?: return false
+    val a = (1..3).map { remoteMatch.groupValues[it].toIntOrNull() ?: 0 }
+    val b = (1..3).map { currentMatch.groupValues[it].toIntOrNull() ?: 0 }
+    for (i in a.indices) if (a[i] != b[i]) return a[i] > b[i]
+    val remoteBeta = remoteMatch.groupValues[4].toIntOrNull()
+    val currentBeta = currentMatch.groupValues[4].toIntOrNull()
+    return when {
+        remoteBeta == null -> currentBeta != null
+        currentBeta == null -> false
+        else -> remoteBeta > currentBeta
     }
-    return false
 }
