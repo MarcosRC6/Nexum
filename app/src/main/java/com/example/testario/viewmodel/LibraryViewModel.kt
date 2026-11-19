@@ -5,6 +5,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.testario.data.local.TestarioLocalStore
 import com.example.testario.data.model.Question
+import com.example.testario.data.model.StudyExercise
+import com.example.testario.data.model.ReviewRating
+import com.example.testario.data.repository.StudyExerciseRepository
+import com.example.testario.domain.StudyImageStore
+import com.example.testario.domain.AnkiReviewEngine
+import java.util.UUID
 import com.example.testario.data.model.TestTemplate
 import com.example.testario.data.repository.OrganizationRepository
 import com.example.testario.data.repository.QuestionRepository
@@ -23,6 +29,8 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     private val imageManager = ImageManager(application)
     private val topicRepo = TopicRepository(localStore, imageManager)
     private val questionRepo = QuestionRepository(localStore, imageManager)
+    private val exerciseRepo = StudyExerciseRepository(localStore)
+    private val exerciseImages = StudyImageStore(application)
     private val organizationRepo = OrganizationRepository(localStore)
 
     val database = localStore.database.stateIn(viewModelScope, SharingStarted.Eagerly, localStore.database.value)
@@ -60,6 +68,44 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 correctionImageUri = safeCorrectionImageUri
             )
         )
+    }
+
+    /** Keeps old questions unchanged. Media is verified before writing the database. */
+    fun saveStudyExercise(topicId: String, exercise: StudyExercise, expectedRevision: Int? = null): Boolean {
+        val stored = exercise.copy(
+            baseImageUri = exerciseImages.persist(exercise.baseImageUri),
+            flashcard = exercise.flashcard?.let { card ->
+                card.copy(
+                    frontImageUri = exerciseImages.persist(card.frontImageUri),
+                    backImageUri = exerciseImages.persist(card.backImageUri)
+                )
+            }
+        )
+        return exerciseRepo.save(topicId, stored, expectedRevision)
+    }
+
+    fun deleteStudyExercise(topicId: String, exerciseId: String): Boolean =
+        exerciseRepo.delete(topicId, exerciseId)
+
+    fun setAnkiReviewEnabled(enabled: Boolean) {
+        val db = localStore.database.value
+        localStore.saveDatabase(db.copy(ankiReviewEnabled = enabled))
+    }
+
+    /** A review is only recorded on an explicit scheduled-review action. */
+    fun recordAnkiReview(cardId: String, rating: ReviewRating, eventId: String = UUID.randomUUID().toString()): Boolean {
+        val db = localStore.database.value
+        if (!db.ankiReviewEnabled) return false
+        val result = AnkiReviewEngine.apply(
+            db.ankiReviewStates, db.ankiReviewEvents, eventId, cardId, rating,
+            System.currentTimeMillis(), db.ankiScheduleSettings
+        )
+        if (!result.applied) return false
+        localStore.saveDatabase(db.copy(
+            ankiReviewStates = result.states,
+            ankiReviewEvents = result.history
+        ))
+        return true
     }
 
     fun toggleQuestionFlag(questionId: String): Boolean = questionRepo.toggleQuestionFlag(questionId)
