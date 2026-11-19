@@ -78,7 +78,7 @@ fun TopicDetailScreen(
     onEditQuestion: (String) -> Unit,
     onAddExercise: (StudyExerciseKind) -> Unit,
     onEditExercise: (String) -> Unit,
-    onPracticeExercises: () -> Unit,
+    onPracticeExercises: (String) -> Unit,
     onStartTest: (String) -> Unit
 ) {
     val database by libraryViewModel.database.collectAsState()
@@ -554,7 +554,7 @@ fun TopicDetailScreen(
                                     onDeleteConfirmed = {
                                         libraryViewModel.deleteStudyExercise(topicId, exercise.id)
                                     },
-                                    onPractice = onPracticeExercises
+                                    onPractice = { onPracticeExercises(exercise.id) }
                                 )
                             }
                         }
