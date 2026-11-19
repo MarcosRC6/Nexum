@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import java.util.UUID
 
 object DatabaseSchema {
-    const val CURRENT_VERSION = 4
+    const val CURRENT_VERSION = 5
 }
 
 @Serializable
