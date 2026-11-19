@@ -27,6 +27,7 @@ class ExportManager(private val context: Context, private val localStore: Testar
         val cleanTopics = topicsToExport.map { topic ->
             topic.copy(
                 isPinned = false,
+                exercises = topic.exercises.filterNot { it.draft },
                 questions = topic.questions.map { q ->
                     q.copy(stats = QuestionStats(), favorite = false)
                 }
