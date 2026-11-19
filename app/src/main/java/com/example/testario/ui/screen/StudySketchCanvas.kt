@@ -34,6 +34,9 @@ internal fun StudySketchCanvas(
     onMarkTap: (Double, Double) -> Unit = {}
 ) {
     var inProgress by remember { mutableStateOf<List<SketchPoint>>(emptyList()) }
+    val latestDraw by rememberUpdatedState(onDrawStroke)
+    val latestErase by rememberUpdatedState(onEraseStroke)
+    val latestMark by rememberUpdatedState(onMarkTap)
     val purple = TestarioPrimary
     val green = TestarioGreen
     val red = TestarioRed
@@ -49,12 +52,18 @@ internal fun StudySketchCanvas(
                 },
                 onDrag = { change, _ ->
                     change.consume()
-                    inProgress = inProgress + coordinates(
+                    val next = coordinates(
                         change.position.x, change.position.y, size.width, size.height)
+                    val previous = inProgress.lastOrNull()
+                    if (inProgress.size < 8000 && (previous == null ||
+                        (next.x - previous.x) * (next.x - previous.x) +
+                            (next.y - previous.y) * (next.y - previous.y) > 0.000003)) {
+                        inProgress = inProgress + next
+                    }
                 },
                 onDragEnd = {
                     val points = inProgress
-                    if (points.size >= 2) onDrawStroke(SketchStroke(points = points))
+                    if (points.size >= 2) latestDraw(SketchStroke(points = points))
                     inProgress = emptyList()
                 },
                 onDragCancel = { inProgress = emptyList() }
@@ -63,7 +72,7 @@ internal fun StudySketchCanvas(
         SketchMode.ERASE, SketchMode.MARK -> Modifier.pointerInput(mode, sketch, markers) {
             detectTapGestures { pos ->
                 val p = coordinates(pos.x, pos.y, size.width, size.height)
-                if (mode == SketchMode.MARK) onMarkTap(p.x, p.y)
+                if (mode == SketchMode.MARK) latestMark(p.x, p.y)
                 else {
                     val nearest = sketch.strokes.mapNotNull { stroke ->
                         stroke.points.minOfOrNull { a ->
@@ -73,7 +82,7 @@ internal fun StudySketchCanvas(
                         }?.let { stroke.id to it }
                     }.minByOrNull { it.second }
                     if (nearest != null && nearest.second < (32.dp.toPx() * 32.dp.toPx()))
-                        onEraseStroke(nearest.first)
+                        latestErase(nearest.first)
                 }
             }
         }
