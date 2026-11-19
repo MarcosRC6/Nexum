@@ -64,6 +64,7 @@ fun StudyExerciseEditorScreen(
     var sketchRedo by remember(exerciseId) { mutableStateOf<List<List<SketchStroke>>>(emptyList()) }
     var confirmClearSketch by remember(exerciseId) { mutableStateOf(false) }
     var pendingMarkerId by remember(exerciseId) { mutableStateOf<String?>(null) }
+    var expandedMarkersSolutionId by remember(exerciseId) { mutableStateOf<String?>(null) }
     var showOptionalAliases by remember(exerciseId) { mutableStateOf(false) }
     var front by remember(exerciseId) {
         mutableStateOf(TextFieldValue(
@@ -288,10 +289,24 @@ fun StudyExerciseEditorScreen(
                             )
                         }
                         if (solution.points.isNotEmpty()) {
-                            Text("${solution.points.size} puntos asociados", color = TestarioMutedText)
-                            TextButton(onClick = { solutions = solutions.map {
-                                if (it.id == solution.id) it.copy(points = it.points.dropLast(1)) else it
-                            } }) { Text("Deshacer último punto") }
+                            TextButton(onClick = {
+                                expandedMarkersSolutionId =
+                                    if (expandedMarkersSolutionId == solution.id) null else solution.id
+                            }) {
+                                Text("${solution.points.size} marcadores · " +
+                                    if (expandedMarkersSolutionId == solution.id) "Ocultar" else "Gestionar")
+                            }
+                            if (expandedMarkersSolutionId == solution.id) {
+                                solution.points.sortedBy { it.order }.forEach { marker ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text("Número ${marker.order}", modifier = Modifier.weight(1f),
+                                            color = TestarioText)
+                                        TextButton(onClick = { removeMarker(marker.id) }) {
+                                            Text("Eliminar")
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
