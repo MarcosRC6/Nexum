@@ -13,6 +13,7 @@ import com.example.testario.data.model.Question
 import com.example.testario.data.model.SimpleTopicJson
 import com.example.testario.data.model.TestarioDatabase
 import com.example.testario.data.model.Topic
+import com.example.testario.data.model.StudyExercise
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -29,7 +30,9 @@ data class ImportTopicOutcome(
     val merged: Boolean,
     val addedQuestions: Int,
     val duplicateQuestions: Int,
-    val destinationName: String
+    val destinationName: String,
+    val addedExercises: Int = 0,
+    val duplicateExercises: Int = 0
 )
 
 class ImportManager(private val context: Context, private val localStore: TestarioLocalStore) {
@@ -146,7 +149,8 @@ class ImportManager(private val context: Context, private val localStore: Testar
                     "El ZIP mezcla una base completa y temas JSON separados: usa un solo formato."
                 }
                 val source = requireNotNull(rawJson)
-                json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(source))
+                val database = json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(source))
+                validateStudyExercises(database.topics)
                 source
             } else {
                 require(individualTopicJson.isNotEmpty()) {
@@ -162,6 +166,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
                     }
                 }
                 require(topics.isNotEmpty()) { "El ZIP no contiene ningún tema válido." }
+                validateStudyExercises(topics)
                 json.encodeToString(TestarioDatabase(topics = topics))
             }
             pendingImageStage = stage
@@ -216,6 +221,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
     fun restoreBackup(rawJson: String) {
         val migratedJson = MigrationManager.migrate(rawJson)
         val backup = json.decodeFromString<TestarioDatabase>(migratedJson)
+        validateStudyExercises(backup.topics)
         commitPendingImages()
         localStore.saveDatabase(
             backup.copy(
@@ -226,7 +232,8 @@ class ImportManager(private val context: Context, private val localStore: Testar
     }
 
     fun importAllJson(rawJson: String) {
-        val imported = json.decodeFromString<TestarioDatabase>(rawJson)
+        val imported = json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(rawJson))
+        validateStudyExercises(imported.topics)
         commitPendingImages()
         val topicIdMap = imported.topics.associate { it.id to UUID.randomUUID().toString() }
         val regeneratedTopics = imported.topics.map { topic ->
@@ -265,8 +272,8 @@ class ImportManager(private val context: Context, private val localStore: Testar
             ImportPreview(
                 fileType = fileType,
                 topicCount = topics.size,
-                questionCount = topics.sumOf { it.questions.size },
-                validQuestionCount = topics.sumOf { it.questions.size },
+                questionCount = topics.sumOf { it.questions.size + it.exercises.size },
+                validQuestionCount = topics.sumOf { it.questions.size + it.exercises.size },
                 invalidLineCount = if (fileType == ImportFileType.TXT || fileType == ImportFileType.CSV) countInvalidDelimitedLines(rawText) else 0,
                 errors = emptyList()
             )
@@ -281,7 +288,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
 
     fun getTopicsFromRawText(rawText: String, fileName: String? = null): List<Topic> {
         val fileType = detectImportFileType(rawText, fileName)
-        return decodeTopicsFromAnyFormat(rawText, fileType)
+        return decodeTopicsFromAnyFormat(rawText, fileType).also(::validateStudyExercises)
     }
 
     // NUEVO: Motor de sincronización
@@ -353,18 +360,24 @@ class ImportManager(private val context: Context, private val localStore: Testar
         val targetQuestions = if (existingIndex >= 0 &&
             action == DuplicateTopicAction.MERGE) topics[existingIndex].questions
             else emptyList()
+        validateStudyExercises(listOf(topic))
         val uniqueQuestions = TopicImportMatcher.uniqueQuestions(topic.questions, targetQuestions)
         val duplicates = topic.questions.size - uniqueQuestions.size
+        val targetExercises = if (existingIndex >= 0 && action == DuplicateTopicAction.MERGE) 
+            topics[existingIndex].exercises else emptyList()
+        val uniqueExercises = StudyExerciseMerge.unique(topic.exercises, targetExercises)
+        val duplicateExercises = topic.exercises.size - uniqueExercises.size
         if (existingIndex >= 0 && action == DuplicateTopicAction.MERGE &&
-            uniqueQuestions.isEmpty()) {
+            uniqueQuestions.isEmpty() && uniqueExercises.isEmpty()) {
             return ImportTopicOutcome(
                 created = false, merged = false, addedQuestions = 0,
-                duplicateQuestions = duplicates, destinationName = topics[existingIndex].name
+                duplicateQuestions = duplicates, destinationName = topics[existingIndex].name,
+                addedExercises = 0, duplicateExercises = duplicateExercises
             )
         }
 
         commitPendingImages()
-        val fresh = regenerateTopicIds(topic.copy(questions = uniqueQuestions))
+        val fresh = regenerateTopicIds(topic.copy(questions = uniqueQuestions, exercises = uniqueExercises))
         val destination: String
         val created: Boolean
         val merged: Boolean
@@ -373,7 +386,10 @@ class ImportManager(private val context: Context, private val localStore: Testar
             when (action) {
                 DuplicateTopicAction.MERGE -> {
                     val old = topics[existingIndex]
-                    topics[existingIndex] = old.copy(questions = old.questions + fresh.questions)
+                    topics[existingIndex] = old.copy(
+                        questions = old.questions + fresh.questions,
+                        exercises = old.exercises + fresh.exercises
+                    )
                     destination = old.name
                     created = false
                     merged = true
@@ -395,7 +411,18 @@ class ImportManager(private val context: Context, private val localStore: Testar
             merged = false
         }
         localStore.saveDatabase(db.copy(topics = topics))
-        return ImportTopicOutcome(created, merged, fresh.questions.size, duplicates, destination)
+        return ImportTopicOutcome(created, merged, fresh.questions.size, duplicates, destination,
+            fresh.exercises.size, duplicateExercises)
+    }
+
+    private fun validateStudyExercises(topics: List<Topic>) {
+        topics.forEach { topic ->
+            val ids = hashSetOf<String>()
+            topic.exercises.forEach { exercise ->
+                require(ids.add(exercise.id)) { "ID de ejercicio repetido en el tema ${topic.name}." }
+                if (!exercise.draft) StudyExerciseRules.requireValid(exercise)
+            }
+        }
     }
 
     private fun createQuestionFingerprint(question: Question): String =
@@ -570,6 +597,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
     private fun regenerateTopicIds(topic: Topic, newTopicId: String = UUID.randomUUID().toString()): Topic {
         return topic.copy(
             id = newTopicId,
+            exercises = topic.exercises.map(StudyExerciseMerge::duplicate),
             questions = topic.questions.map { question ->
                 val answerIdMap = question.answers.associate { it.id to UUID.randomUUID().toString() }
                 val newAnswers = question.answers.map {
@@ -592,6 +620,15 @@ class ImportManager(private val context: Context, private val localStore: Testar
 
     private fun resolveTopicImagePaths(topic: Topic): Topic {
         return topic.copy(
+            exercises = topic.exercises.map { ex ->
+                ex.copy(
+                    baseImageUri = resolveImportedImagePath(ex.baseImageUri),
+                    flashcard = ex.flashcard?.copy(
+                        frontImageUri = resolveImportedImagePath(ex.flashcard.frontImageUri),
+                        backImageUri = resolveImportedImagePath(ex.flashcard.backImageUri)
+                    )
+                )
+            },
             questions = topic.questions.map { question ->
                 question.copy(
                     explanationImageUri = resolveImportedImagePath(question.explanationImageUri),
