@@ -60,6 +60,16 @@ object MigrationManager {
             jsonObject.put("version", currentVersion)
         }
 
+        // v5: numbered cloze rounds and editable vector drawings. Existing
+        // v4 cards/gaps/sketches retain their contents unchanged; missing cursor
+        // map defaults to an empty schedule, not a rewritten note collection.
+        if (currentVersion < 5) {
+            if (!jsonObject.has("ankiClozeCursors"))
+                jsonObject.put("ankiClozeCursors", JSONObject())
+            currentVersion = 5
+            jsonObject.put("version", currentVersion)
+        }
+
         return jsonObject.toString()
     }
 }
