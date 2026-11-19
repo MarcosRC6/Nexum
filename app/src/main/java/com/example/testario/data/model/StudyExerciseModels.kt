@@ -60,6 +60,22 @@ data class FlashcardContent(
     val masks: List<ImageOcclusionMask> = emptyList()
 )
 
+/** Serializable freehand image, with normalized strokes editable across resolutions. */
+@Serializable
+data class SketchPoint(val x: Double, val y: Double)
+
+@Serializable
+data class SketchStroke(
+    val id: String = UUID.randomUUID().toString(),
+    val points: List<SketchPoint>,
+    val brush: String = "purple"
+)
+
+@Serializable
+data class SketchDrawing(
+    val strokes: List<SketchStroke> = emptyList()
+)
+
 @Serializable
 data class LineDiagram(
     val startX: Double = 0.10,
@@ -79,6 +95,7 @@ data class StudyExercise(
     // The original unannotated image. Correction markers are stored only in solutions.
     val baseImageUri: String? = null,
     val diagram: LineDiagram? = null,
+    val sketch: SketchDrawing? = null,
     val revision: Int = 1,
     val draft: Boolean = false
 ) {
