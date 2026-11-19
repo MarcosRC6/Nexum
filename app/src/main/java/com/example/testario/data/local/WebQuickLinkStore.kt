@@ -3,8 +3,10 @@ package com.example.testario.data.local
 import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import java.net.URI
 import java.util.UUID
 
@@ -12,6 +14,7 @@ import java.util.UUID
  * Enlaces privados del usuario: no se suben a GitHub ni se abren dentro de un WebView.
  * Exportables sólo en el backup global de NEXUM.
  */
+@Serializable
 data class WebQuickLink(
     val id: String = UUID.randomUUID().toString(),
     val title: String,
@@ -20,7 +23,14 @@ data class WebQuickLink(
     val hidden: Boolean = false
 )
 
+@Serializable
+private data class WebQuickLinksBackup(
+    val format: String = "nexum.quick_web_links.v1",
+    val links: List<WebQuickLink> = emptyList()
+)
+
 object WebQuickLinkPolicy {
+    private val codec = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     const val MAX_LINKS = 40
     const val MAX_TITLE_LENGTH = 50
     const val MAX_URL_LENGTH = 2048
@@ -55,44 +65,22 @@ object WebQuickLinkPolicy {
         return link.copy(title = title, url = url, icon = link.icon.takeIf { it in icons } ?: "web")
     }
 
-    fun parseBackup(json: String): List<WebQuickLink> {
-        require(json.length <= 150_000) { "Enlaces demasiado grandes" }
-        val root = JSONObject(json)
-        require(root.optString("format") == "nexum.quick_web_links.v1")
-        val values = root.getJSONArray("links")
-        require(values.length() <= MAX_LINKS)
-        val result = mutableListOf<WebQuickLink>()
+    fun parseBackup(raw: String): List<WebQuickLink> {
+        require(raw.length <= 150_000) { "Enlaces demasiado grandes" }
+        val backup = codec.decodeFromString<WebQuickLinksBackup>(raw)
+        require(backup.format == "nexum.quick_web_links.v1") { "Formato desconocido" }
+        require(backup.links.size <= MAX_LINKS) { "Demasiados enlaces" }
         val seenIds = hashSetOf<String>()
-        for (i in 0 until values.length()) {
-            val item = values.getJSONObject(i)
-            val id = item.getString("id")
-            require(id.length in 1..100 && seenIds.add(id)) { "Identificador duplicado" }
-            val value = validate(WebQuickLink(
-                id = id,
-                title = item.getString("title"),
-                url = item.getString("url"),
-                icon = item.optString("icon", "web"),
-                hidden = item.optBoolean("hidden", false)
-            )) ?: error("Enlace no válido")
-            result.add(value)
+        return backup.links.map { item ->
+            require(item.id.length in 1..100 && seenIds.add(item.id)) {
+                "Identificador no válido o duplicado"
+            }
+            validate(item) ?: error("Enlace no válido")
         }
-        return result
     }
 
-    fun encodeBackup(links: List<WebQuickLink>): String = JSONObject().apply {
-        put("format", "nexum.quick_web_links.v1")
-        put("links", JSONArray().apply {
-            links.forEach { link ->
-                put(JSONObject().apply {
-                    put("id", link.id)
-                    put("title", link.title)
-                    put("url", link.url)
-                    put("icon", link.icon)
-                    put("hidden", link.hidden)
-                })
-            }
-        })
-    }.toString()
+    fun encodeBackup(links: List<WebQuickLink>): String =
+        codec.encodeToString(WebQuickLinksBackup(links = links))
 }
 
 class WebQuickLinkStore private constructor(context: Context) {
