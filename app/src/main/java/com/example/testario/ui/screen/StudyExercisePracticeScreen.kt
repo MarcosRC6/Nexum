@@ -96,6 +96,16 @@ fun StudyExercisePracticeScreen(
                     return@Column
                 }
                 val exercise = written[index.coerceIn(0, written.lastIndex)]
+                val graded = if (completed) runCatching {
+                    StudyExerciseRules.gradeWritten(exercise, answers,
+                        points.replace(",", ".").toDouble(),
+                        penalty.replace(",", ".").toDouble())
+                }.getOrNull() else null
+                val statusByMarker = if (graded != null) {
+                    exercise.solutions.flatMap { solution ->
+                        solution.points.map { it.id to (solution.id in graded.correctIds) }
+                    }.toMap()
+                } else emptyMap()
                 Text("Ejercicio ${index + 1} de ${written.size}", color = TestarioMutedText)
                 Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
                 exercise.diagram?.let { diagram ->
@@ -126,16 +136,28 @@ fun StudyExercisePracticeScreen(
                             Text(point.order.toString(), modifier = Modifier.offset(
                                 x = maxWidth * point.x.toFloat() - 8.dp,
                                 y = maxHeight * point.y.toFloat() - 12.dp),
-                                color = TestarioGreen)
+                                color = if (statusByMarker[point.id] == true)
+                                    TestarioGreen else TestarioRed)
                         }
                     }
+                }
+                exercise.sketch?.let { drawing ->
+                    StudySketchCanvas(
+                        sketch = drawing,
+                        modifier = Modifier.fillMaxWidth().height(240.dp),
+                        markers = exercise.solutions.flatMap { it.points },
+                        mode = SketchMode.PREVIEW,
+                        showMarkers = completed,
+                        markerStatuses = statusByMarker
+                    )
                 }
                 exercise.baseImageUri?.let { path ->
                     StudyVisualImage(
                         imageUri = path,
                         modifier = Modifier.fillMaxWidth().height(240.dp),
                         markers = exercise.solutions.flatMap { it.points },
-                        showCorrection = completed
+                        showCorrection = completed,
+                        markerStatuses = statusByMarker
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -166,10 +188,6 @@ fun StudyExercisePracticeScreen(
                         enabled = !completed
                     ) { Text("Añadir") }
                 }
-                val graded = if (completed) runCatching {
-                    StudyExerciseRules.gradeWritten(exercise, answers,
-                        points.replace(",", ".").toDouble(), penalty.replace(",", ".").toDouble())
-                }.getOrNull() else null
                 answers.forEachIndexed { i, value ->
                     val acceptedId = StudyExerciseRules.findAcceptedSolution(exercise, value)?.id
                     val correct = acceptedId != null && acceptedId in graded?.correctIds.orEmpty()
