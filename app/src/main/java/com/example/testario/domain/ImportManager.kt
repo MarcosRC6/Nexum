@@ -260,12 +260,15 @@ class ImportManager(private val context: Context, private val localStore: Testar
         val backup = json.decodeFromString<TestarioDatabase>(migratedJson)
         validateStudyExercises(backup.topics)
         commitPendingImages()
-        localStore.saveDatabase(
-            backup.copy(
-                version = DatabaseSchema.CURRENT_VERSION,
-                topics = backup.topics.map(::resolveTopicImagePaths)
-            )
+        val restored = backup.copy(
+            version = DatabaseSchema.CURRENT_VERSION,
+            topics = backup.topics.map(::resolveTopicImagePaths)
         )
+        if (localStore.recoveryError.value != null) {
+            localStore.restoreValidatedRecovery(restored)
+        } else {
+            localStore.saveDatabase(restored)
+        }
     }
 
     fun importAllJson(rawJson: String) {
