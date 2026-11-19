@@ -83,6 +83,7 @@ import com.example.testario.viewmodel.LibraryViewModel
 import com.example.testario.viewmodel.StatsViewModel
 import com.example.testario.viewmodel.ThemeViewModel
 import kotlinx.coroutines.launch
+import com.example.testario.data.local.WebQuickLinkStore
 import java.io.ByteArrayInputStream
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -106,6 +107,13 @@ fun SettingsScreen(
     openHomeSettingsInitially: Boolean = false
 ) {
     val context = LocalContext.current
+    val webLinkStore = remember { WebQuickLinkStore.get(context.applicationContext) }
+    var showManageWebLinks by remember { mutableStateOf(false) }
+    if (showManageWebLinks) {
+        WebQuickLinksManagerDialog(
+            store = webLinkStore, onDismiss = { showManageWebLinks = false }
+        )
+    }
     val database by libraryViewModel.database.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
@@ -529,7 +537,7 @@ fun SettingsScreen(
 
                                 Spacer(Modifier.height(8.dp))
                                 Text("Accesos rápidos", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                                Text("Configura los cuatro accesos del bloque de Inicio.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                Text("Configura los accesos de Inicio y tus propios enlaces web.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                                 HomeSettingToggle(
                                     title = "Biblioteca",
                                     checked = homeSettingsViewModel.showLibraryShortcut,
@@ -550,6 +558,10 @@ fun SettingsScreen(
                                     checked = homeSettingsViewModel.showStatsShortcut,
                                     onCheckedChange = homeSettingsViewModel::changeShowStatsShortcut
                                 )
+                                OutlinedButton(
+                                    onClick = { showManageWebLinks = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("Gestionar enlaces web") }
 
                                 if (!homeSettingsViewModel.isDefaultLayout()) {
                                     Spacer(Modifier.height(6.dp))
