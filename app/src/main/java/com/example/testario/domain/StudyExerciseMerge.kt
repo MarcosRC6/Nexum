@@ -19,7 +19,7 @@ object StudyExerciseMerge {
                         solution.points.map { p -> "${p.x}:${p.y}:${p.order}:${p.side}" }.sorted()
                 }.map { it.joinToString(";") }.sorted()
                 "${value.kind}|$prompt|${solutions.joinToString("|")}|"+
-                    "${value.baseImageUri?.let { File(it).name }}|${value.diagram}|${value.sketch}"
+                    "${value.baseImageUri?.let { File(it).name }}|${value.diagram}|${sketchSignature(value.sketch)}"
             }
             StudyExerciseKind.ANKI_CARD -> {
                 val card = value.flashcard
@@ -33,6 +33,17 @@ object StudyExerciseMerge {
             }
         }
     }
+
+    /**
+     * Drawings are compared by visual content, not transient stroke UUIDs.
+     * Stroke order, brush and normalized points remain significant.
+     */
+    private fun sketchSignature(drawing: SketchDrawing?): String =
+        drawing?.strokes?.joinToString("|") { stroke ->
+            stroke.brush + ":" + stroke.points.joinToString(";") { point ->
+                "${point.x},${point.y}"
+            }
+        }.orEmpty()
 
     fun unique(incoming: List<StudyExercise>, existing: List<StudyExercise>): List<StudyExercise> {
         val known = existing.mapTo(hashSetOf(), ::signature)
