@@ -106,6 +106,13 @@
 - **Evitar efectos colaterales:** un Examen con tarjetas no debe revelar ni puntuar anticipadamente la solución; la programación de tarjetas por repetición espaciada sólo se actualiza en revisiones válidas según reglas acordadas, sin duplicar eventos por una rotación de pantalla, reinicio o doble pulsación.
 - **Estado:** diseño futuro, aún NO implementado en NEXUM ni parte funcional de esta PR.
 
+## Especificación complementaria: paquetes, imágenes, backups y sincronización (19/11/2026)
+
+- El diseño detallado y propuesto del **ZIP mixto versionado**, esquema `WRITTEN_MULTI`/`ANKI_CARD`, manifest de integridad SHA-256, remapeo de IDs, deduplicación por tipo, importación transaccional, restauración y sincronización está en [NEXUM_PAQUETES_EJERCICIOS_IMPORTACION_V1_20261119.md](NEXUM_PAQUETES_EJERCICIOS_IMPORTACION_V1_20261119.md).
+- Distinguir estrictamente **exportación didáctica** (sin progreso personal), **backup global** (con imágenes, organización, sesiones e historial Anki) y **sincronización** (conciliación de cambios y conflictos).
+- Mantener formatos antiguos de Testario/NEXUM legibles por la nueva versión y evitar que un lector antiguo acepte silenciosamente ejercicios que no sabe interpretar. Un ZIP con múltiples temas debe mostrar recuentos por tema/ejercicio y jamás declarar éxito parcial como completo.
+- **Estado:** especificación escrita, NO implementada, aún sujeta a cerrar decisiones funcionales de grupos y sincronización antes del desarrollo.
+
 ## Seguridad y consistencia antes de programar
 - Diseñar esquema versionado/migraciones de nuevos ejercicios y respaldos, exportación/importación y deduplicación semántica por tipo de ejercicio; no alterar el esquema actual por improvisación.
 - Validar alias vacíos/repetidos/ambiguos, puntuación con respuestas múltiples, cancelaciones, guardar progreso, corrección en Entrenamiento vs Examen, accesibilidad de teclado Enter, tamaños de pantalla, imágenes perdidas/desplazadas, marcadores fuera del 0..1, backups antiguos y restauraciones.
