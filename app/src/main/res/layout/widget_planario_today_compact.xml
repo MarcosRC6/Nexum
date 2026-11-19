@@ -7,7 +7,7 @@
     android:orientation="vertical"
     android:gravity="center_vertical"
     android:background="@drawable/widget_today_background_dark"
-    android:padding="8dp">
+    android:padding="5dp">
 
     <TextView
         android:id="@+id/widgetCompactTitle"
