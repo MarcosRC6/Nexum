@@ -43,6 +43,22 @@ object MigrationManager {
             jsonObject.put("version", currentVersion)
         }
 
+        // v4: additional exercises coexist with legacy Question entries, untouched.
+        if (currentVersion < 4) {
+            val topics = jsonObject.optJSONArray("topics")
+            if (topics != null) {
+                for (index in 0 until topics.length()) {
+                    val topic = topics.optJSONObject(index) ?: continue
+                    if (!topic.has("exercises")) topic.put("exercises", JSONArray())
+                }
+            }
+            if (!jsonObject.has("ankiReviewStates")) jsonObject.put("ankiReviewStates", JSONArray())
+            if (!jsonObject.has("ankiReviewEvents")) jsonObject.put("ankiReviewEvents", JSONArray())
+            if (!jsonObject.has("ankiReviewEnabled")) jsonObject.put("ankiReviewEnabled", false)
+            currentVersion = 4
+            jsonObject.put("version", currentVersion)
+        }
+
         return jsonObject.toString()
     }
 }
