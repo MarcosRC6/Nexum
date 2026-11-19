@@ -84,6 +84,14 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         return exerciseRepo.save(topicId, stored, expectedRevision)
     }
 
+    fun duplicateStudyExercise(topicId: String, exerciseId: String): Boolean {
+        val source = localStore.database.value.topics.firstOrNull { it.id == topicId }
+            ?.exercises?.firstOrNull { it.id == exerciseId } ?: return false
+        return exerciseRepo.save(
+            topicId, com.example.testario.domain.StudyExerciseMerge.duplicate(source)
+        )
+    }
+
     fun deleteStudyExercise(topicId: String, exerciseId: String): Boolean =
         exerciseRepo.delete(topicId, exerciseId)
 
