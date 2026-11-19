@@ -169,6 +169,20 @@ class ImportManager(private val context: Context, private val localStore: Testar
                 validateStudyExercises(topics)
                 json.encodeToString(TestarioDatabase(topics = topics))
             }
+            // New exercises must carry every referenced asset in the SAME archive.
+            // Reject broken archives before any image or topic is committed.
+            val validated = json.decodeFromString<TestarioDatabase>(
+                MigrationManager.migrate(validJson)
+            )
+            val missing = validated.topics.asSequence()
+                .flatMap { it.exercises.asSequence() }
+                .flatMap { it.referencedImageUris().asSequence() }
+                .map { File(it).name }
+                .filterNot { it in names }
+                .toList()
+            require(missing.isEmpty()) {
+                "El ZIP no contiene ${missing.size} imágenes necesarias para los ejercicios."
+            }
             pendingImageStage = stage
             validJson
         } catch (error: Exception) {
