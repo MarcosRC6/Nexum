@@ -32,6 +32,15 @@ Revisión del código de `main` (SHA `9ca83d6557ba85e445820f49d2225c66caac48a9`,
 - La exportación de temas sin imágenes sigue entregándose como ZIP. **No alterar ni vaciar la biblioteca** al no reconocer una entrada.
 - **Estado:** decisión de UX acordada; implementación pendiente.
 
+### Excepción específica: mazos nativos de Anki (.apkg)
+
+- La decisión «exportar NEXUM solo a ZIP» se refiere a **exportaciones generales, bibliotecas mixtas y backups propios**. Por solicitud posterior del usuario, **añadir una opción explícita «Exportar para Anki (.apkg)»** al trabajar con tarjetas Anki. No es exportación JSON ni un ZIP de NEXUM renombrado: su estructura debe cumplir el formato real de Anki y validarse en Anki Desktop/AnkiDroid.
+- **Importar** paquetes Anki `.apkg` (además de los ZIP/JSON ya previstos). El detector los identifica por contenido y usa un lector específico de notas, tarjetas, modelos, medios y mazos; **no** tratar todo `.apkg` como un paquete genérico de preguntas NEXUM. Reportar tipos no representables sin eliminar material silenciosamente.
+- `.colpkg` corresponde a **colección completa de Anki**, distinta del paquete de mazo. Considerar importación avanzada en una fase posterior y con previsualización/aislamiento, sin reemplazar el banco ni convertirlo en restauración NEXUM.
+- La correspondencia grupos/temas NEXUM → mazos/etiquetas Anki debe evitar duplicación: la pertenencia de un tema a varios grupos no implica exportar varias copias de una tarjeta.
+- Los paquetes `.apkg` son **intercambio de contenido**; el backup global NEXUM incluye el progreso personal. No prometer traducción exacta de historiales/FSRS de Anki a la repetición espaciada opcional de NEXUM.
+- Detalle de compatibilidad en [NEXUM_TARJETAS_ANKI_REPASO_20261119.md](NEXUM_TARJETAS_ANKI_REPASO_20261119.md).
+
 ## 3. Nuevo ZIP de biblioteca para compartir (`nexum_library_bundle` v1)
 
 Estructura:
