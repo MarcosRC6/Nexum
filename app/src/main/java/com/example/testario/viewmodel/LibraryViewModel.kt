@@ -87,6 +87,28 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     fun deleteStudyExercise(topicId: String, exerciseId: String): Boolean =
         exerciseRepo.delete(topicId, exerciseId)
 
+    /**
+     * Advance only after the learner reveals the current solution.
+     * The cursor belongs to the original card, not to each generated view.
+     * Always-hidden fragments do not contribute additional rounds.
+     */
+    fun advanceClozeRound(exerciseId: String, expectedCursor: Int): Boolean {
+        require(expectedCursor >= 0)
+        val db = localStore.database.value
+        val exercise = db.topics.asSequence().flatMap { it.exercises.asSequence() }
+            .firstOrNull { it.id == exerciseId } ?: return false
+        val groups = com.example.testario.domain.ClozeMarkupEngine
+            .numberedGroups(exercise.flashcard?.gaps.orEmpty())
+        if (groups.isEmpty() || exercise.draft) return false
+        val old = db.ankiClozeCursors[exerciseId] ?: 0
+        if (old != expectedCursor) return false
+        localStore.saveDatabase(db.copy(
+            ankiClozeCursors = db.ankiClozeCursors +
+                (exerciseId to ((old + 1) % groups.size))
+        ))
+        return true
+    }
+
     fun setAnkiReviewEnabled(enabled: Boolean) {
         val db = localStore.database.value
         localStore.saveDatabase(db.copy(ankiReviewEnabled = enabled))
