@@ -46,6 +46,8 @@ import com.example.testario.ui.screen.StatsScreen
 import com.example.testario.ui.screen.TestConfigScreen
 import com.example.testario.ui.screen.TestScreen
 import com.example.testario.ui.screen.TopicDetailScreen
+import com.example.testario.ui.screen.StudyExerciseEditorScreen
+import com.example.testario.ui.screen.StudyExercisePracticeScreen
 import com.example.testario.ui.screen.UnifiedPlanScreen
 import com.example.testario.ui.theme.TestarioTheme
 import com.example.testario.viewmodel.BehaviorSettingsViewModel
@@ -279,6 +281,9 @@ fun TestarioApp(
                     onBack = { goBack() },
                     onAddQuestion = { navController.navigate(Routes.questionEditor(id)) },
                     onEditQuestion = { qId -> navController.navigate(Routes.questionEditor(id, qId)) },
+                    onAddExercise = { navController.navigate(Routes.studyExerciseEditor(id)) },
+                    onEditExercise = { exId -> navController.navigate(Routes.studyExerciseEditor(id, exId)) },
+                    onPracticeExercises = { navController.navigate(Routes.studyExercisePractice(id)) },
                     onStartTest = { topicIdParaTest -> navController.navigate(Routes.testConfig(topicIdParaTest)) }
                 )
             }
@@ -292,6 +297,20 @@ fun TestarioApp(
                     libraryViewModel = libraryViewModel,
                     onBack = { goBack() }
                 )
+            }
+
+            composable(Routes.STUDY_EXERCISE_EDITOR) { entry ->
+                val topicId = entry.arguments?.getString("topicId") ?: return@composable
+                StudyExerciseEditorScreen(
+                    topicId = topicId,
+                    exerciseId = entry.arguments?.getString("exerciseId"),
+                    libraryViewModel = libraryViewModel,
+                    onBack = { goBack() }
+                )
+            }
+            composable(Routes.STUDY_EXERCISE_PRACTICE) { entry ->
+                val topicId = entry.arguments?.getString("topicId") ?: return@composable
+                StudyExercisePracticeScreen(topicId, libraryViewModel, onBack = { goBack() })
             }
 
             composable(Routes.TEST_CONFIG) { backStackEntry ->
