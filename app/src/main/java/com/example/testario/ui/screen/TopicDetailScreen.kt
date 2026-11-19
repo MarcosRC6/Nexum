@@ -49,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.Question
+import com.example.testario.data.model.StudyExerciseKind
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioMutedText
@@ -72,7 +73,7 @@ fun TopicDetailScreen(
     onBack: () -> Unit,
     onAddQuestion: () -> Unit,
     onEditQuestion: (String) -> Unit,
-    onAddExercise: () -> Unit,
+    onAddExercise: (StudyExerciseKind) -> Unit,
     onEditExercise: (String) -> Unit,
     onPracticeExercises: () -> Unit,
     onStartTest: (String) -> Unit
@@ -296,11 +297,11 @@ fun TopicDetailScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text("Respuesta múltiple escrita") },
-                                onClick = { addMenuExpanded = false; onAddExercise() }
+                                onClick = { addMenuExpanded = false; onAddExercise(StudyExerciseKind.WRITTEN_MULTI) }
                             )
                             DropdownMenuItem(
                                 text = { Text("Tarjeta Anki") },
-                                onClick = { addMenuExpanded = false; onAddExercise() }
+                                onClick = { addMenuExpanded = false; onAddExercise(StudyExerciseKind.ANKI_CARD) }
                             )
                         }
                     }
