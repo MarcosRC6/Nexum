@@ -34,13 +34,14 @@ import java.util.UUID
 fun StudyExerciseEditorScreen(
     topicId: String,
     exerciseId: String?,
+    initialKind: StudyExerciseKind = StudyExerciseKind.WRITTEN_MULTI,
     libraryViewModel: LibraryViewModel,
     onBack: () -> Unit
 ) {
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
     val original = topic?.exercises?.firstOrNull { it.id == exerciseId }
-    var exerciseKind by remember(exerciseId) { mutableStateOf(original?.kind ?: StudyExerciseKind.WRITTEN_MULTI) }
+    var exerciseKind by remember(exerciseId, initialKind) { mutableStateOf(original?.kind ?: initialKind) }
     var prompt by remember(exerciseId) { mutableStateOf(original?.prompt.orEmpty()) }
     var solutions by remember(exerciseId) {
         mutableStateOf(original?.solutions ?: listOf(CanonicalSolution(text = "")))
