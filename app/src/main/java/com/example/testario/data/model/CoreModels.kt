@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import java.util.UUID
 
 object DatabaseSchema {
-    const val CURRENT_VERSION = 3
+    const val CURRENT_VERSION = 5
 }
 
 @Serializable
@@ -17,7 +17,14 @@ data class TestarioDatabase(
     val totalTrainingMinutes: Int = 0,
     val testHistory: List<HistoricalResult> = emptyList(),
     val detailedExamHistory: List<DetailedExam> = emptyList(),
-    val performanceHistory: List<TestPerformancePoint> = emptyList()
+    val performanceHistory: List<TestPerformancePoint> = emptyList(),
+    val ankiReviewStates: List<AnkiReviewState> = emptyList(),
+    val ankiReviewEvents: List<AnkiReviewEvent> = emptyList(),
+    val ankiReviewEnabled: Boolean = false,
+    val ankiScheduleSettings: AnkiScheduleSettings = AnkiScheduleSettings(),
+    val exerciseAttempts: List<ExerciseAttempt> = emptyList(),
+    /** Per-note next numbered group. Absence means first numbered round. */
+    val ankiClozeCursors: Map<String, Int> = emptyMap()
 )
 
 @Serializable
@@ -25,7 +32,8 @@ data class Topic(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val questions: List<Question> = emptyList(),
-    val isPinned: Boolean = false
+    val isPinned: Boolean = false,
+    val exercises: List<StudyExercise> = emptyList()
 )
 
 /**

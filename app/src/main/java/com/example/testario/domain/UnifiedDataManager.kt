@@ -38,6 +38,9 @@ class UnifiedDataManager(private val context: Context) {
             if (manifest != null) {
                 val format = runCatching { JSONObject(manifest).optString("format") }.getOrDefault("")
                 if (format == GLOBAL_FORMAT) return Detection(ImportKind.GLOBAL_BACKUP)
+                if (format == PLAN_FORMAT) return entries["planario_backup.json"]?.let {
+                    Detection(ImportKind.PLAN_BACKUP, it)
+                } ?: Detection(ImportKind.UNKNOWN)
             }
             val testarioDatabase = entries["testario_database.json"]
             if (testarioDatabase != null) {
@@ -95,6 +98,18 @@ class UnifiedDataManager(private val context: Context) {
             ImportManager(context, localStore).restoreBackup(raw)
             true
         }.getOrDefault(false)
+    }
+
+    /** Dedicated plan-only ZIP: never disguise JSON as an Anki or NEXUM library package. */
+    fun exportPlanZip(outputStream: OutputStream) {
+        val plan = PlanarioDependencies.studyRepository.exportBackupJson()
+        ZipOutputStream(outputStream).use { zip ->
+            writeText(zip, "manifest.json", JSONObject().apply {
+                put("format", PLAN_FORMAT)
+                put("version", 1)
+            }.toString())
+            writeText(zip, "planario_backup.json", plan)
+        }
     }
 
     fun exportGlobalBackup(outputStream: OutputStream, syncDeviceId: String? = null) {
@@ -370,6 +385,7 @@ class UnifiedDataManager(private val context: Context) {
 
     companion object {
         const val GLOBAL_FORMAT = "testario_planario_global"
+        const val PLAN_FORMAT = "nexum_plan_bundle"
         private const val MAX_IMPORT_IMAGE_BYTES = 64L * 1024L * 1024L
         private const val MAX_IMPORT_IMAGE_TOTAL_BYTES = 512L * 1024L * 1024L
         private const val MAX_IMPORT_JSON_ENTRY_BYTES = 128L * 1024L * 1024L

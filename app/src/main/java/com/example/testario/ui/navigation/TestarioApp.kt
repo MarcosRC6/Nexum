@@ -46,6 +46,8 @@ import com.example.testario.ui.screen.StatsScreen
 import com.example.testario.ui.screen.TestConfigScreen
 import com.example.testario.ui.screen.TestScreen
 import com.example.testario.ui.screen.TopicDetailScreen
+import com.example.testario.ui.screen.StudyExerciseEditorScreen
+import com.example.testario.ui.screen.StudyExercisePracticeScreen
 import com.example.testario.ui.screen.UnifiedPlanScreen
 import com.example.testario.ui.theme.TestarioTheme
 import com.example.testario.viewmodel.BehaviorSettingsViewModel
@@ -76,6 +78,8 @@ fun TestarioApp(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val context = LocalContext.current
     val timerState by PlanarioDependencies.studyTimerController.state.collectAsState()
+    val recoveryError by libraryViewModel.recoveryError.collectAsState()
+    var recoveryNoticeDismissed by remember { mutableStateOf(false) }
     var showTimerExitDialog by remember { mutableStateOf(false) }
     var announcedRelease by remember { mutableStateOf<NexumRelease?>(null) }
     var dismissedUpdateNotice by remember { mutableStateOf(false) }
@@ -279,6 +283,11 @@ fun TestarioApp(
                     onBack = { goBack() },
                     onAddQuestion = { navController.navigate(Routes.questionEditor(id)) },
                     onEditQuestion = { qId -> navController.navigate(Routes.questionEditor(id, qId)) },
+                    onAddExercise = { kind -> navController.navigate(Routes.studyExerciseEditor(id, initialKind = kind.name)) },
+                    onEditExercise = { exId -> navController.navigate(Routes.studyExerciseEditor(id, exId)) },
+                    onPracticeExercises = { exerciseId ->
+                        navController.navigate(Routes.studyExercisePractice(id, exerciseId))
+                    },
                     onStartTest = { topicIdParaTest -> navController.navigate(Routes.testConfig(topicIdParaTest)) }
                 )
             }
@@ -292,6 +301,24 @@ fun TestarioApp(
                     libraryViewModel = libraryViewModel,
                     onBack = { goBack() }
                 )
+            }
+
+            composable(Routes.STUDY_EXERCISE_EDITOR) { entry ->
+                val topicId = entry.arguments?.getString("topicId") ?: return@composable
+                StudyExerciseEditorScreen(
+                    topicId = topicId,
+                    exerciseId = entry.arguments?.getString("exerciseId"),
+                    initialKind = entry.arguments?.getString("initialKind")?.let {
+                        runCatching { com.example.testario.data.model.StudyExerciseKind.valueOf(it) }.getOrNull()
+                    } ?: com.example.testario.data.model.StudyExerciseKind.WRITTEN_MULTI,
+                    libraryViewModel = libraryViewModel,
+                    onBack = { goBack() }
+                )
+            }
+            composable(Routes.STUDY_EXERCISE_PRACTICE) { entry ->
+                val topicId = entry.arguments?.getString("topicId") ?: return@composable
+                StudyExercisePracticeScreen(topicId, libraryViewModel, onBack = { goBack() },
+                    selectedExerciseId = entry.arguments?.getString("exerciseId"))
             }
 
             composable(Routes.TEST_CONFIG) { backStackEntry ->
@@ -393,6 +420,24 @@ fun TestarioApp(
                 )
             }
             }
+        }
+
+        if (recoveryError != null && !recoveryNoticeDismissed) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Biblioteca protegida") },
+                text = {
+                    Text(recoveryError.orEmpty() +
+                        "\n\nLa base original se conserva. En Ajustes puedes restaurar una copia global ZIP compatible. " +
+                        "No crees temas ni realices sincronizaciones hasta recuperar los datos.")
+                },
+                confirmButton = {
+                    com.example.testario.ui.theme.NeonButton(onClick = {
+                        recoveryNoticeDismissed = true
+                        goSettings()
+                    }) { Text("Abrir Ajustes") }
+                }
+            )
         }
 
         if (showTimerExitDialog && timerState.studyTimerState == StudyTimerState.RUNNING) {

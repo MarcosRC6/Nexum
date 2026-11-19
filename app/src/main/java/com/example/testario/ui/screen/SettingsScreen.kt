@@ -88,7 +88,6 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
-private enum class ExportMode { COMPLETE, SIMPLE }
 private enum class ExportScope { ALL, SINGLE, MULTIPLE }
 private enum class ExportTarget { LIBRARY, PLAN }
 
@@ -112,7 +111,6 @@ fun SettingsScreen(
     var isLoading by remember { mutableStateOf(false) }
     var uiScaleDraft by remember(themeViewModel.uiScale) { mutableStateOf(themeViewModel.uiScale) }
 
-    var exportMode by remember { mutableStateOf(ExportMode.COMPLETE) }
     var exportScope by remember { mutableStateOf(ExportScope.ALL) }
     var selectedSingleTopicId by remember { mutableStateOf<String?>(null) }
     var selectedMultipleTopicIds by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -120,7 +118,6 @@ fun SettingsScreen(
     var multiDropdownExpanded by remember { mutableStateOf(false) }
 
     var pendingExportTopicIds by remember { mutableStateOf<List<String>?>(null) }
-    var pendingExportText by remember { mutableStateOf<String?>(null) }
 
     var pendingImportText by remember { mutableStateOf<String?>(null) }
     var pendingImportFileName by remember { mutableStateOf<String?>(null) }
@@ -231,22 +228,6 @@ fun SettingsScreen(
         }
     }
 
-    val exportJsonLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        isLoading = true
-        coroutineScope.launch {
-            try {
-                context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(pendingExportText ?: "") }
-                message = "Temas exportados correctamente."
-                pendingExportText = null
-            } catch (_: Exception) {
-                message = "Error al exportar temas."
-            } finally {
-                isLoading = false
-            }
-        }
-    }
-
     val exportZipLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         isLoading = true
@@ -322,13 +303,14 @@ fun SettingsScreen(
         }
     }
 
-    val exportPlanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+    val exportPlanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         isLoading = true
         coroutineScope.launch {
             try {
-                val raw = PlanarioDependencies.studyRepository.exportBackupJson()
-                context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(raw) }
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    unifiedDataManager.exportPlanZip(output)
+                }
                 message = "Plan exportado correctamente."
             } catch (_: Exception) {
                 message = "Error al exportar el plan."
@@ -882,11 +864,8 @@ fun SettingsScreen(
                                         }
 
                                         if (exportTarget == ExportTarget.LIBRARY) {
-                                            Text("Formato", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                JsonModeButton("Completo (ZIP)", exportMode == ExportMode.COMPLETE, Modifier.weight(1f)) { exportMode = ExportMode.COMPLETE }
-                                                JsonModeButton("Simple (JSON)", exportMode == ExportMode.SIMPLE, Modifier.weight(1f)) { exportMode = ExportMode.SIMPLE }
-                                            }
+                                            Text("Formato: ZIP de NEXUM (incluye recursos y nuevos ejercicios)",
+                                                style = MaterialTheme.typography.bodyMedium, color = TestarioMutedText)
 
                                             Text("Temas", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -934,21 +913,9 @@ fun SettingsScreen(
                                                         return@Button
                                                     }
                                                     pendingExportTopicIds = ids
-                                                    if (exportMode == ExportMode.COMPLETE) {
-                                                        exportZipLauncher.launch(NexumExportNames.library(zip = true, partial = ids != null))
-                                                    } else {
-                                                        isLoading = true
-                                                        coroutineScope.launch {
-                                                            try {
-                                                                pendingExportText = importExportViewModel.exportSimpleJson(ids)
-                                                                isLoading = false
-                                                                exportJsonLauncher.launch(NexumExportNames.library(zip = false, partial = ids != null))
-                                                            } catch (_: Exception) {
-                                                                message = "Error al exportar la Biblioteca."
-                                                                isLoading = false
-                                                            }
-                                                        }
-                                                    }
+                                                    exportZipLauncher.launch(
+                                                        NexumExportNames.library(zip = true, partial = ids != null)
+                                                    )
                                                 },
                                                 modifier = Modifier.fillMaxWidth().height(50.dp),
                                                 shape = RoundedCornerShape(16.dp)

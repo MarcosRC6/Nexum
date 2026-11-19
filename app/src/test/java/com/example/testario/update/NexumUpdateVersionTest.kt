@@ -17,6 +17,16 @@ class NexumUpdateVersionTest {
         assertTrue(isNewerVersion("2.0", "1.99"))
     }
 
+    @Test fun betaVersionsAdvanceAndStableSupersedesBeta() {
+        assertTrue(isNewerVersion("2.0-beta.2", "2.0-beta.1"))
+        assertFalse(isNewerVersion("2.0-beta.1", "2.0-beta.2"))
+        assertTrue(isNewerVersion("2.0", "2.0-beta.100"))
+        assertFalse(isNewerVersion("2.0-beta.100", "2.0"))
+        assertTrue(isNewerVersion("2.0-beta.1", "1.8"))
+        assertFalse(isNewerVersion("1.8", "2.0-beta.1"))
+        assertFalse(isNewerVersion("2.0-beta.1", "2.0-beta.1"))
+    }
+
     @Test fun rejectsMalformedVersion() {
         assertFalse(isNewerVersion("beta", "1.0"))
         assertFalse(isNewerVersion("1.1", "unknown"))

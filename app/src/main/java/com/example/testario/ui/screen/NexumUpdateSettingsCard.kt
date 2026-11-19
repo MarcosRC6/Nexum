@@ -108,6 +108,14 @@ internal fun NexumUpdateSettingsCard() {
         ) {
             Text("Información de NEXUM", style = MaterialTheme.typography.titleLarge)
             Text("Versión instalada: ${BuildConfig.VERSION_NAME}", color = TestarioMutedText)
+            Text(
+                if (BuildConfig.VERSION_NAME.contains("-beta.")) {
+                    "Canal beta: busca nuevas betas y versiones estables posteriores."
+                } else {
+                    "Canal estable: las versiones de prueba no se instalan automáticamente."
+                },
+                color = TestarioMutedText, style = MaterialTheme.typography.bodySmall
+            )
             Text(message, color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
             if (release != null) {
                 val r = release!!
