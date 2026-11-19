@@ -285,7 +285,9 @@ fun TestarioApp(
                     onEditQuestion = { qId -> navController.navigate(Routes.questionEditor(id, qId)) },
                     onAddExercise = { kind -> navController.navigate(Routes.studyExerciseEditor(id, initialKind = kind.name)) },
                     onEditExercise = { exId -> navController.navigate(Routes.studyExerciseEditor(id, exId)) },
-                    onPracticeExercises = { navController.navigate(Routes.studyExercisePractice(id)) },
+                    onPracticeExercises = { exerciseId ->
+                        navController.navigate(Routes.studyExercisePractice(id, exerciseId))
+                    },
                     onStartTest = { topicIdParaTest -> navController.navigate(Routes.testConfig(topicIdParaTest)) }
                 )
             }
@@ -315,7 +317,8 @@ fun TestarioApp(
             }
             composable(Routes.STUDY_EXERCISE_PRACTICE) { entry ->
                 val topicId = entry.arguments?.getString("topicId") ?: return@composable
-                StudyExercisePracticeScreen(topicId, libraryViewModel, onBack = { goBack() })
+                StudyExercisePracticeScreen(topicId, libraryViewModel, onBack = { goBack() },
+                    selectedExerciseId = entry.arguments?.getString("exerciseId"))
             }
 
             composable(Routes.TEST_CONFIG) { backStackEntry ->
