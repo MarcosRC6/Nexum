@@ -72,6 +72,9 @@ fun TopicDetailScreen(
     onBack: () -> Unit,
     onAddQuestion: () -> Unit,
     onEditQuestion: (String) -> Unit,
+    onAddExercise: () -> Unit,
+    onEditExercise: (String) -> Unit,
+    onPracticeExercises: () -> Unit,
     onStartTest: (String) -> Unit
 ) {
     val database by libraryViewModel.database.collectAsState()
@@ -85,6 +88,7 @@ fun TopicDetailScreen(
     var filterMenuExpanded by remember { mutableStateOf(false) }
 
     var topicMenuExpanded by remember(topicId) { mutableStateOf(false) }
+    var addMenuExpanded by remember(topicId) { mutableStateOf(false) }
     var selectionMode by remember(topicId) { mutableStateOf(false) }
     var selectedQuestionIds by remember(topicId) { mutableStateOf<Set<String>>(emptySet()) }
     var showMoveDialog by remember(topicId) { mutableStateOf(false) }
@@ -161,6 +165,17 @@ fun TopicDetailScreen(
             }
         } else {
             list.map { (question, _) -> question }.toList()
+        }
+    }
+
+    val filteredExercises = remember(topic.exercises, searchText, debouncedSearchText,
+        filterFlagged, selectedDifficultyFilter) {
+        topic.exercises.filter { ex ->
+            !filterFlagged && selectedDifficultyFilter == null &&
+                (searchText.isBlank() || (debouncedSearchText == searchText &&
+                    (ex.prompt.contains(searchText, ignoreCase = true) ||
+                    ex.solutions.any { it.text.contains(searchText, ignoreCase = true) } ||
+                    ex.flashcard?.back?.contains(searchText, ignoreCase = true) == true)))
         }
     }
 
@@ -266,13 +281,29 @@ fun TopicDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Button(
-                        onClick = onAddQuestion,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp),
-                        shape = RoundedCornerShape(18.dp)
-                    ) { Text("Añadir pregunta") }
+                    Box(modifier = Modifier.weight(1f)) {
+                        Button(
+                            onClick = { addMenuExpanded = true },
+                            modifier = Modifier.fillMaxWidth().height(54.dp),
+                            shape = RoundedCornerShape(18.dp)
+                        ) { Text("Añadir") }
+                        DropdownMenu(expanded = addMenuExpanded, onDismissRequest = {
+                            addMenuExpanded = false
+                        }) {
+                            DropdownMenuItem(
+                                text = { Text("Pregunta test") },
+                                onClick = { addMenuExpanded = false; onAddQuestion() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Respuesta múltiple escrita") },
+                                onClick = { addMenuExpanded = false; onAddExercise() }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Tarjeta Anki") },
+                                onClick = { addMenuExpanded = false; onAddExercise() }
+                            )
+                        }
+                    }
 
                     OutlinedButton(
                         onClick = { onStartTest(topicId) },
@@ -282,6 +313,16 @@ fun TopicDetailScreen(
                         shape = RoundedCornerShape(18.dp),
                         border = BorderStroke(1.dp, TestarioPrimary)
                     ) { Text("Hacer Test") }
+                }
+            }
+
+            if (!selectionMode && topic.exercises.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("${topic.exercises.count { !it.draft }} ejercicios publicados · " +
+                        "${topic.exercises.count { it.draft }} borradores",
+                        color = TestarioMutedText, modifier = Modifier.weight(1f))
+                    OutlinedButton(onClick = onPracticeExercises) { Text("Practicar") }
                 }
             }
 
@@ -465,9 +506,9 @@ fun TopicDetailScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            if (topic.questions.isEmpty()) {
+            if (topic.questions.isEmpty() && topic.exercises.isEmpty()) {
                 EmptyTopicContent()
-            } else if (filteredQuestions.isEmpty()) {
+            } else if (filteredQuestions.isEmpty() && filteredExercises.isEmpty()) {
                 EmptySearchContent()
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -476,6 +517,33 @@ fun TopicDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
+                        if (!selectionMode) {
+                            items(items = filteredExercises, key = { "exercise-" + it.id }) { exercise ->
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = TestarioSurface),
+                                    shape = RoundedCornerShape(14.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(Modifier.padding(14.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(if (exercise.draft) "Borrador" else
+                                            if (exercise.flashcard != null) "Tarjeta Anki · ${exercise.flashcard.kind}"
+                                            else "Respuesta múltiple escrita",
+                                            color = TestarioPrimary)
+                                        Text(exercise.prompt, color = TestarioText,
+                                            style = MaterialTheme.typography.titleMedium)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            OutlinedButton(onClick = { onEditExercise(exercise.id) }) {
+                                                Text("Editar")
+                                            }
+                                            if (!exercise.draft) OutlinedButton(onClick = onPracticeExercises) {
+                                                Text("Practicar")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         items(items = filteredQuestions, key = { it.id }) { question ->
                             QuestionCard(
                                 question = question,
