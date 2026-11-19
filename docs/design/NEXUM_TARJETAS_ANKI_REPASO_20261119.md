@@ -33,6 +33,20 @@
 - **Nuevas / aprendiendo / pendientes / suspendidas:** filtros y recuentos comprensibles. Límite diario de nuevas y de repaso opcional, no bloqueo absoluto de estudio libre.
 - **Uso en Entrenamiento / Examen:** Entrenamiento permite estudio libre y repaso programado. En Examen las tarjetas requieren decidir previamente si se incluyen como autoevaluadas y fuera de la nota global o si solo se admiten tarjetas con comprobación objetiva; no conceder automáticamente el 100 % por pulsar «Bien». No revelar el reverso mientras esté en fase de preguntas sin revisar.
 
+## 2 bis. Decisión aprobada: integración en Entrenamiento, Examen y Repaso Anki (19/11/2026)
+
+**El usuario aprueba expresamente esta separación funcional.**
+
+1. **Entrenamiento:** permite combinar Tests, Respuesta múltiple escrita y Tarjetas Anki, incluidos formatos básicos, reversibles, Cloze, respuesta escrita y ocultación de imagen. Las tarjetas pueden calificarse manualmente tras revelar su solución, pero la valoración «Otra vez / Difícil / Bien / Fácil» **no altera por defecto** el calendario de repaso. Solo si el usuario activa una opción explícita para tratar esas tarjetas como repasos programados válidos puede actualizarse la repetición espaciada.
+2. **Examen:** pueden incluirse tarjetas en una sesión mixta, pero **la nota numérica final solo incluye ítems de corrección objetiva verificable** (tests, respuestas múltiples escritas y tarjetas con entrada escrita/huecos verificables cuando sus soluciones/alias permitan corrección fiable). Las tarjetas básicas, reversibles, de imagen o cualquier otra que dependa solo de autovaloración figuran aparte como «Repaso manual», con cantidad vistas y recordadas; no incrementan ni reducen la nota oficial y no se cuenta por ellas el máximo puntuable. Una tarjeta Cloze contestada solo mentalmente es manual, no objetiva. El resumen indica el denominador de ejercicios realmente puntuados. Si **no existe ningún ítem objetivamente puntuable**, no inventar 0/10 ni 10/10: mostrar «Examen sin nota objetiva» y los resultados manuales.
+3. **Repaso Anki:** modalidad dedicada a tarjetas, accesible desde Biblioteca o Entrenamiento, sin quinta pestaña de navegación. Con repetición espaciada desactivada ofrece estudio libre. Activada, muestra pendientes/nuevas/aprendiendo y aplica el planificador solo tras una valoración válida. Respeta intervalos, límites y excepciones configurables. Estudio libre deliberado no reprograma por accidente.
+4. **En Examen jamás se modifica el calendario Anki** por revelar la solución, autocalificarse, corregir por escrito, entregar o revisar. Un examen no es un evento de repaso programado.
+5. **Presentación:** tras «Mostrar respuesta» el enunciado permanece arriba y la solución se despliega debajo; para Cloze y ocultación de imagen se destapa además la zona apropiada. En Examen no se destapa ninguna solución antes de la fase de revisión/corrección.
+6. **Datos y estadística:** guardar por separado resultados objetivos, autoevaluaciones manuales e historial del planificador de repetición espaciada. Un evento de una tarjeta derivada (inversa/hueco/máscara) se identifica por ID propio; impedir duplicados de reintento, rotación de pantalla, doble toque o sincronización. Si un mismo tema aparece en varios grupos, la tarjeta no se duplica en la selección.
+7. **Configuración de sesión:** elegir «Mixto» o subconjunto de tipos, mostrar cantidades disponibles, cuántos serán objetivamente puntuables y cuántos requerirán autoevaluación antes de empezar. Guardar esta selección en plantillas; no prometer que «mezcla todos» equivale a «puntúa todos».
+
+**Estado:** reglas funcionales aprobadas; aún deben implementarse y probarse con sesiones mixtas reales. Los detalles del algoritmo Anki continúan sujetos a decisión separada.
+
 ## 3. Configuración optativa de repetición espaciada
 
 - Interruptor general **«Repetición espaciada»**, desactivado por defecto. Sin activar no se genera calendario; activarlo no crea tarjetas nuevas ni inserta errores en una cola.
