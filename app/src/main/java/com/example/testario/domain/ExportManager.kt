@@ -52,6 +52,16 @@ class ExportManager(private val context: Context, private val localStore: Testar
                 testTemplates = exportedTemplates
             )
         )
+        // A study package must not silently lose a photograph used by a new exercise.
+        val root = imagesDir.canonicalPath + File.separator
+        cleanTopics.flatMap { it.exercises }.flatMap { it.referencedImageUris() }
+            .forEach { path ->
+                val file = File(path)
+                require(file.isFile && file.canonicalPath.startsWith(root)) {
+                    "No se puede exportar: falta una imagen interna de un ejercicio. Corrige el ejercicio."
+                }
+            }
+
         val referencedImageNames = cleanTopics
             .asSequence()
             .flatMap { it.questions.asSequence() }
