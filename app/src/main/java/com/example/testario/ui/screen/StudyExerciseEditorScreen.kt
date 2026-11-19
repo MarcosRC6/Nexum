@@ -22,6 +22,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.domain.StudyExerciseRules
+import com.example.testario.domain.ClozeMarkupEngine
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.LibraryViewModel
 import java.util.UUID
@@ -52,11 +53,19 @@ fun StudyExerciseEditorScreen(
     var diagramEnabled by remember(exerciseId) { mutableStateOf(original?.diagram != null) }
     var directionArrow by remember(exerciseId) { mutableStateOf(original?.diagram?.directionArrow == true) }
     var front by remember(exerciseId) {
-        mutableStateOf(TextFieldValue(original?.flashcard?.front.orEmpty()))
+        mutableStateOf(TextFieldValue(
+            if (original?.flashcard?.kind == FlashcardKind.CLOZE)
+                runCatching { ClozeMarkupEngine.encode(
+                    original.flashcard.front, original.flashcard.gaps
+                ) }.getOrDefault(original.flashcard.front)
+            else original?.flashcard?.front.orEmpty()
+        ))
     }
     var back by remember(exerciseId) { mutableStateOf(original?.flashcard?.back.orEmpty()) }
     var flashKind by remember(exerciseId) { mutableStateOf(original?.flashcard?.kind ?: FlashcardKind.BASIC) }
     var gaps by remember(exerciseId) { mutableStateOf(original?.flashcard?.gaps.orEmpty()) }
+    var clozeTurnInput by remember(exerciseId) { mutableStateOf("1") }
+    var previewRevealed by remember(exerciseId) { mutableStateOf(false) }
     var masks by remember(exerciseId) { mutableStateOf(original?.flashcard?.masks.orEmpty()) }
     var aliasesText by remember(exerciseId) { mutableStateOf(original?.flashcard?.acceptedAnswers?.joinToString(", ").orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -84,15 +93,24 @@ fun StudyExerciseEditorScreen(
         pickImage.launch("image/*")
     }
     fun construct(draft: Boolean): StudyExercise {
+        val markup = if (exerciseKind == StudyExerciseKind.ANKI_CARD &&
+            flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)) {
+            runCatching { ClozeMarkupEngine.parse(front.text) }.getOrElse { failure ->
+                if (draft) ClozeMarkupEngine.Parsed(front.text, emptyList()) else throw failure
+            }
+        } else ClozeMarkupEngine.Parsed(front.text, gaps)
+        val effectiveKind = if (flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)) {
+            if (markup.gaps.isEmpty()) FlashcardKind.BASIC else FlashcardKind.CLOZE
+        } else flashKind
         val card = if (exerciseKind == StudyExerciseKind.ANKI_CARD) FlashcardContent(
-            kind = flashKind, front = front.text, back = back,
+            kind = effectiveKind, front = markup.text, back = back,
             frontImageUri = frontImageUri, backImageUri = backImageUri,
-            gaps = gaps, masks = masks,
+            gaps = markup.gaps, masks = masks,
             acceptedAnswers = aliasesText.split(",").map(String::trim).filter(String::isNotBlank)
         ) else null
         return StudyExercise(
             id = original?.id ?: UUID.randomUUID().toString(),
-            kind = exerciseKind, prompt = if (exerciseKind == StudyExerciseKind.ANKI_CARD) front.text else prompt,
+            kind = exerciseKind, prompt = if (exerciseKind == StudyExerciseKind.ANKI_CARD) markup.text else prompt,
             solutions = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) solutions else emptyList(),
             flashcard = card, baseImageUri = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) imageUri else null,
             diagram = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI && diagramEnabled)
@@ -254,48 +272,81 @@ fun StudyExerciseEditorScreen(
                     Text("Importar imagen base")
                 }
             } else {
-                Text("Tipo de tarjeta", color = TestarioText)
-                val supported = listOf(
-                    FlashcardKind.BASIC to "Básica",
-                    FlashcardKind.REVERSED to "Bidireccional",
-                    FlashcardKind.CLOZE to "Completar huecos",
-                    FlashcardKind.TYPE_ANSWER to "Respuesta escrita",
-                    FlashcardKind.IMAGE_OCCLUSION to "Ocultación de imagen"
+                val simpleAnki = flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)
+                Text(
+                    if (simpleAnki) "Tarjeta · pregunta y respuestas ocultables"
+                    else "Tarjeta heredada · ${flashKind.name}",
+                    color = TestarioText, style = MaterialTheme.typography.titleMedium
                 )
-                var expanded by remember { mutableStateOf(false) }
-                Box {
-                    OutlinedButton(onClick = { expanded = true }) {
-                        Text(supported.firstOrNull { it.first == flashKind }?.second ?: "Tipo avanzado")
-                    }
-                    DropdownMenu(expanded, onDismissRequest = { expanded = false }) {
-                        supported.forEach { (kind, label) ->
-                            DropdownMenuItem(text = { Text(label) }, onClick = {
-                                flashKind = kind; expanded = false
-                            })
-                        }
-                    }
+                if (!simpleAnki) {
+                    Text("Este formato antiguo se conserva por compatibilidad. Las tarjetas nuevas usan un editor simplificado.",
+                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedTextField(
-                    value = front, onValueChange = {
-                        if (it.text != front.text) gaps = emptyList() // avoid stale character offsets
-                        front = it
-                    }, label = { Text("Pregunta / texto") },
-                    modifier = Modifier.fillMaxWidth(), minLines = 2
+                    value = front, onValueChange = { front = it; error = null },
+                    label = { Text("Pregunta o texto de la tarjeta") },
+                    modifier = Modifier.fillMaxWidth(), minLines = 3
                 )
-                if (flashKind == FlashcardKind.CLOZE) {
+                if (simpleAnki) {
+                    Text("Selecciona una palabra o frase en el texto y márcala. Sin número se ocultará siempre; los turnos 1, 2, 3… se alternan cada vez que reveles la tarjeta.",
+                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                     OutlinedButton(onClick = {
-                        val lo = front.selection.min
-                        val hi = front.selection.max
-                        if (lo < hi && front.text.substring(lo, hi).isNotBlank()) {
-                            val newGap = ClozeGap(start = lo, end = hi)
-                            gaps = gaps + newGap
+                        runCatching {
+                            ClozeMarkupEngine.markSelection(
+                                front.text, front.selection.min, front.selection.max, null
+                            )
+                        }.onSuccess {
+                            front = TextFieldValue(it)
                             error = null
-                        } else error = "Selecciona primero la palabra o frase que quieras ocultar."
-                    }) { Text("Ocultar selección") }
-                    Text("${gaps.size} huecos definidos", color = TestarioMutedText)
-                    if (gaps.isNotEmpty()) TextButton(onClick = { gaps = gaps.dropLast(1) }) {
-                        Text("Deshacer último hueco")
+                        }.onFailure { error = it.message }
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Ocultar siempre la selección") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = clozeTurnInput,
+                            onValueChange = { clozeTurnInput = it.filter(Char::isDigit).take(3) },
+                            label = { Text("Turno nº") },
+                            modifier = Modifier.width(120.dp), singleLine = true
+                        )
+                        OutlinedButton(onClick = {
+                            val number = clozeTurnInput.toIntOrNull()
+                            if (number == null || number !in 1..999) {
+                                error = "Elige un número entre 1 y 999."
+                            } else runCatching {
+                                ClozeMarkupEngine.markSelection(
+                                    front.text, front.selection.min, front.selection.max, number
+                                )
+                            }.onSuccess {
+                                front = TextFieldValue(it)
+                                error = null
+                            }.onFailure { error = it.message }
+                        }, modifier = Modifier.weight(1f)) { Text("Ocultar en este turno") }
                     }
+                    val candidateMarkup = runCatching { ClozeMarkupEngine.parse(front.text) }
+                    candidateMarkup.onSuccess { parsed ->
+                        if (parsed.gaps.isNotEmpty()) {
+                            Text("Fragmentos ocultos", color = TestarioText)
+                            parsed.gaps.forEachIndexed { idx, gap ->
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        "${parsed.text.substring(gap.start, gap.end)} · " +
+                                            (gap.groupNumber?.let { "Turno $it" } ?: "Siempre"),
+                                        modifier = Modifier.weight(1f), color = TestarioText
+                                    )
+                                    TextButton(onClick = {
+                                        runCatching { ClozeMarkupEngine.unmark(front.text, idx) }
+                                            .onSuccess { front = TextFieldValue(it) }
+                                            .onFailure { error = it.message }
+                                    }) { Text("Quitar") }
+                                }
+                            }
+                        }
+                    }.onFailure {
+                        Text(it.message ?: "Marcador incompleto", color = TestarioRed,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text("También puedes escribir {{palabra}}, {{1:palabra}}, {{2:frase}} o [[1:palabra]].",
+                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedTextField(
                     value = back, onValueChange = { back = it },
@@ -355,15 +406,46 @@ fun StudyExerciseEditorScreen(
             }
 
             if (showPreview) {
-                val candidate = construct(draft = false)
-                val reasons = StudyExerciseRules.errors(candidate)
+                val candidate = runCatching { construct(draft = false) }
                 Column(Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(12.dp)).padding(12.dp)) {
                     Text("Vista previa", color = TestarioText, style = MaterialTheme.typography.titleMedium)
-                    Text(if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) prompt else front.text,
-                        color = TestarioText)
-                    if (reasons.isNotEmpty()) Text(reasons.joinToString("\n"),
-                        color = TestarioRed, style = MaterialTheme.typography.bodySmall)
-                    else Text("Validación del contenido: correcta", color = TestarioGreen)
+                    candidate.onSuccess { ex ->
+                        if (ex.kind == StudyExerciseKind.WRITTEN_MULTI) {
+                            Text(ex.prompt, color = TestarioText)
+                            ex.baseImageUri?.let { image ->
+                                StudyVisualImage(image, modifier = Modifier.fillMaxWidth().height(220.dp),
+                                    markers = ex.solutions.flatMap { it.points },
+                                    showCorrection = previewRevealed)
+                            }
+                            if (previewRevealed) ex.solutions.forEach {
+                                Text(it.text, color = TestarioGreen)
+                            }
+                        } else {
+                            val card = ex.flashcard
+                            if (card != null) {
+                                Text(if (previewRevealed) card.front else
+                                    ClozeMarkupEngine.mask(card.front, card.gaps, 0),
+                                    color = TestarioText)
+                                card.frontImageUri?.let { image ->
+                                    StudyVisualImage(image, modifier = Modifier.fillMaxWidth().height(190.dp))
+                                }
+                                if (previewRevealed) {
+                                    Divider()
+                                    Text("Respuesta", color = TestarioGreen)
+                                    Text(card.back.ifBlank { card.gaps.joinToString(", ") { g ->
+                                        card.front.substring(g.start, g.end) } }, color = TestarioText)
+                                }
+                            }
+                        }
+                        val reasons = StudyExerciseRules.errors(ex)
+                        if (reasons.isNotEmpty()) Text(reasons.joinToString("\n"), color = TestarioRed)
+                        else Text("Contenido válido", color = TestarioGreen)
+                    }.onFailure {
+                        Text(it.message ?: "Formato incompleto", color = TestarioRed)
+                    }
+                    OutlinedButton(onClick = { previewRevealed = !previewRevealed }) {
+                        Text(if (previewRevealed) "Ver como alumno" else "Mostrar corrección")
+                    }
                 }
             }
             OutlinedButton(onClick = { showPreview = !showPreview }, modifier = Modifier.fillMaxWidth()) {
