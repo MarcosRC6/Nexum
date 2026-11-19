@@ -311,7 +311,7 @@ fun TopicDetailScreen(
                                 onClick = { addMenuExpanded = false; onAddQuestion() }
                             )
                             DropdownMenuItem(
-                                text = { Text("Respuesta múltiple escrita") },
+                                text = { Text("Enumerar respuestas") },
                                 onClick = { addMenuExpanded = false; onAddExercise(StudyExerciseKind.WRITTEN_MULTI) }
                             )
                             DropdownMenuItem(
