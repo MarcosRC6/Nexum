@@ -237,11 +237,17 @@ fun StudyExerciseEditorScreen(
             Text("Tipo de ejercicio", color = TestarioText)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
-                    StudyExerciseKind.WRITTEN_MULTI to "Respuesta escrita",
+                    StudyExerciseKind.WRITTEN_MULTI to "Enumerar",
                     StudyExerciseKind.ANKI_CARD to "Tarjeta Anki"
                 ).forEach { (kind, name) ->
                     FilterChip(selected = exerciseKind == kind,
-                        onClick = { exerciseKind = kind; error = null }, label = { Text(name) })
+                        onClick = {
+                            if (original == null) { exerciseKind = kind; error = null }
+                            else if (kind != original.kind)
+                                error = "Para proteger tus datos, no se puede cambiar el tipo de un ejercicio guardado. Duplícalo y crea otro tipo."
+                        },
+                        enabled = original == null || kind == original.kind,
+                        label = { Text(name) })
                 }
             }
 
