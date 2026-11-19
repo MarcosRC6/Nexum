@@ -17,6 +17,14 @@
 - Estadísticas y puntuaciones se registran por ejercicio y tipo; al calcular un resultado global usar una normalización documentada para que un ítem con quince respuestas no distorsione silenciosamente la nota frente a una pregunta test.
 - **Compatibilidad:** las preguntas actuales conservan exactamente su tipo test y sus sesiones antiguas siguen siendo legibles. El esquema, backups e importaciones futuros se versionan y migran con pruebas de no pérdida de datos.
 
+## Acuerdo aprobado: Entrenamiento mixto, Examen y Repaso Anki (19/11/2026)
+
+- **Entrenamiento mixto:** se pueden combinar todos los formatos. Mostrar solución de tarjetas debajo del enunciado tras revelarla. La autoevaluación no modifica repetición espaciada **por defecto**; solo si el usuario lo activa explícitamente y el intento cuenta como repaso programado válido.
+- **Examen mixto:** solo los ejercicios de **corrección objetiva** integran la nota numérica: test, respuesta múltiple escrita y tarjetas de huecos/respuesta escrita cuando su formato verifica una solución inequívoca. Los demás se reflejan aparte como **«Repaso manual»**, con recuento de vistas/recordadas, sin alterar nota. Si no hay puntuables objetivos, mostrar «Examen sin nota objetiva». No mostrar soluciones antes de revisión ni actualizar intervalos Anki durante exámenes.
+- **Repaso Anki independiente:** accesible dentro de las pantallas existentes, sin añadir pestaña inferior. Estudio libre sin calendario; repaso programado únicamente cuando se active «Repetición espaciada». Mantener estadísticas de autoevaluación y eventos de programación separadas de puntuaciones objetivas.
+- **Plantillas y vista previa:** guardar tipos elegidos en cada modalidad, mostrar recuento de objetivas vs autoevaluadas y evitar duplicados de notas bidireccionales, tarjetas derivadas o temas asociados a varios grupos.
+- Detalles y escenarios en [NEXUM_TARJETAS_ANKI_REPASO_20261119.md](NEXUM_TARJETAS_ANKI_REPASO_20261119.md). **Aprobado conceptualmente; no implementado**.
+
 ## Nombre y usos
 - Nombre **general** del nuevo formato: **«Respuesta múltiple escrita»**. «Conexiones de calles» era únicamente un ejemplo, NO el nombre del formato: también sirve para enumerar herramientas, funciones, componentes, protocolos, estaciones, elementos geográficos, etc.
 - El editor definirá el enunciado, imagen base opcional, lista de respuestas esperadas, alias aceptados y reglas de corrección. No depender de datos del mapa si el ejercicio no es geográfico.
