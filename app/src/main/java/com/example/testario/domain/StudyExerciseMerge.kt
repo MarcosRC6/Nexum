@@ -19,7 +19,7 @@ object StudyExerciseMerge {
                         solution.points.map { p -> "${p.x}:${p.y}:${p.order}:${p.side}" }.sorted()
                 }.map { it.joinToString(";") }.sorted()
                 "${value.kind}|$prompt|${solutions.joinToString("|")}|"+
-                    "${value.baseImageUri?.let { File(it).name }}|${value.diagram}"
+                    "${value.baseImageUri?.let { File(it).name }}|${value.diagram}|${value.sketch}"
             }
             StudyExerciseKind.ANKI_CARD -> {
                 val card = value.flashcard
@@ -28,7 +28,7 @@ object StudyExerciseMerge {
                     "${card?.frontImageUri?.let { File(it).name }}|" +
                     "${card?.backImageUri?.let { File(it).name }}|" +
                     "${card?.acceptedAnswers?.sorted()}|" +
-                    "${card?.gaps?.map { Triple(it.start, it.end, it.hint) }}|" +
+                    "${card?.gaps?.map { listOf(it.start, it.end, it.hint, it.groupNumber) }}|" +
                     "${card?.masks?.map { listOf(it.x,it.y,it.width,it.height,it.answer) }}"
             }
         }
