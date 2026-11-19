@@ -27,6 +27,15 @@ class NexumUpdateVersionTest {
         assertFalse(isNewerVersion("2.0-beta.1", "2.0-beta.1"))
     }
 
+    @Test fun rejectsMissingOrMalformedApkDigest() {
+        assertTrue(isValidExpectedSha256("ed729b2fa1881358348d1da474c98071c3745e9dcc0239da5fc769734ab5360a"))
+        assertFalse(isValidExpectedSha256(""))
+        assertFalse(isValidExpectedSha256("a".repeat(63)))
+        assertFalse(isValidExpectedSha256("f".repeat(65)))
+        assertFalse(isValidExpectedSha256("G".repeat(64)))
+        assertFalse(isValidExpectedSha256("f".repeat(63) + "z"))
+    }
+
     @Test fun rejectsMalformedVersion() {
         assertFalse(isNewerVersion("beta", "1.0"))
         assertFalse(isNewerVersion("1.1", "unknown"))
