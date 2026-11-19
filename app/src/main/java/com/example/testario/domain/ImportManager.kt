@@ -212,9 +212,32 @@ class ImportManager(private val context: Context, private val localStore: Testar
                 require(target.canonicalPath.startsWith(canonicalImages)) {
                     "Ruta de imagen no autorizada."
                 }
-                if (target.exists()) target.copyTo(File(rollback, target.name))
-                changed.add(target)
-                staged.copyTo(target, overwrite = true)
+                if (target.exists()) {
+                    // An imported archive may re-use a name already belonging to a
+                    // different question. Never overwrite that question's image.
+                    val digest = java.security.MessageDigest.getInstance("SHA-256")
+                    fun hash(file: File): ByteArray {
+                        digest.reset()
+                        file.inputStream().use { stream ->
+                            val bytes = ByteArray(8192)
+                            while (true) {
+                                val count = stream.read(bytes)
+                                if (count < 0) break
+                                digest.update(bytes, 0, count)
+                            }
+                        }
+                        return digest.digest()
+                    }
+                    require(target.length() == staged.length() &&
+                        hash(target).contentEquals(hash(staged))) {
+                        "La imagen ${staged.name} ya existe con contenido diferente; " +
+                            "no se sobrescribirá. Renombra los recursos del paquete."
+                    }
+                    // Same image content already present, so preserve it as-is.
+                } else {
+                    changed.add(target)
+                    staged.copyTo(target, overwrite = false)
+                }
             }
             pendingImageStage = null
         } catch (error: Exception) {
