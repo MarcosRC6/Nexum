@@ -26,13 +26,15 @@ jobs:
     steps:
       - name: Checkout exact authorized beta source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Enforce reviewed source and one-time version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "1d8e0df561dac6b65d370be7a104b81bcef084fd"
+          test "$(git rev-parse HEAD^)" = "9cbdc5d53a0e3e9e8e65811b35412721d45323a5"
           test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/nexum-beta-2-0-publish.yml"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           grep -Eq '^[[:space:]]*versionCode = 15[[:space:]]*$' app/build.gradle.kts
