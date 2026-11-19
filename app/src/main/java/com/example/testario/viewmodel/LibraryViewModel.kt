@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 
 class LibraryViewModel(application: Application) : AndroidViewModel(application) {
     private val localStore = TestarioLocalStore.get(application)
+    val recoveryError = localStore.recoveryError
 
     // Instanciamos primero el ImageManager para pasárselo a los repositorios
     private val imageManager = ImageManager(application)
