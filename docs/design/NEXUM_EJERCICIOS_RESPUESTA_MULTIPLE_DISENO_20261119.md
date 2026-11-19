@@ -2,10 +2,20 @@
 
 **Estado: DISEÑO APROBADO PARCIALMENTE. No implementar aún.** El usuario está terminando de revisar los demás apartados. La presente PR solamente corrige «Hoy» e incorpora enlaces web.
 
-## Acceso a los distintos tipos de ejercicio
-- En la pantalla donde se inicia una sesión de estudio, **selector desplegable** de modalidad/formato: Test clásico, Tarjetas de memoria, Respuesta múltiple escrita y futuras variantes. No abrir una quinta pestaña inferior.
-- Al añadir una pregunta a un tema de Biblioteca, **desplegable «Tipo de ejercicio»**. Cada tipo de ejercicio tiene un editor distinto que muestra sólo los campos adecuados a ese formato.
-- Mantener temas/grupos organizativos, estadísticas y entrenamientos/exámenes. Evitar mezclas de puntuaciones engañosas entre formatos. No forzar preguntas antiguas a convertirse al nuevo tipo.
+## Banco común de ejercicios, temas y grupos: decisiones adicionales (19/11/2026)
+- **Todos los formatos viven en la Biblioteca existente**, bajo sus temas y grupos actuales. Un tema puede contener simultáneamente preguntas tipo test, tarjetas de memoria y ejercicios de respuesta múltiple escrita. Un grupo puede contener temas con cualquier combinación de tipos, sin crear estructuras paralelas o una quinta pestaña.
+- Dentro de la vista de cada tema/grupo, mostrar y permitir añadir **todos los tipos de ejercicios**; usar un filtro desplegable «Tipo de ejercicio» con «Todos», «Test», «Tarjetas» y «Respuesta múltiple escrita», más futuros formatos. La cantidad de elementos por tipo y los contadores de la Biblioteca deben seguir siendo comprensibles; no llamar «preguntas tipo test» a todas las tarjetas o ejercicios.
+- Al pulsar «Añadir» dentro de un tema, abrir desplegable «Tipo de ejercicio» y después el **editor específico** de ese formato. El ejercicio nuevo hereda por defecto el tema y grupo de origen; permitir asignar o cambiar tema/grupo de forma explícita, validando relaciones y evitando elementos huérfanos.
+- Mantener las herramientas conocidas del banco —consultar, buscar, editar, mover, borrar, importar/exportar y detectar duplicados— con comportamiento adecuado al tipo, sin forzar las preguntas clásicas a nuevos formatos.
+- Las **tarjetas de repaso automáticas** también deben aparecer en el banco común como tarjetas ordinarias identificables por su origen automático. Desde allí se pueden inspeccionar y gestionar, y **asignar o cambiar tema/grupo**. No esconderlas en una cola inaccesible.
+
+## Selección desplegable al iniciar Entrenamiento o Examen
+- En la configuración de una sesión, tras elegir uno o varios temas/grupos, presentar desplegable **«Tipo de ejercicios»**: «Solo test», «Solo tarjetas», «Solo respuesta múltiple escrita» y «Mixto» (todas las modalidades disponibles). Posibilidad futura de selección personalizada de más de un tipo, sin imponerla en esta primera versión.
+- Cada modo conserva **su interfaz propia**: en Test, elegir una respuesta; en Tarjetas, recordar/revelar; en Respuesta múltiple, introducir lista de respuestas y comprobar. El motor de sesión puede encadenar distintos formatos sin alterar el editor, la corrección ni los datos de cada uno.
+- El conjunto candidato surge exclusivamente de los temas/grupos seleccionados. Mostrar previamente cuántos ejercicios hay de cada tipo. Si un tipo no tiene ejercicios, deshabilitarlo o avisar claramente; nunca iniciar silenciosamente un tipo diferente.
+- «Mixto» selecciona únicamente tipos que realmente existan en los temas elegidos, con distribución previsible y sin duplicar ítems; el total de ejercicios y la distribución por tipo deben ser visibles antes de iniciar. Las modalidades de Entrenamiento y Examen mantienen sus respectivas políticas de revelación y revisión.
+- Estadísticas y puntuaciones se registran por ejercicio y tipo; al calcular un resultado global usar una normalización documentada para que un ítem con quince respuestas no distorsione silenciosamente la nota frente a una pregunta test.
+- **Compatibilidad:** las preguntas actuales conservan exactamente su tipo test y sus sesiones antiguas siguen siendo legibles. El esquema, backups e importaciones futuros se versionan y migran con pruebas de no pérdida de datos.
 
 ## Nombre y usos
 - Nombre **general** del nuevo formato: **«Respuesta múltiple escrita»**. «Conexiones de calles» era únicamente un ejemplo, NO el nombre del formato: también sirve para enumerar herramientas, funciones, componentes, protocolos, estaciones, elementos geográficos, etc.
@@ -25,16 +35,17 @@
 - Por defecto, la imagen inicial no revela las etiquetas de corrección ni el número de conexiones: se dibujan como una capa al corregir, sin modificar destructivamente el archivo base. Ofrecer otra política de pistas sólo si se acuerda.
 - Esta decisión **no retira** el soporte de imagen de enunciado + imagen de explicación **independientes** ya existente en los tests clásicos.
 
-## Tarjetas de repaso derivadas de errores: configuración voluntaria (19/11/2026)
-- **Opción desactivada por defecto:** «Crear tarjetas de repaso a partir de los errores». No generar tarjetas si el usuario no habilita expresamente esta función. El ejercicio y sus estadísticas deben funcionar igualmente sin ella.
-- Esta opción es **independiente** de la configuración existente para **añadir preguntas falladas a la cola de repasos**. Son dos controles distintos: el usuario puede activar ambos, uno solo o ninguno.
-- Al completar y corregir un ejercicio de «Respuesta múltiple escrita», si la opción está habilitada, el sistema **propone** tarjetas sobre las respuestas omitidas o confundidas; el usuario puede revisar, aceptar o descartar la propuesta antes de incorporarla a su biblioteca. No crear ni insertar material de estudio irrevocablemente por un fallo aislado.
-- **Entrenamiento:** proponer al finalizar la corrección. **Examen:** esperar a que se entregue y se abra la revisión; no revelar soluciones ni pistas antes de ese momento.
-- Cada tarjeta debe ser **autónoma y contextual**: el anverso identifica claramente el ejercicio de origen (vía principal, zona/tramo o tema), de modo que no se convierta en una pregunta aislada o ambigua; el reverso contiene la solución verificada y podrá reutilizar la imagen base y los marcadores cuando proceda.
-- Controlar duplicados por referencia al ejercicio de origen + respuesta identificada; no crear infinitas tarjetas al fallar repetidamente el mismo dato. Las repeticiones pueden actualizar la prioridad/frecuencia de repaso sin sobrescribir estadísticas existentes.
-- La fuente de las tarjetas debe ser la **lista de respuestas validada** del ejercicio: nunca inventar respuestas ni dar por cierto un alias ambiguo. Permitir borrar o desactivar tarjetas generadas sin borrar el ejercicio original ni su historial.
-- En un ejercicio con, por ejemplo, doce respuestas correctas y tres olvidadas, mostrar «Se han detectado tres posibles tarjetas» sólo si la opción está habilitada; no añadirlas automáticamente sin revisión.
-- Este apartado es una **decisión de diseño**, no una función programada en esta PR.
+## Tarjetas de repaso automáticas: ajuste opcional independiente (19/11/2026)
+- **Nombre exacto del ajuste en NEXUM:** «Tarjetas de repaso automáticas» (con tilde). Debajo se mostrará una descripción breve, por ejemplo: «Genera tarjetas para repasar los conceptos que olvides o confundas en ejercicios escritos».
+- **Interruptor desactivado de forma predeterminada** y enteramente independiente de la opción ya existente de incorporar preguntas falladas a la cola de repasos. El usuario puede activar ninguna, una o ambas.
+- Cuando el usuario lo activa, las tarjetas derivadas de respuestas erróneas u omitidas **se generan automáticamente tras una corrección válida**. No exigir una confirmación manual obligatoria para cada tarjeta, pues contradice el nombre y el comportamiento automático. La revisión/gestión manual sí debe estar disponible: ver las tarjetas en el banco, editar, descartar, mover, clasificar o borrar. Si más adelante se ofrece «Revisar antes de incorporar», será una preferencia **adicional y opcional**, no un requisito.
+- **Ubicación por defecto:** heredar el tema y el grupo del ejercicio original siempre que sean válidos. Facilitar en el banco común asignar **otro tema y/o grupo** a tarjetas automáticas o creadas manualmente, con selección por desplegable y validación para no dejar relaciones incoherentes. Incluir búsqueda y filtro «Origen: automático/manual» para localizarlas.
+- Al terminar un ejercicio, la corrección puede mostrar una confirmación discreta como «3 tarjetas de repaso creadas · Ver tarjetas», sin interferir con las soluciones o la nota. También debe ser posible gestionar el lote de tarjetas desde el banco.
+- **Entrenamiento:** crear tras comprobar/corregir definitivamente. **Examen:** crear sólo después de entregar y finalizar la corrección, nunca mientras las soluciones están ocultas.
+- Las tarjetas serán autónomas y contextualizadas (enunciado, zona/tramo y ejercicio origen), con respuesta verificada e imagen base/marcadores si aportan información. No generar contenidos inventados, ni convertir una respuesta ambigua en un hecho seguro.
+- **Deduplicación estable:** misma respuesta validada del mismo ejercicio no genera otra tarjeta por cada fallo. Fallar repetidamente puede afectar a su prioridad de repaso, sin borrar historial ni duplicar ítems. Borrar una tarjeta automática no borra el ejercicio original.
+- Desactivar el interruptor detiene la generación futura; **no elimina automáticamente las tarjetas ya generadas**.
+- Este apartado está aprobado como **especificación funcional futura**, no implementado en esta PR.
 
 ## Seguridad y consistencia antes de programar
 - Diseñar esquema versionado/migraciones de nuevos ejercicios y respaldos, exportación/importación y deduplicación semántica por tipo de ejercicio; no alterar el esquema actual por improvisación.
