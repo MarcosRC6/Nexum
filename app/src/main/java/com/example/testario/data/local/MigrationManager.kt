@@ -55,6 +55,7 @@ object MigrationManager {
             if (!jsonObject.has("ankiReviewStates")) jsonObject.put("ankiReviewStates", JSONArray())
             if (!jsonObject.has("ankiReviewEvents")) jsonObject.put("ankiReviewEvents", JSONArray())
             if (!jsonObject.has("ankiReviewEnabled")) jsonObject.put("ankiReviewEnabled", false)
+            // Settings default is handled by Kotlin serialization; preserve old data.
             currentVersion = 4
             jsonObject.put("version", currentVersion)
         }
