@@ -6,7 +6,7 @@ object Routes {
     const val TOPIC_DETAIL = "topic/{topicId}"
     const val QUESTION_EDITOR = "question/{topicId}?questionId={questionId}"
     const val STUDY_EXERCISE_EDITOR = "studyExercise/{topicId}?exerciseId={exerciseId}&initialKind={initialKind}"
-    const val STUDY_EXERCISE_PRACTICE = "studyPractice/{topicId}"
+    const val STUDY_EXERCISE_PRACTICE = "studyPractice/{topicId}?exerciseId={exerciseId}"
     const val TEST_CONFIG = "testConfig?preselectedTopicId={preselectedTopicId}&templateId={templateId}"
     const val GROUPS = "groups"
     const val TEST_SCREEN = "testScreen"
@@ -32,7 +32,8 @@ object Routes {
             if (initialKind != null) add("initialKind=$initialKind")
         }.let { if (it.isEmpty()) "" else "?" + it.joinToString("&") }
 
-    fun studyExercisePractice(topicId: String): String = "studyPractice/$topicId"
+    fun studyExercisePractice(topicId: String, exerciseId: String? = null): String =
+        "studyPractice/$topicId" + (exerciseId?.let { "?exerciseId=$it" } ?: "")
 
     fun testConfig(preselectedTopicId: String? = null, templateId: String? = null): String {
         val params = buildList {
