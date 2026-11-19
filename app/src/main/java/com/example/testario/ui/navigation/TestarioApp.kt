@@ -182,6 +182,7 @@ fun TestarioApp(
             "calendar" -> goPlan("calendar")
             "settings" -> goSettings()
             "home" -> goHome()
+            "home_today" -> goHome()
             NexumQuickTestWidgetModel.LAUNCH_ROUTE -> {
                 // Reuse the same resolver as linked tests: no duplicated logic,
                 // database migrations, or guessed template defaults.
@@ -234,6 +235,9 @@ fun TestarioApp(
                     onSettings = { goSettings() },
                     onCustomizeHome = { goHomeSettings() },
                     savedTestSessionViewModel = sessionViewModel,
+                    focusTodayRequestId = if (requestedDestinationRoute == "home_today") {
+                        navigationRequestId
+                    } else null,
                     onResumeSavedTest = {
                         if (sessionViewModel.resumeSavedSession()) {
                             navController.navigate(Routes.TEST_SCREEN) { launchSingleTop = true }
