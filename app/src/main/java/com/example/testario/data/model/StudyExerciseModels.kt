@@ -120,3 +120,20 @@ data class AnkiReviewEvent(
     val nextDueAtMillis: Long,
     val intervalMinutes: Long
 )
+
+@Serializable
+data class ExerciseAttempt(
+    val id: String = UUID.randomUUID().toString(),
+    val exerciseId: String,
+    val topicId: String,
+    val kind: StudyExerciseKind,
+    val timestampMillis: Long,
+    val submittedText: List<String> = emptyList(),
+    val correct: Int = 0,
+    val incorrect: Int = 0,
+    val omitted: Int = 0,
+    val scoreOutOfTen: Double? = null,
+    val pointsCorrect: Double = 1.0,
+    val penaltyWrong: Double = -0.25,
+    val objective: Boolean = true
+)
