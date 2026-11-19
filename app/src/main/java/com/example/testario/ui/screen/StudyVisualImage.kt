@@ -61,6 +61,7 @@ internal fun StudyVisualImage(
     masks: List<ImageOcclusionMask> = emptyList(),
     markers: List<ImagePoint> = emptyList(),
     showCorrection: Boolean = false,
+    markerStatuses: Map<String, Boolean> = emptyMap(),
     onTapImage: ((Double, Double) -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -112,8 +113,11 @@ internal fun StudyVisualImage(
                         }
                     } else {
                         markers.forEach { p ->
-                            drawCircle(color = Color(0xFFA85AFF),
-                                radius = 11.dp.toPx(), center = fit.locate(p.x,p.y))
+                            drawCircle(color = when (markerStatuses[p.id]) {
+                                true -> Color(0xFF51D79D)
+                                false -> Color(0xFFEA6877)
+                                null -> Color(0xFFA85AFF)
+                            }, radius = 11.dp.toPx(), center = fit.locate(p.x,p.y))
                         }
                     }
                 }
@@ -121,7 +125,11 @@ internal fun StudyVisualImage(
                     val at = fit.locate(p.x, p.y)
                     Text(
                         text = p.order.toString(),
-                        color = Color.White,
+                        color = when (markerStatuses[p.id]) {
+                            true -> Color(0xFF51D79D)
+                            false -> Color(0xFFEA6877)
+                            null -> Color.White
+                        },
                         modifier = Modifier.offset(
                             x = with(density) { at.x.toDp() } - 6.dp,
                             y = with(density) { at.y.toDp() } - 12.dp
