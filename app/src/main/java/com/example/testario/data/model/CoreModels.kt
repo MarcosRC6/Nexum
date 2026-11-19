@@ -22,7 +22,9 @@ data class TestarioDatabase(
     val ankiReviewEvents: List<AnkiReviewEvent> = emptyList(),
     val ankiReviewEnabled: Boolean = false,
     val ankiScheduleSettings: AnkiScheduleSettings = AnkiScheduleSettings(),
-    val exerciseAttempts: List<ExerciseAttempt> = emptyList()
+    val exerciseAttempts: List<ExerciseAttempt> = emptyList(),
+    /** Per-note next numbered group. Absence means first numbered round. */
+    val ankiClozeCursors: Map<String, Int> = emptyMap()
 )
 
 @Serializable
