@@ -88,6 +88,37 @@ object ClozeMarkupEngine {
 
     private fun escapeOpeners(s: String): String = s.replace("{{", "\\{{").replace("[[", "\\[[")
 
+    /** Remove one selected marker without altering any other marked fragment. */
+    fun unmark(source: String, ordinal: Int): String {
+        require(ordinal >= 0) { "Índice de fragmento inválido." }
+        var i = 0
+        var n = 0
+        while (i < source.length) {
+            if (source[i] == '\\' && i + 2 < source.length &&
+                (source.startsWith("{{", i + 1) || source.startsWith("[[", i + 1))) {
+                i += 3
+                continue
+            }
+            val open = when {
+                source.startsWith("{{", i) -> "{{"
+                source.startsWith("[[", i) -> "[["
+                else -> null
+            }
+            if (open == null) { i++; continue }
+            val end = source.indexOf(if (open == "{{") "}}" else "]]", i + 2)
+            require(end >= 0) { "Marcador sin cerrar." }
+            if (n == ordinal) {
+                val body = source.substring(i + 2, end)
+                val numbered = Regex("^[1-9][0-9]*:").find(body)
+                val shown = if (numbered != null) body.substring(numbered.value.length) else body
+                return source.substring(0,i) + shown + source.substring(end + 2)
+            }
+            i = end + 2
+            n++
+        }
+        throw IllegalArgumentException("No existe el fragmento seleccionado.")
+    }
+
     /** Choose numbered turn deterministically, preserving default always-hidden gaps. */
     fun numberedGroups(gaps: List<ClozeGap>): List<Int> =
         gaps.mapNotNull { it.groupNumber }.distinct().sorted()
