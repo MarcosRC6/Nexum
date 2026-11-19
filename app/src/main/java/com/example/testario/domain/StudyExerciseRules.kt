@@ -16,6 +16,73 @@ object StudyExerciseRules {
             .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
             .trim().replace(Regex("\\s+"), " ")
 
+    /**
+     * Limited, explainable Spanish aliases. No Levenshtein, prefix guessing,
+     * substring matches or semantic hallucinations.
+     * A derived alias is only accepted if it identifies ONE canonical solution.
+     */
+    private val roadType = mapOf(
+        "calle" to "calle", "c" to "calle", "cl" to "calle",
+        "avenida" to "avenida", "av" to "avenida", "avda" to "avenida",
+        "plaza" to "plaza", "pza" to "plaza", "pl" to "plaza",
+        "paseo" to "paseo", "pso" to "paseo",
+        "camino" to "camino", "cmno" to "camino",
+        "carretera" to "carretera", "ctra" to "carretera",
+        "ronda" to "ronda", "travesia" to "travesia",
+        "puente" to "puente", "glorieta" to "glorieta"
+    )
+    private val genericLastWords = setOf(
+        "calle", "avenida", "plaza", "paseo", "camino", "nueva", "nuevo",
+        "vieja", "viejo", "mayor", "menor", "norte", "sur", "este", "oeste",
+        "de", "del", "el", "la", "los", "las", "san", "santa"
+    )
+
+    private fun variants(text: String): Set<String> {
+        val normalized = normalize(text)
+        if (normalized.isEmpty()) return emptySet()
+        val result = linkedSetOf(normalized)
+        val words = normalized.split(" ")
+        val kind = roadType[words.first()]
+        val tail = if (kind != null && words.size > 1) words.drop(1) else words
+        if (kind != null && tail.isNotEmpty()) {
+            val rest = tail.joinToString(" ")
+            result += "$kind $rest"
+            if (rest.isNotBlank()) result += rest
+            val simplified = tail.dropWhile { it in setOf("de", "del", "la", "el", "los", "las") }
+            if (simplified.isNotEmpty()) {
+                result += simplified.joinToString(" ")
+                result += "$kind ${simplified.joinToString(" ")}"
+            }
+        }
+        // A one-word distinctive surname/ending may stand for the full name,
+        // but never for a 1-word canonical answer nor for a generic direction.
+        val last = tail.lastOrNull().orEmpty()
+        if (tail.size >= 2 && last.length >= 3 && last !in genericLastWords)
+            result += last
+        return result
+    }
+
+    private fun ownerIndex(exercise: StudyExercise): Map<String, String?> {
+        val seen = linkedMapOf<String, String?>()
+        for (solution in exercise.solutions) {
+            val keys = (listOf(solution.text) + solution.aliases).flatMap(::variants).distinct()
+            keys.forEach { key ->
+                // If two separate solutions generate the same shorthand,
+                // it becomes AMBIGUOUS rather than arbitrarily awarding a point.
+                if (key in seen && seen[key] != solution.id) seen[key] = null
+                else if (key !in seen) seen[key] = solution.id
+            }
+        }
+        return seen
+    }
+
+    fun findAcceptedSolution(exercise: StudyExercise, submitted: String): CanonicalSolution? {
+        val key = normalize(submitted)
+        if (key.isEmpty() || exercise.kind != StudyExerciseKind.WRITTEN_MULTI) return null
+        val owner = ownerIndex(exercise)[key] ?: return null
+        return exercise.solutions.firstOrNull { it.id == owner }
+    }
+
     private fun valid01(v: Double): Boolean = v.isFinite() && v in 0.0..1.0
 
     /** Returns all reasons; draft records may be saved without passing validation. */
@@ -139,11 +206,7 @@ object StudyExerciseRules {
         requireValid(exercise)
         require(pointsCorrect.isFinite() && pointsCorrect > 0) { "Acierto no válido." }
         require(penaltyWrong.isFinite() && penaltyWrong <= 0) { "Penalización no válida." }
-        val aliases = buildMap<String, String> {
-            exercise.solutions.forEach { solution ->
-                (listOf(solution.text) + solution.aliases).forEach { put(normalize(it), solution.id) }
-            }
-        }
+        val aliases = ownerIndex(exercise)
         val correctIds = linkedSetOf<String>()
         val invalid = linkedMapOf<String, String>()
         submitted.forEach { input ->
