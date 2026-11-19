@@ -79,10 +79,13 @@ internal fun NexumUpdateSettingsCard() {
                         NexumUpdateManager.verifyDownloadedApk(context, id, requested)
                     }.getOrDefault(false)
                     downloadReady = true
-                    message = if (integrityOk) {
-                        "APK verificada. Pulsa Instalar para confirmar la actualización en Android."
-                    } else {
-                        "La descarga no superó la verificación de integridad. No se instalará."
+                    message = when {
+                        integrityOk ->
+                            "APK verificada. Pulsa Instalar para confirmar la actualización en Android."
+                        requested?.expectedSha256 == null ->
+                            "La publicación no incluye una huella SHA-256 válida. No se instalará una APK sin verificar."
+                        else ->
+                            "La descarga no superó la verificación de integridad. No se instalará."
                     }
                     break
                 }
