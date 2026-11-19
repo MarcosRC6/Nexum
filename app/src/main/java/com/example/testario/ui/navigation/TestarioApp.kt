@@ -78,6 +78,8 @@ fun TestarioApp(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val context = LocalContext.current
     val timerState by PlanarioDependencies.studyTimerController.state.collectAsState()
+    val recoveryError by libraryViewModel.recoveryError.collectAsState()
+    var recoveryNoticeDismissed by remember { mutableStateOf(false) }
     var showTimerExitDialog by remember { mutableStateOf(false) }
     var announcedRelease by remember { mutableStateOf<NexumRelease?>(null) }
     var dismissedUpdateNotice by remember { mutableStateOf(false) }
@@ -415,6 +417,24 @@ fun TestarioApp(
                 )
             }
             }
+        }
+
+        if (recoveryError != null && !recoveryNoticeDismissed) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Biblioteca protegida") },
+                text = {
+                    Text(recoveryError.orEmpty() +
+                        "\n\nLa base original se conserva. En Ajustes puedes restaurar una copia global ZIP compatible. " +
+                        "No crees temas ni realices sincronizaciones hasta recuperar los datos.")
+                },
+                confirmButton = {
+                    com.example.testario.ui.theme.NeonButton(onClick = {
+                        recoveryNoticeDismissed = true
+                        goSettings()
+                    }) { Text("Abrir Ajustes") }
+                }
+            )
         }
 
         if (showTimerExitDialog && timerState.studyTimerState == StudyTimerState.RUNNING) {
