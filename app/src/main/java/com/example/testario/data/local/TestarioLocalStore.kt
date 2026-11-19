@@ -47,6 +47,11 @@ class TestarioLocalStore private constructor(context: Context) {
                 // 4. Si el gestor tuvo que alterar el JSON antiguo, guardamos los cambios
                 // para que no tenga que volver a migrarlo en el siguiente inicio.
                 if (rawText != migratedText) {
+                    // Create an immutable pre-v4 snapshot BEFORE migrating to a new
+                    // schema. This is local recovery material, not a substitute for
+                    // the user's complete ZIP backup (which also contains media).
+                    val oldVersion = org.json.JSONObject(rawText).optInt("version", 0)
+                    if (oldVersion in 0..3) saveOriginalBeforeV4(rawText)
                     writeDatabaseAtomically(db)
                 }
 
@@ -86,6 +91,24 @@ class TestarioLocalStore private constructor(context: Context) {
                     e.printStackTrace()
                 }
             }
+        }
+    }
+
+    /**
+     * Preserve exact old bytes prior to v4 migration. Never replace the first
+     * snapshot with already-migrated data. Keep it in app-private storage.
+     */
+    private fun saveOriginalBeforeV4(originalJson: String) {
+        val backup = File(file.parentFile, "nexum_before_v4_database.json")
+        if (backup.isFile && backup.length() > 0) return
+        val snapshot = AtomicFile(backup)
+        val output = snapshot.startWrite()
+        try {
+            output.write(originalJson.toByteArray(Charsets.UTF_8))
+            snapshot.finishWrite(output)
+        } catch (error: Exception) {
+            snapshot.failWrite(output)
+            throw error
         }
     }
 
