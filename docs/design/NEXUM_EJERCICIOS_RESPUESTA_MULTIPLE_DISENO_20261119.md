@@ -31,17 +31,17 @@
 
 ## Puntuación de respuesta múltiple escrita: reglas y casos límite (19/11/2026)
 
-**Estado de esta sección:** se ha elegido el **modelo de aciertos parciales con penalización por errores añadidos**. El **coeficiente de penalización 0,5** y las opciones de configuración son una **propuesta inicial pendiente de aprobación**, no una cifra decidida expresamente por el usuario. Todavía no se implementa.
+**Estado de esta sección:** se ha elegido el **modelo de aciertos parciales con penalización por errores añadidos**. **Decisión del usuario:** la puntuación debe ser **editable igual que en los tests existentes de NEXUM**, no fijarse a −0,5. Se reutilizará el concepto de «Puntos por acierto» y «Penalización por fallo» que ya usa la configuración de Test y sus plantillas (valores base actuales: **+1** y **−0,25**). El valor −0,5 que se empleó en la simulación anterior sigue siendo un ejemplo de configuración posible, **no** un valor obligatorio. Todavía no se implementa.
 
 ### Unidades contables
 - `N`: cantidad de soluciones canónicas distintas definidas y válidas en el ejercicio, mínimo 1. Cada solución tiene un ID estable, nombre, alias admitidos y, opcionalmente, una o varias posiciones de marcador. Varios marcadores de la misma solución no suman puntos múltiples por defecto.
-- `C`: cantidad de soluciones canónicas distintas acertadas por el usuario después de una correspondencia uno-a-uno. Cada solución vale **+1** una sola vez, aunque se introduzcan el nombre completo y un alias.
-- `E`: cantidad de **entradas finales inválidas distintas** (no vacías), después de eliminar equivalencias de normalización y duplicados. Cada entrada incorrecta vale **−p**; como propuesta inicial `p = 0,5`. Dos nombres realmente diferentes, aunque sean equivocaciones sobre una misma calle, cuentan como dos intentos incorrectos, salvo que resulten ser alias equivalentes verificables.
+- `C`: cantidad de soluciones canónicas distintas acertadas por el usuario después de una correspondencia uno-a-uno. Cada una suma los **puntos por acierto configurados `a`**, una sola vez, aunque se introduzcan el nombre completo y un alias.
+- `E`: cantidad de **entradas finales inválidas distintas** (no vacías), después de eliminar equivalencias de normalización y duplicados. Cada entrada incorrecta suma la **penalización configurada `b`**, que es 0 o un número negativo. Los valores base de NEXUM son `a = 1`, `b = −0,25`; puede configurarse, por ejemplo, `b = −0,5` o `b = 0`. Dos nombres realmente diferentes cuentan como dos intentos incorrectos, salvo que resulten ser alias equivalentes verificables.
 - `O = N − C`: soluciones omitidas, registradas en estadísticas, sin resta adicional; su ausencia ya limita la nota por no sumar.
-- **Fórmula por ejercicio:** `notaPorcentaje = clamp(100 * (C − p * E) / N, 0, 100)`. Guardar internamente el valor decimal sin redondear; redondear sólo en interfaz. `conocimientoRecordado = 100 * C / N`, estadística separada.
-- El examen y el entrenamiento deben usar **la misma rúbrica del ejercicio** para que la misma respuesta produzca la misma nota, salvo que el autor/plantilla establezca explícitamente una regla distinta visible antes de comenzar. En cualquier caso, guardar en el intento el `scoringRuleVersion` y `p` utilizados; futuras configuraciones no recalifican silenciosamente el historial.
+- **Fórmula por ejercicio:** `puntuaciónBruta = C*a + E*b`; `notaPorcentaje = clamp(100 * puntuaciónBruta / (N*a), 0, 100)` con `N >= 1`, `a > 0`, `b <= 0`. Mostrar nota sobre 10 usando el mismo método que Test y conservar internamente los decimales sin redondear. `conocimientoRecordado = 100 * C / N` permanece como estadística separada.
+- **Ubicación de la configuración:** en el apartado **«Baremo»** de la configuración de Entrenamiento/Examen, con los mismos controles editables y validaciones que los tests clásicos: «Puntos por acierto» (>0) y «Penalización por fallo» (<=0, permite 0). Para sesiones mixtas, mostrar la rúbrica que se aplicará a cada formato, usar el mismo valor por defecto en tests y respuestas escritas y permitir configuración independiente por tipo sólo si es explícita y visible, sin cambios encubiertos. Guardar los valores en las plantillas y en el snapshot de cada intento (`scoringRuleVersion`, `pointsCorrect`, `penaltyWrong`), para que modificar ajustes después no recalifique silenciosamente el historial.
 
-### Tabla de expectativas para 12 soluciones, p = 0,5
+### Tabla de expectativas para 12 soluciones, a = +1 y b = −0,5 (ejemplo configurable)
 | C | E | O | Nota | Interpretación |
 |---:|---:|---:|---:|---|
 | 12 | 0 | 0 | 100 % | Perfecto |
@@ -74,7 +74,7 @@
 - Cada ejercicio escrito contribuye **una puntuación normalizada entre 0 y 1**, independientemente del número de soluciones internas. Si hay 5 tests y 1 ejercicio escrito, la media por ejercicio evita que las 12 soluciones escritas pesen por sí mismas como 12 preguntas test. Plantillas/ponderación por tipo podrían añadirse de manera explícita más adelante, nunca oculta.
 - Almacenar métricas **por ejercicio** (nota, C, E, O, tipo, regla y fecha) y **por solución canónica** (cuándo se recordó, omitió o confundió). Las preguntas clásicas conservan su registro de estadísticas y la cola de fallos existente, sin generar tarjetas nuevas automáticamente.
 - Una importación o sincronización no debe sumar intentos/errores otra vez. Los eventos se identifican por `attemptId`, y se valida la versión de la regla y los IDs de las soluciones. Los historiales personales se incluyen en **backup global**, pero se excluyen de un ZIP de ejercicios para compartir.
-- Probar equivalencias de alias, acentos, ambigüedades, duplicados, respuesta vacía, `E > N`, nota inferior a 0, 100 % con extras erróneos, exámenes temporizados, guardado/reanudación, varias pulsaciones y dos dispositivos con sincronización simultánea.
+- Probar equivalencias de alias, acentos, ambigüedades, duplicados, respuesta vacía, `E > N`, nota inferior a 0, 100 % con extras erróneos, `b = 0`, valores base +1/−0,25, penalización editable −0,5 y −1, baremos personalizados por plantilla y mixto, valores inválidos/NaN/infinito, exámenes temporizados, guardado/reanudación, varias pulsaciones y dos dispositivos con sincronización simultánea.
 
 ## Imagen de enunciado y corrección: decisión importante
 - Para estos ejercicios **NO exigir dos imágenes independientes**. Se utiliza **UNA sola imagen base de enunciado** y durante la corrección se superponen etiquetas/indicadores sobre ESA misma imagen.
