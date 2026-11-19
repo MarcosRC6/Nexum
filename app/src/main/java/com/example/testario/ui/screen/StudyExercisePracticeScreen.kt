@@ -66,6 +66,8 @@ fun StudyExercisePracticeScreen(
     val attemptId = rememberSaveable(tab, index) { UUID.randomUUID().toString() }
     val keyboard = LocalSoftwareKeyboardController.current
 
+    val schematicLineColor = TestarioPrimary
+
     Scaffold(
         containerColor = TestarioBackground,
         topBar = { TestarioTopBar(title = "Practicar ejercicios", onBack = onBack) }
@@ -97,7 +99,7 @@ fun StudyExercisePracticeScreen(
                     Box(Modifier.fillMaxWidth().height(140.dp)
                         .background(TestarioSurface, RoundedCornerShape(12.dp))) {
                         Canvas(Modifier.fillMaxSize()) {
-                            drawLine(TestarioPrimary,
+                            drawLine(schematicLineColor,
                                 start = Offset(size.width * diagram.startX.toFloat(),
                                     size.height * diagram.startY.toFloat()),
                                 end = Offset(size.width * diagram.endX.toFloat(),
