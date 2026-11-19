@@ -119,7 +119,7 @@ object StudyExerciseRules {
                         errors += "Marcador fuera de la imagen."
                     if (point.order < 1 || !orders.add(point.order))
                         errors += "El orden de los marcadores debe ser único y positivo."
-                    if (exercise.baseImageUri == null && exercise.diagram == null)
+                    if (exercise.baseImageUri == null && exercise.diagram == null && exercise.sketch == null)
                         errors += "Un marcador requiere imagen o esquema base."
                 }
             }
@@ -137,6 +137,8 @@ object StudyExerciseRules {
                 var previousEnd = -1
                 card.gaps.sortedBy { it.start }.forEach { gap ->
                     if (gap.id.isBlank() || !ids.add(gap.id)) errors += "ID de hueco duplicado."
+                    if (gap.groupNumber != null && gap.groupNumber !in 1..999)
+                        errors += "Turno de fragmento inválido."
                     if (gap.start < 0 || gap.end > card.front.length ||
                         gap.start >= gap.end) errors += "Hueco fuera del texto."
                     else {
@@ -166,6 +168,22 @@ object StudyExerciseRules {
                     if (accepted.any { it.isBlank() }) errors += "Respuesta escrita vacía."
                 }
             }
+        }
+        exercise.sketch?.let { sketch ->
+            if (sketch.strokes.size > 500) errors += "La imagen tiene demasiados trazos."
+            val strokeIds = hashSetOf<String>()
+            var sum = 0L
+            sketch.strokes.forEach { stroke ->
+                if (!strokeIds.add(stroke.id)) errors += "Trazo duplicado."
+                sum += stroke.points.size
+                if (stroke.points.size < 2 || stroke.points.size > 10000)
+                    errors += "Trazo con cantidad de puntos inválida."
+                if (stroke.points.any { !valid01(it.x) || !valid01(it.y) })
+                    errors += "El dibujo tiene puntos fuera del lienzo."
+                if (stroke.brush !in setOf("purple", "white", "green", "red"))
+                    errors += "Color de dibujo incompatible."
+            }
+            if (sum > 100_000L) errors += "La imagen tiene demasiados puntos."
         }
         exercise.diagram?.let { diagram ->
             if (!valid01(diagram.startX) || !valid01(diagram.startY) ||
