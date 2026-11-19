@@ -154,10 +154,11 @@ object StudyExerciseRules {
             else correctIds.add(owner)
         }
         val count = exercise.solutions.size
-        val raw = correctIds.size.toDouble() * pointsCorrect + invalid.size.toDouble() * penaltyWrong
-        // Prevent double overflow from producing NaN. Score mathematically is clamped.
-        val normalized = (correctIds.size.toDouble() / count.toDouble()) +
-            (invalid.size.toDouble() / count.toDouble()) * (penaltyWrong / pointsCorrect)
+        // Avoid 0 * Infinity => NaN for finite but extremely unbalanced baremos.
+        val correctFraction = correctIds.size.toDouble() / count.toDouble()
+        val penaltyFraction = if (invalid.isEmpty() || penaltyWrong == 0.0) 0.0
+            else (invalid.size.toDouble() / count.toDouble()) * (penaltyWrong / pointsCorrect)
+        val normalized = correctFraction + penaltyFraction
         val score = normalized.coerceIn(0.0, 1.0)
         return WrittenResult(
             correct = correctIds.size,
