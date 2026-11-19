@@ -29,6 +29,53 @@
 - Evitar falsos positivos por substring o distancia de Levenshtein: normalizar mayúsculas, tildes y prefijos frecuentes, reconocer alias explícitos, validar inequívocamente en el universo de respuestas del ejercicio, impedir que la misma respuesta cuente dos veces; ante ambigüedad no dar por correcta una respuesta distinta.
 - El alcance geográfico del enunciado (calle completa, zona, o tramo) forma parte de los datos del ejercicio y de su criterio de corrección.
 
+## Puntuación de respuesta múltiple escrita: reglas y casos límite (19/11/2026)
+
+**Estado de esta sección:** se ha elegido el **modelo de aciertos parciales con penalización por errores añadidos**. El **coeficiente de penalización 0,5** y las opciones de configuración son una **propuesta inicial pendiente de aprobación**, no una cifra decidida expresamente por el usuario. Todavía no se implementa.
+
+### Unidades contables
+- `N`: cantidad de soluciones canónicas distintas definidas y válidas en el ejercicio, mínimo 1. Cada solución tiene un ID estable, nombre, alias admitidos y, opcionalmente, una o varias posiciones de marcador. Varios marcadores de la misma solución no suman puntos múltiples por defecto.
+- `C`: cantidad de soluciones canónicas distintas acertadas por el usuario después de una correspondencia uno-a-uno. Cada solución vale **+1** una sola vez, aunque se introduzcan el nombre completo y un alias.
+- `E`: cantidad de **entradas finales inválidas distintas** (no vacías), después de eliminar equivalencias de normalización y duplicados. Cada entrada incorrecta vale **−p**; como propuesta inicial `p = 0,5`. Dos nombres realmente diferentes, aunque sean equivocaciones sobre una misma calle, cuentan como dos intentos incorrectos, salvo que resulten ser alias equivalentes verificables.
+- `O = N − C`: soluciones omitidas, registradas en estadísticas, sin resta adicional; su ausencia ya limita la nota por no sumar.
+- **Fórmula por ejercicio:** `notaPorcentaje = clamp(100 * (C − p * E) / N, 0, 100)`. Guardar internamente el valor decimal sin redondear; redondear sólo en interfaz. `conocimientoRecordado = 100 * C / N`, estadística separada.
+- El examen y el entrenamiento deben usar **la misma rúbrica del ejercicio** para que la misma respuesta produzca la misma nota, salvo que el autor/plantilla establezca explícitamente una regla distinta visible antes de comenzar. En cualquier caso, guardar en el intento el `scoringRuleVersion` y `p` utilizados; futuras configuraciones no recalifican silenciosamente el historial.
+
+### Tabla de expectativas para 12 soluciones, p = 0,5
+| C | E | O | Nota | Interpretación |
+|---:|---:|---:|---:|---|
+| 12 | 0 | 0 | 100 % | Perfecto |
+| 9 | 0 | 3 | 75 % | Tres omitidas, sin errores añadidos |
+| 9 | 2 | 3 | 66,67 % | Dos errores adicionales penalizados |
+| 0 | 0 | 12 | 0 % | En blanco |
+| 0 | 6 | 12 | 0 % | Nunca nota negativa |
+| 12 | 2 | 0 | 91,67 % | Recuerda todas, pero añadió dos incorrectas |
+| 9 | 2 | 3 | 66,67 % | Mismo resultado en móvil o tablet |
+
+### Política de correspondencia y deduplicación
+- Resolver sobre **IDs canónicos** de soluciones, no sobre texto literal. Normalizar mayúsculas/minúsculas, diacríticos, espacios repetidos, puntuación y abreviaturas/prefijos aprobados por el autor. Ejemplos: «Calle de Thomas Edison», «Thomas Edison» y «Edison» pueden designar la misma solución **si el alias es inequívoco** en ese ejercicio.
+- Alias idéntico que corresponde a varias soluciones distintas: **ambigüedad**. No asignar una solución al azar ni acreditarla; antes de entregar, permitir ampliar el nombre sin mostrar la solución completa. En Examen no mostrar cuál es el nombre correcto ni si el valor existe en la lista.
+- La distancia ortográfica o substring no basta para validar («Thomas Edisno» no debe aceptarse automáticamente por similitud si puede confundirse con otra vía). Se pueden prever sugerencias durante la revisión tras entregar o un mecanismo documentado para reclamar/revisar, sin filtración de respuestas durante Examen.
+- Un nombre correcto y su alias introducidos dos veces: **un acierto, cero penalización por duplicado**; informar «Ya añadido» y no crear dos chips. Repeticiones idénticas de un valor erróneo tampoco deben multiplicar la penalización; la entrada vacía, espacios y pulsaciones repetidas no se añaden ni penalizan.
+- Detectar errores tipográficos al validar en final; antes de «Comprobar»/«Entregar», el alumno puede editar/eliminar entradas libremente sin ninguna penalización: **sólo cuenta el conjunto final entregado**.
+- Si hay dos cruces distintos con la misma calle, por defecto **una solución canónica / dos marcadores visuales**. Si el autor evalúa intencionadamente dos puntos de forma independiente, debe declarar dos ítems distintos y desambiguarlos expresamente; nunca duplicar soluciones sólo porque la línea tiene dos intersecciones.
+- La orientación, el lado y el orden espacial son **datos de la solución visual**, no generan errores adicionales si no han sido expresamente exigidos como respuestas. Si el autor quiere evaluar posiciones/sentidos, definirlo como requisito visible y una rúbrica separada antes de implementar puntuación espacial.
+
+### Entrenamiento, Examen y estado de sesión
+- En **Entrenamiento**, «Añadir» o Enter registran una etiqueta editable; «Comprobar» congela la entrega, calcula el resultado y muestra aciertos, omisiones y errores junto a marcadores numerados de la imagen original. La corrección inmediata por respuesta, si existe como ajuste, debe ser opcional y consciente de que aporta pistas.
+- En **Examen**, «Añadir» tampoco valida visiblemente qué es correcto. «Entregar» o el agotamiento del tiempo consolidan el conjunto final y mantienen ocultas las soluciones hasta la fase de revisión autorizada. Antes de entregar, las entradas pueden editarse sin penalización. Mostrar sólo el número de respuestas **introducidas**, nunca el número de aciertos o soluciones pendientes.
+- «Comprobar»/«Entregar» es un acto **idempotente** por intento (`attemptId`): varios clics, rotación, reconstrucción de pantalla o sincronización no duplican notas/estadísticas/tiempos. Una vez corregido, editar requiere iniciar **un nuevo intento**.
+- Salir o recibir una llamada antes de entregar: conservar un borrador recuperable, sin calificar como fallo ni generar estadística de respuesta. Un examen cuyo temporizador termina puede entregarse automáticamente con lo escrito y dejar las demás omitidas, siempre que sea la regla visible al empezar el examen.
+- En cero soluciones o ejercicio mal formado: **no permitir publicarlo ni examinarse**. En importación, rechazar el ejercicio con error claro o dejarlo en cuarentena sin perder el resto del lote validado; reportar totales exactos, nunca mostrar éxito global silencioso.
+- Si una solución cambia mientras hay una sesión abierta, congelar un **snapshot de soluciones y rúbrica** en el intento, o impedir la edición concurrente; nunca corregir según una lista distinta de la mostrada al comienzo.
+- Para coincidencia ambigua o elemento disputado, mostrar «No validada» con posibilidad de revisión posterior en el banco y trazabilidad; no declarar correcta por suposición. El criterio de si se penaliza una ambigüedad técnicamente irresoluble debe quedar configurado antes del lanzamiento; **predeterminado provisional: incorrecta**, con posibilidad de recalificación auditada si se corrige el banco.
+
+### Sesiones mixtas y estadísticas
+- Cada ejercicio escrito contribuye **una puntuación normalizada entre 0 y 1**, independientemente del número de soluciones internas. Si hay 5 tests y 1 ejercicio escrito, la media por ejercicio evita que las 12 soluciones escritas pesen por sí mismas como 12 preguntas test. Plantillas/ponderación por tipo podrían añadirse de manera explícita más adelante, nunca oculta.
+- Almacenar métricas **por ejercicio** (nota, C, E, O, tipo, regla y fecha) y **por solución canónica** (cuándo se recordó, omitió o confundió). Las preguntas clásicas conservan su registro de estadísticas y la cola de fallos existente, sin generar tarjetas nuevas automáticamente.
+- Una importación o sincronización no debe sumar intentos/errores otra vez. Los eventos se identifican por `attemptId`, y se valida la versión de la regla y los IDs de las soluciones. Los historiales personales se incluyen en **backup global**, pero se excluyen de un ZIP de ejercicios para compartir.
+- Probar equivalencias de alias, acentos, ambigüedades, duplicados, respuesta vacía, `E > N`, nota inferior a 0, 100 % con extras erróneos, exámenes temporizados, guardado/reanudación, varias pulsaciones y dos dispositivos con sincronización simultánea.
+
 ## Imagen de enunciado y corrección: decisión importante
 - Para estos ejercicios **NO exigir dos imágenes independientes**. Se utiliza **UNA sola imagen base de enunciado** y durante la corrección se superponen etiquetas/indicadores sobre ESA misma imagen.
 - Cada respuesta correcta puede tener un **número estable** (1, 2, 3...), con una o varias posiciones normalizadas (x,y) sobre la imagen. Durante la corrección se muestran esos números sobre los puntos/elementos correspondientes y se vinculan con la lista «1. Respuesta».
