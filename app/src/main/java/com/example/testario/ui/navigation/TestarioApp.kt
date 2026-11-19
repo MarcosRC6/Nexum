@@ -281,7 +281,7 @@ fun TestarioApp(
                     onBack = { goBack() },
                     onAddQuestion = { navController.navigate(Routes.questionEditor(id)) },
                     onEditQuestion = { qId -> navController.navigate(Routes.questionEditor(id, qId)) },
-                    onAddExercise = { navController.navigate(Routes.studyExerciseEditor(id)) },
+                    onAddExercise = { kind -> navController.navigate(Routes.studyExerciseEditor(id, initialKind = kind.name)) },
                     onEditExercise = { exId -> navController.navigate(Routes.studyExerciseEditor(id, exId)) },
                     onPracticeExercises = { navController.navigate(Routes.studyExercisePractice(id)) },
                     onStartTest = { topicIdParaTest -> navController.navigate(Routes.testConfig(topicIdParaTest)) }
@@ -304,6 +304,9 @@ fun TestarioApp(
                 StudyExerciseEditorScreen(
                     topicId = topicId,
                     exerciseId = entry.arguments?.getString("exerciseId"),
+                    initialKind = entry.arguments?.getString("initialKind")?.let {
+                        runCatching { com.example.testario.data.model.StudyExerciseKind.valueOf(it) }.getOrNull()
+                    } ?: com.example.testario.data.model.StudyExerciseKind.WRITTEN_MULTI,
                     libraryViewModel = libraryViewModel,
                     onBack = { goBack() }
                 )
