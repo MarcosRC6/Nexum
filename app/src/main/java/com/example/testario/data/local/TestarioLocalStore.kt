@@ -26,6 +26,10 @@ class TestarioLocalStore private constructor(context: Context) {
     private val file = File(context.filesDir, "testario_database.json")
     private val atomicFile = AtomicFile(file)
 
+    /** Data load failure is a locked recovery state, never an editable empty library. */
+    private val _recoveryError = MutableStateFlow<String?>(null)
+    val recoveryError: StateFlow<String?> = _recoveryError
+
     // Aquí vive la verdad absoluta de tu app
     private val _database = MutableStateFlow(loadDatabase())
     val database: StateFlow<TestarioDatabase> = _database
@@ -57,7 +61,10 @@ class TestarioLocalStore private constructor(context: Context) {
 
                 db
             }
-        } catch (_: Exception) {
+        } catch (failure: Exception) {
+            _recoveryError.value = "No se puede abrir la base de datos guardada: " +
+                (failure.message ?: "formato incompatible o datos dañados") +
+                ". NEXUM ha bloqueado las escrituras para proteger el archivo original."
             // No sobrescribimos silenciosamente una base corrupta o creada por una
             // versión futura. Conservamos una copia recuperable antes de arrancar
             // con un estado vacío en memoria.
@@ -78,6 +85,9 @@ class TestarioLocalStore private constructor(context: Context) {
     private val databaseStateGuard = Any()
 
     fun saveDatabase(newDb: TestarioDatabase) {
+        check(_recoveryError.value == null) {
+            "La base está en modo recuperación. Restaura un backup válido desde Ajustes."
+        }
         synchronized(databaseStateGuard) { _database.value = newDb }
         ioScope.launch {
             mutex.withLock {
@@ -91,6 +101,20 @@ class TestarioLocalStore private constructor(context: Context) {
                     e.printStackTrace()
                 }
             }
+        }
+    }
+
+    /**
+     * The ONLY write allowed while in recovery mode: a validated user-selected
+     * backup. Persist before unlocking, so failures cannot replace the old DB.
+     */
+    fun restoreValidatedRecovery(db: TestarioDatabase) {
+        require(db.version == com.example.testario.data.model.DatabaseSchema.CURRENT_VERSION)
+        synchronized(databaseStateGuard) {
+            check(_recoveryError.value != null) { "No hay recuperación pendiente." }
+            writeDatabaseAtomically(db)
+            _database.value = db
+            _recoveryError.value = null
         }
     }
 
@@ -136,6 +160,9 @@ class TestarioLocalStore private constructor(context: Context) {
      * This is a local refresh, NOT a re-import or a cross-device synchronization.
      */
     suspend fun refreshDatabaseFromDisk(): TestarioDatabase = mutex.withLock {
+        check(_recoveryError.value == null) {
+            "La base está en modo recuperación y no debe sobrescribirse."
+        }
         val snapshot = synchronized(databaseStateGuard) { _database.value }
         writeDatabaseAtomically(snapshot)
         val raw = atomicFile.openRead().bufferedReader().use { it.readText() }
@@ -149,6 +176,7 @@ class TestarioLocalStore private constructor(context: Context) {
 
     /** Await durable persistence before considering a cross-device restore complete. */
     suspend fun flushCurrentForSync() {
+        check(_recoveryError.value == null) { "Recuperación pendiente: sincronización bloqueada." }
         mutex.withLock { writeDatabaseAtomically(_database.value) }
     }
 
