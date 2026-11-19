@@ -95,6 +95,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
     testImplementation(libs.junit)
+    // Real JSON parser for JVM migration tests (Android framework org.json is a mock).
+    testImplementation("org.json:json:20240303")
     androidTestImplementation(libs.androidx.junit.ktx)
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core:1.6.1")
