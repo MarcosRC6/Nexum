@@ -50,8 +50,21 @@ fun StudyExerciseEditorScreen(
     var selectedSolutionId by remember(exerciseId) {
         mutableStateOf(original?.solutions?.firstOrNull()?.id)
     }
-    var diagramEnabled by remember(exerciseId) { mutableStateOf(original?.diagram != null) }
-    var directionArrow by remember(exerciseId) { mutableStateOf(original?.diagram?.directionArrow == true) }
+    var sketchEnabled by remember(exerciseId) {
+        mutableStateOf(original?.sketch != null || original?.diagram != null)
+    }
+    var sketchStrokes by remember(exerciseId) {
+        mutableStateOf(original?.sketch?.strokes ?: original?.diagram?.let { d ->
+            listOf(SketchStroke(points = listOf(
+                SketchPoint(d.startX, d.startY), SketchPoint(d.endX, d.endY))))
+        }.orEmpty())
+    }
+    var sketchMode by remember(exerciseId) { mutableStateOf(SketchMode.DRAW) }
+    var sketchUndo by remember(exerciseId) { mutableStateOf<List<List<SketchStroke>>>(emptyList()) }
+    var sketchRedo by remember(exerciseId) { mutableStateOf<List<List<SketchStroke>>>(emptyList()) }
+    var confirmClearSketch by remember(exerciseId) { mutableStateOf(false) }
+    var pendingMarkerId by remember(exerciseId) { mutableStateOf<String?>(null) }
+    var showOptionalAliases by remember(exerciseId) { mutableStateOf(false) }
     var front by remember(exerciseId) {
         mutableStateOf(TextFieldValue(
             if (original?.flashcard?.kind == FlashcardKind.CLOZE)
@@ -74,18 +87,54 @@ fun StudyExerciseEditorScreen(
     var frontImageUri by remember(exerciseId) { mutableStateOf(original?.flashcard?.frontImageUri) }
     var backImageUri by remember(exerciseId) { mutableStateOf(original?.flashcard?.backImageUri) }
     var pickerTarget by remember { mutableStateOf("written") }
+    LaunchedEffect(exerciseId, solutions.size) {
+        if (selectedSolutionId == null || solutions.none { it.id == selectedSolutionId }) {
+            selectedSolutionId = solutions.firstOrNull()?.id
+        }
+    }
+    fun editSketch(next: List<SketchStroke>) {
+        sketchUndo = (sketchUndo + listOf(sketchStrokes)).takeLast(30)
+        sketchStrokes = next
+        sketchRedo = emptyList()
+    }
+    fun placeOrSelectMarker(x: Double, y: Double) {
+        val nearby = solutions.flatMap { it.points }.minByOrNull { point ->
+            (point.x - x) * (point.x - x) + (point.y - y) * (point.y - y)
+        }
+        if (nearby != null && (nearby.x - x) * (nearby.x - x) +
+            (nearby.y - y) * (nearby.y - y) <= 0.0025) {
+            pendingMarkerId = nearby.id
+            return
+        }
+        val id = selectedSolutionId ?: return
+        val nextNumber = (solutions.flatMap { it.points }.maxOfOrNull { it.order } ?: 0) + 1
+        solutions = solutions.map { item ->
+            if (item.id == id) item.copy(points = item.points +
+                ImagePoint(x = x, y = y, order = nextNumber)) else item
+        }
+    }
+    fun removeMarker(markerId: String) {
+        val remaining = solutions.flatMap { it.points }
+            .filterNot { it.id == markerId }.sortedBy { it.order }
+        val orders = remaining.mapIndexed { index, p -> p.id to (index + 1) }.toMap()
+        solutions = solutions.map { item ->
+            item.copy(points = item.points.filterNot { it.id == markerId }
+                .map { it.copy(order = orders[it.id] ?: it.order) })
+        }
+        pendingMarkerId = null
+    }
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) when (pickerTarget) {
             "written" -> {
                 imageUri = uri.toString()
-                diagramEnabled = false
+                sketchEnabled = false
             }
             "front" -> frontImageUri = uri.toString()
             "back" -> backImageUri = uri.toString()
         }
     }
     fun chooseImage(target: String) {
-        if (target == "written" && diagramEnabled && solutions.any { it.points.isNotEmpty() }) {
+        if (target == "written" && solutions.any { it.points.isNotEmpty() }) {
             error = "Antes de reemplazar el esquema, elimina sus marcadores; no se pueden trasladar automáticamente a una fotografía."
             return
         }
@@ -113,13 +162,41 @@ fun StudyExerciseEditorScreen(
             kind = exerciseKind, prompt = if (exerciseKind == StudyExerciseKind.ANKI_CARD) markup.text else prompt,
             solutions = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) solutions else emptyList(),
             flashcard = card, baseImageUri = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) imageUri else null,
-            diagram = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI && diagramEnabled)
-                LineDiagram(directionArrow = directionArrow) else null,
+            diagram = null,
+            sketch = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI && sketchEnabled)
+                SketchDrawing(strokes = sketchStrokes) else null,
             revision = original?.revision ?: 1, draft = draft
         )
     }
 
     val schematicLineColor = TestarioPrimary
+
+    if (pendingMarkerId != null) {
+        val marker = solutions.flatMap { it.points }.find { it.id == pendingMarkerId }
+        if (marker != null) AlertDialog(
+            onDismissRequest = { pendingMarkerId = null },
+            title = { Text("Marcador ${marker.order}") },
+            text = { Text("¿Eliminar este número de la imagen? La respuesta escrita se conservará.") },
+            confirmButton = {
+                TextButton(onClick = { removeMarker(marker.id) }) { Text("Eliminar número") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingMarkerId = null }) { Text("Cancelar") }
+            }
+        )
+    }
+    if (confirmClearSketch) AlertDialog(
+        onDismissRequest = { confirmClearSketch = false },
+        title = { Text("Limpiar imagen") },
+        text = { Text("Se quitarán los trazos del dibujo. Las respuestas y marcadores no se borrarán.") },
+        confirmButton = { TextButton(onClick = {
+            editSketch(emptyList())
+            confirmClearSketch = false
+        }) { Text("Limpiar") } },
+        dismissButton = { TextButton(onClick = { confirmClearSketch = false }) {
+            Text("Cancelar")
+        } }
+    )
 
     Scaffold(
         containerColor = TestarioBackground,
@@ -152,7 +229,13 @@ fun StudyExerciseEditorScreen(
                     value = prompt, onValueChange = { prompt = it },
                     label = { Text("Enunciado") }, modifier = Modifier.fillMaxWidth(), minLines = 2
                 )
-                Text("Soluciones correctas y alias", color = TestarioText)
+                Text("Respuestas correctas", color = TestarioText)
+                Text("NEXUM reconoce automáticamente variantes y abreviaturas inequívocas.",
+                    color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { showOptionalAliases = !showOptionalAliases }) {
+                    Text(if (showOptionalAliases) "Ocultar excepciones manuales"
+                        else "Variantes especiales (opcional)")
+                }
                 solutions.forEach { solution ->
                     val index = solutions.indexOfFirst { it.id == solution.id }
                     Column(Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(12.dp)).padding(10.dp)) {
@@ -174,14 +257,16 @@ fun StudyExerciseEditorScreen(
                             } },
                             label = { Text("Respuesta") }, modifier = Modifier.fillMaxWidth()
                         )
-                        OutlinedTextField(
-                            value = solution.aliases.joinToString(", "),
-                            onValueChange = { text -> solutions = solutions.map {
-                                if (it.id == solution.id) it.copy(aliases = text.split(",")
-                                    .map(String::trim).filter(String::isNotBlank)) else it
-                            } },
-                            label = { Text("Alias separados por comas") }, modifier = Modifier.fillMaxWidth()
-                        )
+                        if (showOptionalAliases || solution.aliases.isNotEmpty()) {
+                            OutlinedTextField(
+                                value = solution.aliases.joinToString(", "),
+                                onValueChange = { text -> solutions = solutions.map {
+                                    if (it.id == solution.id) it.copy(aliases = text.split(",")
+                                        .map(String::trim).filter(String::isNotBlank)) else it
+                                } },
+                                label = { Text("Alias separados por comas") }, modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                         if (solution.points.isNotEmpty()) {
                             Text("${solution.points.size} puntos asociados", color = TestarioMutedText)
                             TextButton(onClick = { solutions = solutions.map {
@@ -196,71 +281,71 @@ fun StudyExerciseEditorScreen(
                     selectedSolutionId = s.id
                 }, modifier = Modifier.fillMaxWidth()) { Text("+ Añadir solución") }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = diagramEnabled, onCheckedChange = { enabled ->
-                        if (!enabled && solutions.any { it.points.isNotEmpty() }) {
-                            error = "Borra los marcadores antes de cambiar de esquema a imagen."
-                        } else {
-                            diagramEnabled = enabled
-                            if (enabled) imageUri = null
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = {
+                    if (!sketchEnabled && solutions.any { it.points.isNotEmpty() }) {
+                        error = "Borra los marcadores actuales antes de cambiar de fotografía a dibujo."
+                    } else {
+                        sketchEnabled = !sketchEnabled
+                        if (sketchEnabled) {
+                            imageUri = null
+                            sketchMode = SketchMode.DRAW
                         }
-                    })
-                    Text("Crear esquema lineal", color = TestarioText)
-                }
-                if (diagramEnabled) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = directionArrow, onCheckedChange = { directionArrow = it })
-                        Text("Flecha de orientación", color = TestarioText)
                     }
-                    Text("Selecciona una solución y toca la línea donde quieras añadir un número.", color = TestarioMutedText)
-                    BoxWithConstraints(
-                        Modifier.fillMaxWidth().height(170.dp).background(TestarioSurface, RoundedCornerShape(12.dp))
-                            .pointerInput(selectedSolutionId, solutions) {
-                                detectTapGestures { offset ->
-                                    val id = selectedSolutionId ?: return@detectTapGestures
-                                    val x = (offset.x / size.width).toDouble().coerceIn(0.0, 1.0)
-                                    val y = (offset.y / size.height).toDouble().coerceIn(0.0, 1.0)
-                                    val number = (solutions.flatMap { it.points }.maxOfOrNull { it.order } ?: 0) + 1
-                                    solutions = solutions.map { s ->
-                                        if (s.id == id) s.copy(points = s.points + ImagePoint(x = x, y = y, order = number))
-                                        else s
-                                    }
-                                }
+                }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (sketchEnabled) "Cerrar editor de imagen" else "Crear imagen")
+                }
+                if (sketchEnabled) {
+                    Text("Dibuja con el dedo o lápiz táctil y después pasa a «Poner números».",
+                        color = TestarioMutedText)
+                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        listOf(
+                            SketchMode.DRAW to "Dibujar",
+                            SketchMode.ERASE to "Borrar",
+                            SketchMode.MARK to "Números"
+                        ).forEach { (mode, title) ->
+                            FilterChip(selected = sketchMode == mode,
+                                onClick = { sketchMode = mode },
+                                label = { Text(title) })
+                        }
+                    }
+                    StudySketchCanvas(
+                        sketch = SketchDrawing(strokes = sketchStrokes),
+                        modifier = Modifier.fillMaxWidth().height(240.dp),
+                        markers = solutions.flatMap { it.points },
+                        showMarkers = sketchMode == SketchMode.MARK,
+                        mode = sketchMode,
+                        onDrawStroke = { stroke -> editSketch(sketchStrokes + stroke) },
+                        onEraseStroke = { id -> editSketch(sketchStrokes.filterNot { it.id == id }) },
+                        onMarkTap = ::placeOrSelectMarker
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = {
+                            if (sketchUndo.isNotEmpty()) {
+                                sketchRedo = sketchRedo + listOf(sketchStrokes)
+                                sketchStrokes = sketchUndo.last()
+                                sketchUndo = sketchUndo.dropLast(1)
                             }
-                    ) {
-                        Canvas(Modifier.fillMaxSize()) {
-                            drawLine(schematicLineColor,
-                                Offset(size.width * 0.1f, size.height * 0.5f),
-                                Offset(size.width * 0.9f, size.height * 0.5f), strokeWidth = 8f)
-                        }
-                        solutions.flatMap { it.points }.forEach { pt ->
-                            Text(
-                                pt.order.toString(),
-                                modifier = Modifier.offset(
-                                    x = maxWidth * pt.x.toFloat() - 8.dp,
-                                    y = maxHeight * pt.y.toFloat() - 12.dp
-                                ),
-                                color = TestarioGreen
-                            )
-                        }
+                        }, enabled = sketchUndo.isNotEmpty()) { Text("Deshacer") }
+                        TextButton(onClick = {
+                            if (sketchRedo.isNotEmpty()) {
+                                sketchUndo = sketchUndo + listOf(sketchStrokes)
+                                sketchStrokes = sketchRedo.last()
+                                sketchRedo = sketchRedo.dropLast(1)
+                            }
+                        }, enabled = sketchRedo.isNotEmpty()) { Text("Rehacer") }
+                        TextButton(onClick = { confirmClearSketch = true },
+                            enabled = sketchStrokes.isNotEmpty()) { Text("Limpiar dibujo") }
                     }
-                }
-                if (!diagramEnabled && imageUri != null) {
-                    Text("Toca la fotografía para añadir un marcador a la solución seleccionada.",
+                } else if (imageUri != null) {
+                    Text("Toca un punto existente para borrarlo; toca otra zona para añadir un número.",
                         color = TestarioMutedText)
                     StudyVisualImage(
                         imageUri = requireNotNull(imageUri),
-                        modifier = Modifier.fillMaxWidth().height(230.dp),
+                        modifier = Modifier.fillMaxWidth().height(240.dp),
                         markers = solutions.flatMap { it.points },
                         showCorrection = true,
-                        onTapImage = { x, y ->
-                            val id = selectedSolutionId
-                            val number = (solutions.flatMap { it.points }.maxOfOrNull { it.order } ?: 0) + 1
-                            solutions = solutions.map { solution ->
-                                if (solution.id == id) solution.copy(points = solution.points +
-                                    ImagePoint(x = x, y = y, order = number)) else solution
-                            }
-                        }
+                        onTapImage = ::placeOrSelectMarker
                     )
                     TextButton(onClick = {
                         if (solutions.any { it.points.isNotEmpty() }) error =
