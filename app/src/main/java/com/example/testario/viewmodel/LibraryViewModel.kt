@@ -92,6 +92,29 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         localStore.saveDatabase(db.copy(ankiReviewEnabled = enabled))
     }
 
+    /** User-submitted objective results are stored once per stable attempt ID. */
+    fun recordWrittenAttempt(
+        topicId: String, exercise: StudyExercise, submitted: List<String>,
+        pointsCorrect: Double, penaltyWrong: Double, attemptId: String
+    ): Boolean {
+        require(attemptId.isNotBlank())
+        val db = localStore.database.value
+        if (db.exerciseAttempts.any { it.id == attemptId }) return false
+        val result = com.example.testario.domain.StudyExerciseRules.gradeWritten(
+            exercise, submitted, pointsCorrect, penaltyWrong
+        )
+        val attempt = com.example.testario.data.model.ExerciseAttempt(
+            id = attemptId, exerciseId = exercise.id, topicId = topicId, kind = exercise.kind,
+            timestampMillis = System.currentTimeMillis(),
+            submittedText = submitted.toList(),
+            correct = result.correct, incorrect = result.incorrect, omitted = result.omitted,
+            scoreOutOfTen = result.scoreOutOfTen,
+            pointsCorrect = pointsCorrect, penaltyWrong = penaltyWrong
+        )
+        localStore.saveDatabase(db.copy(exerciseAttempts = db.exerciseAttempts + attempt))
+        return true
+    }
+
     /** A review is only recorded on an explicit scheduled-review action. */
     fun recordAnkiReview(cardId: String, rating: ReviewRating, eventId: String = UUID.randomUUID().toString()): Boolean {
         val db = localStore.database.value
