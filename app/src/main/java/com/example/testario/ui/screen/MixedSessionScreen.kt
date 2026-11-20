@@ -218,7 +218,7 @@ fun MixedSessionScreen(
                         val graded = StudyExerciseRules.gradeWritten(
                             exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
                         )
-                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10", color = TestarioGreen)
+                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10", color = if (graded.scoreOutOfTen >= 5.0) TestarioGreen else TestarioRed)
                         response.writtenAnswers.forEach { entry ->
                             val solution = StudyExerciseRules.findAcceptedSolution(exercise, entry)
                             Text(entry + (solution?.let { " ✓" } ?: " ✗"),
@@ -260,8 +260,6 @@ fun MixedSessionScreen(
                                 annotations = if (reverse) card.frontAnnotations else card.backAnnotations,
                                 modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true)
                         }
-                        Text("Repaso manual: esta tarjeta no cuenta para la nota ni altera Anki.",
-                            color = TestarioMutedText)
                     }
                 }
             }
@@ -289,17 +287,27 @@ fun MixedSessionScreen(
     if (exitConfirm) {
         AlertDialog(
             onDismissRequest = { exitConfirm = false },
-            title = { Text("Guardar sesión") },
-            text = { Text("Se conservarán los elementos, las respuestas y el tiempo para retomarla después.") },
+            title = { Text("Salir del ejercicio") },
+            text = { Text("Puedes guardar el progreso para retomarlo o descartarlo sin registrar resultados.") },
             confirmButton = {
-                Button(onClick = {
-                    if (persistDraft() && session.saveAndLeave()) {
-                        exitConfirm = false
-                        onLeave()
-                    }
-                }) { Text("Guardar y salir") }
+                Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
+                    Button(onClick = {
+                        if (persistDraft() && session.saveAndLeave()) {
+                            exitConfirm = false
+                            onLeave()
+                        }
+                    }) { Text("Guardar y salir") }
+                    TextButton(onClick = {
+                        if (session.discardActive()) {
+                            exitConfirm = false
+                            onLeave()
+                        }
+                    }) { Text("Salir sin guardar", color = TestarioRed) }
+                }
             },
-            dismissButton = { OutlinedButton(onClick = { exitConfirm = false }) { Text("Continuar") } }
+            dismissButton = {
+                OutlinedButton(onClick = { exitConfirm = false }) { Text("Continuar") }
+            }
         )
     }
 }
