@@ -768,8 +768,9 @@ fun StudyExerciseEditorScreen(
                         selected = flashKind == FlashcardKind.IMAGE_OCCLUSION,
                         onClick = {
                             if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
-                                flashKind = FlashcardKind.BASIC
-                                masks = emptyList()
+                                if (masks.isNotEmpty()) {
+                                    error = "Quita las zonas ocultas una a una antes de desactivar la ocultación."
+                                } else flashKind = FlashcardKind.BASIC
                             } else flashKind = FlashcardKind.IMAGE_OCCLUSION
                         },
                         label = { Text("Ocultar zonas de la imagen") }
@@ -933,17 +934,24 @@ fun StudyExerciseEditorScreen(
                         .onFailure { error = it.message ?: "No se pudo guardar el borrador." }
                 }, modifier = Modifier.weight(1f)) { Text("Borrador") }
                 Button(onClick = {
-                    val candidate = construct(draft = false)
-                    val errors = StudyExerciseRules.errors(candidate)
-                    if (errors.isNotEmpty()) error = errors.joinToString("\n")
-                    else runCatching {
-                        libraryViewModel.saveStudyExercise(topicId, candidate, original?.revision)
-                    }.onSuccess {
-                        if (it) {
-                            createdCanvasPaths = emptySet()
-                            onBack()
-                        } else error = "Conflicto de edición; recarga el ejercicio."
-                    }.onFailure { error = it.message ?: "No se pudo guardar." }
+                    // Invalid handwritten cloze markup must show validation,
+                    // never crash the editor on the primary Save action.
+                    runCatching { construct(draft = false) }
+                        .onFailure { error = it.message ?: "La tarjeta contiene un marcado inválido." }
+                        .onSuccess { candidate ->
+                            val reasons = StudyExerciseRules.errors(candidate)
+                            if (reasons.isNotEmpty()) error = reasons.joinToString("\n")
+                            else runCatching {
+                                libraryViewModel.saveStudyExercise(
+                                    topicId, candidate, original?.revision
+                                )
+                            }.onSuccess {
+                                if (it) {
+                                    createdCanvasPaths = emptySet()
+                                    onBack()
+                                } else error = "Conflicto de edición; recarga el ejercicio."
+                            }.onFailure { error = it.message ?: "No se pudo guardar." }
+                        }
                 }, modifier = Modifier.weight(1f)) { Text("Guardar") }
             }
             Spacer(Modifier.height(18.dp))
