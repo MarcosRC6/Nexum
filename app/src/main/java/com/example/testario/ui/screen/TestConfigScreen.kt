@@ -457,7 +457,7 @@ fun TestConfigScreen(
                 CompactScopeButton("Test", contentFilter == SessionContentFilter.TEST, Modifier.weight(1f)) {
                     contentFilter = SessionContentFilter.TEST; error = null
                 }
-                CompactScopeButton("Enumerar", contentFilter == SessionContentFilter.WRITTEN, Modifier.weight(1f)) {
+                CompactScopeButton("Respuesta escrita", contentFilter == SessionContentFilter.WRITTEN, Modifier.weight(1f)) {
                     contentFilter = SessionContentFilter.WRITTEN; error = null
                 }
             }
