@@ -1,6 +1,5 @@
 package com.example.testario.ui.screen
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -16,9 +15,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.roundToIntSize
-import androidx.compose.ui.unit.toSize
-import androidx.compose.ui.window.Dialog
 import com.example.testario.data.model.*
 import com.example.testario.domain.OcclusionGeometry
 import com.example.testario.ui.theme.*
