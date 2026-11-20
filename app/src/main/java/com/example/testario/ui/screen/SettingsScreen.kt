@@ -78,6 +78,7 @@ import com.example.testario.ui.theme.TestarioSurfaceLight
 import com.example.testario.ui.theme.TestarioText
 import com.example.testario.viewmodel.BehaviorSettingsViewModel
 import com.example.testario.viewmodel.HomeSettingsViewModel
+import com.example.testario.domain.ImportBatchDecision
 import com.example.testario.viewmodel.ImportExportViewModel
 import com.example.testario.viewmodel.LibraryViewModel
 import com.example.testario.viewmodel.StatsViewModel
@@ -124,6 +125,7 @@ fun SettingsScreen(
     var pendingImportPreview by remember { mutableStateOf(null as ImportPreview?) }
     var pendingRestoreText by remember { mutableStateOf<String?>(null) }
 
+    var pendingImportDecisions by remember { mutableStateOf<List<ImportBatchDecision>>(emptyList()) }
     var importedTopicsQueue by remember { mutableStateOf<List<Topic>>(emptyList()) }
     var currentImportTopic by remember { mutableStateOf<Topic?>(null) }
 
@@ -168,33 +170,65 @@ fun SettingsScreen(
         database.topics.sortedWith(Comparator { t1, t2 -> t1.name.naturalCompareTo(t2.name) })
     }
 
-    val startImportWorkflow: (List<Topic>) -> Unit = { topics ->
-        coroutineScope.launch {
-            var currentQueue = topics
-            val dbTopics = libraryViewModel.database.value.topics.toMutableList()
-            var conflictFound = false
+    val cancelImportWorkflow: () -> Unit = {
+        showPreviewDialog = false
+        showDuplicateDialog = false
+        showRenameDialog = false
+        pendingImportText = null
+        pendingImportFileName = null
+        pendingImportPreview = null
+        pendingImportDecisions = emptyList()
+        currentImportTopic = null
+        importedTopicsQueue = emptyList()
+        coroutineScope.launch { importExportViewModel.cancelPendingImport() }
+    }
 
-            while (currentQueue.isNotEmpty() && !conflictFound) {
-                val next = currentQueue.first()
-                val conflict = dbTopics.any { it.name.equals(next.name, true) }
-                if (conflict) {
-                    currentImportTopic = next
-                    importedTopicsQueue = currentQueue.drop(1)
-                    showDuplicateDialog = true
-                    conflictFound = true
-                } else {
-                    importExportViewModel.importSingleTopicProcessed(next, DuplicateTopicAction.RENAME_AUTO)
-                    dbTopics.add(next)
-                    currentQueue = currentQueue.drop(1)
-                }
+    // Nothing is saved while the user decides how to resolve duplicate names.
+    val startImportWorkflow: (List<Topic>) -> Unit = { incoming ->
+        coroutineScope.launch {
+            val choices = pendingImportDecisions.toMutableList()
+            val usedNames = libraryViewModel.database.value.topics
+                .map { it.name.trim() }.toMutableList()
+            choices.forEach { choice ->
+                if (choice.action != DuplicateTopicAction.MERGE)
+                    usedNames += (choice.customName ?: choice.topic.name).trim()
             }
-            if (currentQueue.isEmpty() && !conflictFound) {
-                message = "Temas importados correctamente."
+            var queue = incoming
+            while (queue.isNotEmpty()) {
+                val next = queue.first()
+                if (usedNames.any { it.equals(next.name.trim(), ignoreCase = true) }) {
+                    pendingImportDecisions = choices.toList()
+                    currentImportTopic = next
+                    importedTopicsQueue = queue.drop(1)
+                    showDuplicateDialog = true
+                    return@launch
+                }
+                choices += ImportBatchDecision(next, DuplicateTopicAction.RENAME_AUTO)
+                usedNames += next.name.trim()
+                queue = queue.drop(1)
+            }
+
+            isLoading = true
+            try {
+                val report = importExportViewModel.importBatchProcessed(choices)
+                message = "Importación completa: ${report.outcomes.size} temas analizados; " +
+                    "${report.created} nuevos, ${report.merged} fusionados, " +
+                    "${report.identical} idénticos. " +
+                    "${report.addedQuestions} preguntas y ${report.addedExercises} ejercicios nuevos; " +
+                    "${report.duplicatedQuestions} preguntas y ${report.duplicatedExercises} ejercicios duplicados."
                 pendingImportText = null
                 pendingImportFileName = null
                 pendingImportPreview = null
+                pendingImportDecisions = emptyList()
                 currentImportTopic = null
                 importedTopicsQueue = emptyList()
+            } catch (failure: Exception) {
+                message = "No se aplicó el lote: ${failure.message ?: "Error de importación."}"
+                pendingImportDecisions = emptyList()
+                currentImportTopic = null
+                importedTopicsQueue = emptyList()
+            } finally {
+                isLoading = false
             }
         }
     }
@@ -212,8 +246,11 @@ fun SettingsScreen(
                 val preview = importExportViewModel.previewImport(rawText, fileName)
 
                 if (!preview.canImport) {
-                    message = "Error al leer el archivo. Revisa el formato."
+                    message = "Error al leer el archivo: " +
+                        preview.errors.joinToString("; ").ifBlank { "No hay temas válidos." }
+                    importExportViewModel.cancelPendingImport()
                 } else {
+                    pendingImportDecisions = emptyList()
                     pendingImportText = rawText
                     pendingImportFileName = fileName
                     pendingImportPreview = preview
@@ -1204,24 +1241,43 @@ fun SettingsScreen(
 
     if (showPreviewDialog) {
         val prev = pendingImportPreview
-        AlertDialog(onDismissRequest = { showPreviewDialog = false }, title = { Text("Previsualizar importación") }, text = { Text("Temas hallados: ${prev?.topicCount}\nPreguntas válidas: ${prev?.questionCount}") }, confirmButton = {
-            Button(onClick = {
-                isLoading = true
-                coroutineScope.launch {
-                    val topics = importExportViewModel.getTopicsFromRawText(pendingImportText!!, pendingImportFileName)
-                    showPreviewDialog = false
-                    isLoading = false
-                    startImportWorkflow(topics)
-                }
-            }) { Text("Aceptar") }
-        }, dismissButton = { OutlinedButton(onClick = { showPreviewDialog = false }) { Text("Cancelar") } })
+        AlertDialog(
+            onDismissRequest = cancelImportWorkflow,
+            title = { Text("Previsualizar importación") },
+            text = { Text(
+                "Temas encontrados: ${prev?.topicCount}\\nElementos válidos: ${prev?.questionCount}\\n" +
+                "Se resolverán los conflictos antes de importar y ningún tema se guardará por separado."
+            ) },
+            confirmButton = {
+                Button(onClick = {
+                    isLoading = true
+                    coroutineScope.launch {
+                        try {
+                            val topics = importExportViewModel.getTopicsFromRawText(
+                                requireNotNull(pendingImportText), pendingImportFileName
+                            )
+                            showPreviewDialog = false
+                            pendingImportDecisions = emptyList()
+                            startImportWorkflow(topics)
+                        } catch (failure: Exception) {
+                            message = "Lote inválido: ${failure.message}"
+                            cancelImportWorkflow()
+                        } finally {
+                            isLoading = false
+                        }
+                    }
+                }) { Text("Continuar") }
+            },
+            dismissButton = { OutlinedButton(onClick = cancelImportWorkflow) { Text("Cancelar") } }
+        )
     }
 
     if (showDuplicateDialog) {
         AlertDialog(
-            onDismissRequest = { showDuplicateDialog = false },
+            onDismissRequest = cancelImportWorkflow,
             title = { Text("Tema duplicado") },
-            text = { Text("Ya existe el tema \"${currentImportTopic?.name}\"") },
+            text = { Text("Ya existe el tema \"${currentImportTopic?.name}\". " +
+                "No se aplicará nada hasta confirmar todas las decisiones.") },
             confirmButton = {
                 Button(onClick = {
                     customTopicName = currentImportTopic?.name.orEmpty()
@@ -1230,31 +1286,48 @@ fun SettingsScreen(
                 }) { Text("Renombrar") }
             },
             dismissButton = {
-                OutlinedButton(onClick = {
-                    coroutineScope.launch {
-                        currentImportTopic?.let { importExportViewModel.importSingleTopicProcessed(it, DuplicateTopicAction.MERGE) }
+                Row {
+                    TextButton(onClick = cancelImportWorkflow) { Text("Cancelar lote") }
+                    OutlinedButton(onClick = {
+                        currentImportTopic?.let { topic ->
+                            pendingImportDecisions = pendingImportDecisions +
+                                ImportBatchDecision(topic, DuplicateTopicAction.MERGE)
+                        }
                         showDuplicateDialog = false
                         startImportWorkflow(importedTopicsQueue)
-                    }
-                }) { Text("Fusionar") }
+                    }) { Text("Fusionar") }
+                }
             }
         )
     }
 
     if (showRenameDialog) {
-        AlertDialog(onDismissRequest = { showRenameDialog = false }, title = { Text("Renombrar") }, text = { OutlinedTextField(value = customTopicName, onValueChange = { customTopicName = it }, label = { Text("Nombre") }) }, confirmButton = {
-            Button(onClick = {
-                if (customTopicName.trim().isNotBlank()) {
-                    coroutineScope.launch {
-                        currentImportTopic?.let { importExportViewModel.importSingleTopicProcessed(it, DuplicateTopicAction.RENAME, customTopicName.trim()) }
+        AlertDialog(
+            onDismissRequest = cancelImportWorkflow,
+            title = { Text("Renombrar") },
+            text = {
+                OutlinedTextField(
+                    value = customTopicName, onValueChange = { customTopicName = it },
+                    label = { Text("Nuevo nombre del tema") }
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (customTopicName.trim().isNotBlank()) {
+                        currentImportTopic?.let { topic ->
+                            pendingImportDecisions = pendingImportDecisions +
+                                ImportBatchDecision(topic, DuplicateTopicAction.RENAME, customTopicName.trim())
+                        }
                         showRenameDialog = false
                         customTopicName = ""
                         startImportWorkflow(importedTopicsQueue)
                     }
-                }
-            }) { Text("Guardar") }
-        })
+                }) { Text("Continuar") }
+            },
+            dismissButton = { OutlinedButton(onClick = cancelImportWorkflow) { Text("Cancelar lote") } }
+        )
     }
+
 }
 
 
