@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import com.example.testario.ui.theme.NeonButton as Button
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,28 +50,28 @@ fun StudyExerciseEditorScreen(
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
     val original = topic?.exercises?.firstOrNull { it.id == exerciseId }
-    var exerciseKind by remember(exerciseId, initialKind) { mutableStateOf(original?.kind ?: initialKind) }
-    var prompt by remember(exerciseId) { mutableStateOf(original?.prompt.orEmpty()) }
-    var solutions by remember(exerciseId) {
+    var exerciseKind by rememberSaveable(exerciseId, initialKind) { mutableStateOf(original?.kind ?: initialKind) }
+    var prompt by rememberSaveable(exerciseId) { mutableStateOf(original?.prompt.orEmpty()) }
+    var solutions by rememberSaveable(exerciseId, stateSaver = solutionsDraftSaver) {
         mutableStateOf(original?.solutions ?: listOf(CanonicalSolution(text = "")))
     }
-    var selectedSolutionId by remember(exerciseId) {
+    var selectedSolutionId by rememberSaveable(exerciseId) {
         mutableStateOf(original?.solutions?.firstOrNull()?.id)
     }
-    var sketchEnabled by remember(exerciseId) {
+    var sketchEnabled by rememberSaveable(exerciseId) {
         mutableStateOf(original?.sketch != null || original?.diagram != null)
     }
-    var sketchStrokes by remember(exerciseId) {
+    var sketchStrokes by rememberSaveable(exerciseId, stateSaver = strokesDraftSaver) {
         mutableStateOf(original?.sketch?.strokes ?: original?.diagram?.let { d ->
             listOf(SketchStroke(points = listOf(
                 SketchPoint(d.startX, d.startY), SketchPoint(d.endX, d.endY))))
         }.orEmpty())
     }
-    var sketchColor by remember(exerciseId) { mutableLongStateOf(0xFFA855F7L) }
-    var sketchToolHighlighter by remember(exerciseId) { mutableStateOf(false) }
-    var sketchWidthMultiplier by remember(exerciseId) { mutableFloatStateOf(1f) }
-    var sketchOpacity by remember(exerciseId) { mutableFloatStateOf(.34f) }
-    var sketchZoom by remember(exerciseId) { mutableFloatStateOf(1f) }
+    var sketchColor by rememberSaveable(exerciseId) { mutableLongStateOf(0xFFA855F7L) }
+    var sketchToolHighlighter by rememberSaveable(exerciseId) { mutableStateOf(false) }
+    var sketchWidthMultiplier by rememberSaveable(exerciseId) { mutableFloatStateOf(1f) }
+    var sketchOpacity by rememberSaveable(exerciseId) { mutableFloatStateOf(.34f) }
+    var sketchZoom by rememberSaveable(exerciseId) { mutableFloatStateOf(1f) }
     var sketchMode by remember(exerciseId) { mutableStateOf(SketchMode.DRAW) }
     var sketchUndo by remember(exerciseId) { mutableStateOf<List<List<SketchStroke>>>(emptyList()) }
     var sketchRedo by remember(exerciseId) { mutableStateOf<List<List<SketchStroke>>>(emptyList()) }
@@ -78,7 +79,7 @@ fun StudyExerciseEditorScreen(
     var pendingMarkerId by remember(exerciseId) { mutableStateOf<String?>(null) }
     var expandedMarkersSolutionId by remember(exerciseId) { mutableStateOf<String?>(null) }
     var showOptionalAliases by remember(exerciseId) { mutableStateOf(false) }
-    var front by remember(exerciseId) {
+    var front by rememberSaveable(exerciseId, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(
             if (original?.flashcard?.kind == FlashcardKind.CLOZE)
                 runCatching { ClozeMarkupEngine.encode(
@@ -87,9 +88,9 @@ fun StudyExerciseEditorScreen(
             else original?.flashcard?.front.orEmpty()
         ))
     }
-    var back by remember(exerciseId) { mutableStateOf(original?.flashcard?.back.orEmpty()) }
-    var flashKind by remember(exerciseId) { mutableStateOf(original?.flashcard?.kind ?: FlashcardKind.BASIC) }
-    var gaps by remember(exerciseId) { mutableStateOf(original?.flashcard?.gaps.orEmpty()) }
+    var back by rememberSaveable(exerciseId) { mutableStateOf(original?.flashcard?.back.orEmpty()) }
+    var flashKind by rememberSaveable(exerciseId) { mutableStateOf(original?.flashcard?.kind ?: FlashcardKind.BASIC) }
+    var gaps by rememberSaveable(exerciseId, stateSaver = gapsDraftSaver) { mutableStateOf(original?.flashcard?.gaps.orEmpty()) }
     var ankiHelpExpanded by remember(exerciseId) { mutableStateOf(false) }
     var showClozeMarkerDialog by remember(exerciseId) { mutableStateOf(false) }
     var clozeAlways by remember(exerciseId) { mutableStateOf(true) }
@@ -99,16 +100,16 @@ fun StudyExerciseEditorScreen(
 
     var clozeTurnInput by remember(exerciseId) { mutableStateOf("1") }
     var previewRevealed by remember(exerciseId) { mutableStateOf(false) }
-    var masks by remember(exerciseId) { mutableStateOf(original?.flashcard?.masks.orEmpty()) }
-    var aliasesText by remember(exerciseId) { mutableStateOf(original?.flashcard?.acceptedAnswers?.joinToString(", ").orEmpty()) }
+    var masks by rememberSaveable(exerciseId, stateSaver = masksDraftSaver) { mutableStateOf(original?.flashcard?.masks.orEmpty()) }
+    var aliasesText by rememberSaveable(exerciseId) { mutableStateOf(original?.flashcard?.acceptedAnswers?.joinToString(", ").orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    var imageUri by remember(exerciseId) { mutableStateOf(original?.baseImageUri) }
-    var frontImageUri by remember(exerciseId) { mutableStateOf(original?.flashcard?.frontImageUri) }
-    var backImageUri by remember(exerciseId) { mutableStateOf(original?.flashcard?.backImageUri) }
-    var baseAnnotations by remember(exerciseId) { mutableStateOf(original?.baseAnnotations ?: ImageAnnotations()) }
-    var frontAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.frontAnnotations ?: ImageAnnotations()) }
-    var backAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.backAnnotations ?: ImageAnnotations()) }
+    var imageUri by rememberSaveable(exerciseId) { mutableStateOf(original?.baseImageUri) }
+    var frontImageUri by rememberSaveable(exerciseId) { mutableStateOf(original?.flashcard?.frontImageUri) }
+    var backImageUri by rememberSaveable(exerciseId) { mutableStateOf(original?.flashcard?.backImageUri) }
+    var baseAnnotations by rememberSaveable(exerciseId, stateSaver = annotationsDraftSaver) { mutableStateOf(original?.baseAnnotations ?: ImageAnnotations()) }
+    var frontAnnotations by rememberSaveable(exerciseId, stateSaver = annotationsDraftSaver) { mutableStateOf(original?.flashcard?.frontAnnotations ?: ImageAnnotations()) }
+    var backAnnotations by rememberSaveable(exerciseId, stateSaver = annotationsDraftSaver) { mutableStateOf(original?.flashcard?.backAnnotations ?: ImageAnnotations()) }
     var photoMarkerMode by remember(exerciseId) { mutableStateOf(false) }
     var showImageOptions by remember { mutableStateOf(false) }
     var pickerTarget by remember { mutableStateOf("written") }
