@@ -3,6 +3,7 @@ package com.example.testario.ui.screen
 import androidx.compose.ui.platform.LocalContext
 import com.example.testario.domain.ImageManager
 import com.example.testario.domain.WrittenMarkerRules
+import com.example.testario.domain.SketchStrokeEraser
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -430,7 +431,13 @@ fun StudyExerciseEditorScreen(
                             sketchWidthMultiplier.toDouble(),
                         penOpacity = if (sketchToolHighlighter) sketchOpacity.toDouble() else 1.0,
                         onDrawStroke = { stroke -> editSketch(sketchStrokes + stroke) },
-                        onEraseStroke = { id -> editSketch(sketchStrokes.filterNot { it.id == id }) },
+                        onErasePath = { trail, width, height ->
+                            val erased = SketchStrokeEraser.erase(
+                                sketchStrokes, trail, width, height,
+                                radiusPx = 15.0 * sketchWidthMultiplier.toDouble()
+                            )
+                            if (erased != sketchStrokes) editSketch(erased)
+                        },
                         onMarkTap = ::placeOrSelectMarker
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
