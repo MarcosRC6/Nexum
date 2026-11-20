@@ -44,7 +44,7 @@ fun StudyExerciseEditorScreen(
     libraryViewModel: LibraryViewModel,
     onBack: () -> Unit,
     showTopBar: Boolean = true,
-    showKindSelector: Boolean = true
+    showKindSelector: Boolean = false
 ) {
     val context = LocalContext.current
     val imageManager = remember { ImageManager(context.applicationContext) }
