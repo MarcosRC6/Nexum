@@ -102,18 +102,7 @@ internal fun StudyVisualImage(
     val context = LocalContext.current
     var intrinsic by remember(imageUri) { mutableStateOf<Pair<Int, Int>?>(null) }
     LaunchedEffect(imageUri) {
-        intrinsic = withContext(Dispatchers.IO) {
-            runCatching {
-                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                if (imageUri.startsWith("/")) BitmapFactory.decodeFile(imageUri, options)
-                else context.contentResolver.openInputStream(Uri.parse(imageUri))?.use { stream ->
-                    BitmapFactory.decodeStream(stream, null, options)
-                }
-                if (options.outWidth > 0 && options.outHeight > 0 &&
-                    options.outWidth.toLong() * options.outHeight <= 100_000_000L)
-                    options.outWidth to options.outHeight else null
-            }.getOrNull()
-        }
+        intrinsic = ImageDisplayGeometry.read(context, imageUri)
     }
     BoxWithConstraints(modifier = modifier) {
         val density = LocalDensity.current
