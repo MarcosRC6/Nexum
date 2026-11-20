@@ -29,6 +29,9 @@ internal fun StudySketchCanvas(
     mode: SketchMode = SketchMode.PREVIEW,
     showMarkers: Boolean = false,
     markerStatuses: Map<String, Boolean> = emptyMap(),
+    penArgb: Long = 0xFFA855F7L,
+    penWidthFraction: Double = .007,
+    penOpacity: Double = 1.0,
     onDrawStroke: (SketchStroke) -> Unit = {},
     onEraseStroke: (String) -> Unit = {},
     onMarkTap: (Double, Double) -> Unit = { _, _ -> }
@@ -63,7 +66,10 @@ internal fun StudySketchCanvas(
                 },
                 onDragEnd = {
                     val points = inProgress
-                    if (points.size >= 2) latestDraw(SketchStroke(points = points))
+                    if (points.size >= 2) latestDraw(SketchStroke(
+                        points = points, colorArgb = penArgb, widthFraction = penWidthFraction,
+                        opacity = penOpacity
+                    ))
                     inProgress = emptyList()
                 },
                 onDragCancel = { inProgress = emptyList() }
@@ -100,13 +106,21 @@ internal fun StudySketchCanvas(
                 stroke.points.drop(1).forEach {
                     shape.lineTo(size.width * it.x.toFloat(), size.height * it.y.toFloat())
                 }
-                val brushColor = when (stroke.brush) {
+                val oldColor = when (stroke.brush) {
                     "white" -> label
                     "green" -> green
                     "red" -> red
                     else -> purple
                 }
-                drawPath(shape, brushColor, style = Stroke(width = 5.dp.toPx()))
+                val brushColor = stroke.colorArgb?.let { Color(it.toInt()) } ?: oldColor
+                val color = brushColor.copy(alpha = (stroke.opacity ?: 1.0).toFloat().coerceIn(0f,1f))
+                val thickness = stroke.widthFraction?.let {
+                    (minOf(size.width,size.height) * it.toFloat()).coerceAtLeast(1f)
+                } ?: 5.dp.toPx()
+                drawPath(shape, color, style = Stroke(
+                    width = thickness, cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                ))
             }
         }
         if (showMarkers) markers.forEach { marker ->
@@ -116,6 +130,7 @@ internal fun StudySketchCanvas(
                 null -> purple
             }
             Text(marker.order.toString(), color = statusColor,
+                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
                 modifier = Modifier.offset(
                     x = maxWidth * marker.x.toFloat() - 8.dp,
                     y = maxHeight * marker.y.toFloat() - 12.dp
