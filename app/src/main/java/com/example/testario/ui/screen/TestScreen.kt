@@ -539,9 +539,12 @@ fun TestScreen(
 
                             IconButton(
                                 onClick = {
-                                    sessionViewModel.toggleFlag(current.question.id)
-                                    libraryViewModel.toggleQuestionFlag(current.question.id)
-                                }
+                                    if (!current.question.flagged) {
+                                        sessionViewModel.toggleFlag(current.question.id)
+                                        libraryViewModel.toggleQuestionFlag(current.question.id)
+                                    }
+                                },
+                                enabled = !current.question.flagged
                             ) {
                                 Text(if (current.question.flagged) "🚩" else "🏳️")
                             }
