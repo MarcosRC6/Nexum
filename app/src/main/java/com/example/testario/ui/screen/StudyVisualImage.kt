@@ -130,7 +130,7 @@ internal fun StudyVisualImage(
                         masks.forEach { m ->
                             val topLeft = fit.locate(m.x,m.y)
                             drawRect(
-                                color = Color.Black.copy(alpha = 0.94f),
+                                color = Color.Black, // Fully opaque: never leak a hidden answer
                                 topLeft = topLeft,
                                 size = Size((fit.width*m.width).toFloat(),
                                     (fit.height*m.height).toFloat())
