@@ -209,19 +209,6 @@ fun QuestionEditorScreen(
 
             item {
                 EditorSectionCard {
-                    Text(text = "Dificultad", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        DifficultyButton(text = "Nada", selected = difficulty == null, color = TestarioMutedText, modifier = Modifier.weight(1f)) { difficulty = null }
-                        DifficultyButton(text = "Fácil", selected = difficulty == 1, color = TestarioGreen, modifier = Modifier.weight(1f)) { difficulty = 1 }
-                        DifficultyButton(text = "Medio", selected = difficulty == 2, color = TestarioYellow, modifier = Modifier.weight(1f)) { difficulty = 2 }
-                        DifficultyButton(text = "Difícil", selected = difficulty == 3, color = TestarioRed, modifier = Modifier.weight(1f)) { difficulty = 3 }
-                    }
-                }
-            }
-
-            item {
-                EditorSectionCard {
                     Text(text = "Explicación", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                     Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
@@ -276,6 +263,19 @@ fun QuestionEditorScreen(
                             onReplace = { correctionImagePicker.launch("image/*") },
                             onDelete = { correctionImageUri = null; correctionAnnotations = ImageAnnotations() }
                         )
+                    }
+                }
+            }
+
+            item {
+                EditorSectionCard {
+                    Text(text = "Dificultad", style = MaterialTheme.typography.titleMedium, color = TestarioText)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        DifficultyButton(text = "Nada", selected = difficulty == null, color = TestarioMutedText, modifier = Modifier.weight(1f)) { difficulty = null }
+                        DifficultyButton(text = "Fácil", selected = difficulty == 1, color = TestarioGreen, modifier = Modifier.weight(1f)) { difficulty = 1 }
+                        DifficultyButton(text = "Medio", selected = difficulty == 2, color = TestarioYellow, modifier = Modifier.weight(1f)) { difficulty = 2 }
+                        DifficultyButton(text = "Difícil", selected = difficulty == 3, color = TestarioRed, modifier = Modifier.weight(1f)) { difficulty = 3 }
                     }
                 }
             }
