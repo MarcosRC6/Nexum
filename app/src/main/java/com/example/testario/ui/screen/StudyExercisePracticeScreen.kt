@@ -160,6 +160,7 @@ fun StudyExercisePracticeScreen(
                     StudyVisualImage(
                         imageUri = path,
                         modifier = Modifier.fillMaxWidth().height(240.dp),
+                        annotations = exercise.baseAnnotations,
                         markers = exercise.solutions.flatMap { it.points },
                         showCorrection = completed,
                         markerStatuses = statusByMarker
@@ -298,12 +299,15 @@ fun StudyExercisePracticeScreen(
                         StudyVisualImage(
                             imageUri = path,
                             modifier = Modifier.fillMaxWidth().height(240.dp),
+                            annotations = if (isReverse) card.backAnnotations else card.frontAnnotations,
                             masks = covered,
                             showCorrection = false
                         )
                     } else {
-                        AsyncImage(model = imageModel(path), contentDescription = "Imagen de la pregunta",
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp), contentScale = ContentScale.Fit)
+                        StudyVisualImage(
+                            imageUri = path, modifier = Modifier.fillMaxWidth().height(240.dp),
+                            annotations = if (isReverse) card.backAnnotations else card.frontAnnotations
+                        )
                     }
                 }
                 if (card.kind == FlashcardKind.TYPE_ANSWER) {
@@ -336,8 +340,10 @@ fun StudyExercisePracticeScreen(
                         Text(solution, color = TestarioMutedText)
                     val answerImage = if (isReverse) card.frontImageUri else card.backImageUri
                     answerImage?.let { path ->
-                        AsyncImage(model = imageModel(path), contentDescription = "Imagen de la respuesta",
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp), contentScale = ContentScale.Fit)
+                        StudyVisualImage(
+                            imageUri = path, modifier = Modifier.fillMaxWidth().height(240.dp),
+                            annotations = if (isReverse) card.frontAnnotations else card.backAnnotations
+                        )
                     }
                     if (card.kind == FlashcardKind.TYPE_ANSWER) {
                         val accepted = (listOf(solution) + card.acceptedAnswers).map(StudyExerciseRules::normalize)
