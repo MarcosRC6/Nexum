@@ -45,6 +45,7 @@ import com.example.testario.ui.screen.SettingsScreen
 import com.example.testario.ui.screen.StatsScreen
 import com.example.testario.ui.screen.TestConfigScreen
 import com.example.testario.ui.screen.TestScreen
+import com.example.testario.ui.screen.MixedSessionScreen
 import com.example.testario.ui.screen.TopicDetailScreen
 import com.example.testario.ui.screen.StudyExerciseEditorScreen
 import com.example.testario.ui.screen.StudyExercisePracticeScreen
@@ -56,6 +57,7 @@ import com.example.testario.viewmodel.ImportExportViewModel
 import com.example.testario.viewmodel.LibraryViewModel
 import com.example.testario.viewmodel.StatsViewModel
 import com.example.testario.viewmodel.TestSessionViewModel
+import com.example.testario.viewmodel.MixedSessionViewModel
 import com.example.testario.viewmodel.ThemeViewModel
 
 @Composable
@@ -73,6 +75,7 @@ fun TestarioApp(
     val statsViewModel: StatsViewModel = viewModel()
     val importExportViewModel: ImportExportViewModel = viewModel()
     val sessionViewModel: TestSessionViewModel = viewModel()
+    val mixedSessionViewModel: MixedSessionViewModel = viewModel()
 
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -327,6 +330,7 @@ fun TestarioApp(
                 TestConfigScreen(
                     libraryViewModel = libraryViewModel,
                     sessionViewModel = sessionViewModel,
+                    mixedSessionViewModel = mixedSessionViewModel,
                     preselectedTopicId = preselectedTopicId,
                     preselectedTemplateId = preselectedTemplateId,
                     onBack = { goBack() },
@@ -335,7 +339,8 @@ fun TestarioApp(
                     onPlan = { goPlan() },
                     onStats = { goStats() },
                     onSettings = { goSettings() },
-                    onStart = { navController.navigate(Routes.TEST_SCREEN) }
+                    onStart = { navController.navigate(Routes.TEST_SCREEN) },
+                    onStartMixed = { navController.navigate(Routes.MIXED_SESSION) }
                 )
             }
 
@@ -346,6 +351,13 @@ fun TestarioApp(
                     statsViewModel = statsViewModel,
                     onFinish = { goHome() },
                     onEditQuestion = { topicId, questionId -> navController.navigate(Routes.questionEditor(topicId, questionId)) }
+                )
+            }
+
+            composable(Routes.MIXED_SESSION) {
+                MixedSessionScreen(
+                    session = mixedSessionViewModel,
+                    onLeave = { goTest() }
                 )
             }
 
