@@ -630,6 +630,116 @@ fun StudyExerciseEditorScreen(
                             color = TestarioMutedText)
                     }
                 }
+                frontImageUri?.let { image ->
+                    Text("Imagen de pregunta", color = TestarioMutedText)
+                    val textHasGaps = runCatching {
+                        ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty()
+                    }.getOrDefault(false)
+                    FilterChip(
+                        selected = showAnkiOcclusions,
+                        onClick = {
+                            if (textHasGaps && !showAnkiOcclusions) {
+                                error = "Esta tarjeta ya tiene fragmentos de texto: para evitar perder turnos, utiliza otra tarjeta para oclusiones de imagen."
+                            } else {
+                                showAnkiOcclusions = !showAnkiOcclusions
+                                occlusionMarkMode = showAnkiOcclusions
+                            }
+                        },
+                        label = { Text(
+                            if (showAnkiOcclusions) "Colocar oclusiones · activo"
+                            else "Colocar oclusiones"
+                        ) }
+                    )
+                    EditableAnnotationImage(
+                        imageUri = image,
+                        annotations = frontAnnotations,
+                        modifier = Modifier.fillMaxWidth().height(265.dp),
+                        masks = masks,
+                        autoEdit = justCreatedImage == image,
+                        onAutoEditConsumed = { justCreatedImage = null },
+                        onMarkerTap = if (showAnkiOcclusions && occlusionMarkMode) { x, y ->
+                            masks = masks + ImageOcclusionMask(
+                                x = x.coerceIn(0.0, 0.82),
+                                y = y.coerceIn(0.0, 0.88),
+                                width = 0.18, height = 0.12
+                            )
+                        } else null,
+                        onAnnotationsChanged = { frontAnnotations = it },
+                        onReplace = { chooseImage("front") },
+                        onDelete = {
+                            if (masks.isNotEmpty()) error =
+                                "Elimina primero las oclusiones antes de quitar esta foto."
+                            else {
+                                frontImageUri = null
+                                frontAnnotations = ImageAnnotations()
+                            }
+                        }
+                    )
+                    if (showAnkiOcclusions || masks.isNotEmpty()) {
+                        Text("Las zonas negras ocultarán partes de la fotografía. Se descubren al responder.",
+                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                    }
+                    masks.forEachIndexed { index, mask ->
+                        Column(
+                            Modifier.fillMaxWidth()
+                                .background(TestarioSurface, RoundedCornerShape(12.dp))
+                                .padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Zona ${index + 1}", color = TestarioText,
+                                    modifier = Modifier.weight(1f))
+                                TextButton(onClick = { masks = masks.filterNot { it.id == mask.id } }) {
+                                    Text("Quitar")
+                                }
+                            }
+                            OutlinedTextField(
+                                value = mask.answer,
+                                onValueChange = { answer -> masks = masks.map {
+                                    if (it.id == mask.id) it.copy(answer = answer) else it
+                                } },
+                                label = { Text("Qué se oculta (opcional)") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Text("Anchura de la oclusión", color = TestarioMutedText)
+                            Slider(
+                                value = mask.width.toFloat(),
+                                onValueChange = { width ->
+                                    masks = masks.map {
+                                        if (it.id == mask.id) it.copy(width = width.toDouble()) else it
+                                    }
+                                },
+                                valueRange = .03f..(1.0 - mask.x).toFloat()
+                            )
+                            Text("Altura de la oclusión", color = TestarioMutedText)
+                            Slider(
+                                value = mask.height.toFloat(),
+                                onValueChange = { height ->
+                                    masks = masks.map {
+                                        if (it.id == mask.id) it.copy(height = height.toDouble()) else it
+                                    }
+                                },
+                                valueRange = .03f..(1.0 - mask.y).toFloat()
+                            )
+                        }
+                    }
+                }
+                backImageUri?.let { image ->
+                    Text("Imagen de respuesta", color = TestarioMutedText)
+                    EditableAnnotationImage(
+                        imageUri = image,
+                        annotations = backAnnotations,
+                        modifier = Modifier.fillMaxWidth().height(220.dp),
+                        autoEdit = justCreatedImage == image,
+                        onAutoEditConsumed = { justCreatedImage = null },
+                        onAnnotationsChanged = { backAnnotations = it },
+                        onReplace = { chooseImage("back") },
+                        onDelete = {
+                            backImageUri = null
+                            backAnnotations = ImageAnnotations()
+                        }
+                    )
+                }
                 if (simpleAnki) {
                     if (front.selection.min < front.selection.max) {
                         Button(onClick = {
@@ -729,94 +839,6 @@ fun StudyExerciseEditorScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
-                    Text("Importa una imagen y pulsa las zonas que quieras ocultar.",
-                        color = TestarioMutedText)
-                    frontImageUri?.let { image ->
-                        FilterChip(
-                            selected = occlusionMarkMode,
-                            onClick = { occlusionMarkMode = !occlusionMarkMode },
-                            label = { Text(if (occlusionMarkMode) "Poner máscaras · activo"
-                                else "Poner máscaras") }
-                        )
-                        EditableAnnotationImage(
-                            imageUri = image,
-                            annotations = frontAnnotations,
-                            modifier = Modifier.fillMaxWidth().height(240.dp),
-                            masks = masks,
-                            onMarkerTap = if (occlusionMarkMode) { x, y ->
-                                masks = masks + ImageOcclusionMask(
-                                    x = x.coerceAtMost(0.82), y = y.coerceAtMost(0.82),
-                                    width = 0.18, height = 0.18
-                                )
-                            } else null,
-                            onAnnotationsChanged = { frontAnnotations = it },
-                            onReplace = { chooseImage("front") },
-                            onDelete = {
-                                if (masks.isNotEmpty()) error =
-                                    "Elimina primero las máscaras asociadas a esta fotografía."
-                                else {
-                                    frontImageUri = null
-                                    frontAnnotations = ImageAnnotations()
-                                }
-                            }
-                        )
-                    }
-                    masks.forEach { mask ->
-                        OutlinedTextField(
-                            value = mask.answer,
-                            onValueChange = { newText -> masks = masks.map {
-                                if (it.id == mask.id) it.copy(answer = newText) else it
-                            } },
-                            label = { Text("Respuesta de la zona ${masks.indexOf(mask) + 1}") },
-                            modifier = Modifier.fillMaxWidth(),
-                            trailingIcon = {
-                                TextButton(onClick = { masks = masks.filterNot { it.id == mask.id } }) {
-                                    Text("Quitar")
-                                }
-                            }
-                        )
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (frontImageUri == null)
-                        OutlinedButton(onClick = { chooseImage("front") }) { Text("Imagen pregunta") }
-                    if (backImageUri == null)
-                        OutlinedButton(onClick = { chooseImage("back") }) { Text("Imagen respuesta") }
-                }
-                if (flashKind != FlashcardKind.IMAGE_OCCLUSION) {
-                    frontImageUri?.let { image ->
-                        Text("Imagen delantera", color = TestarioMutedText)
-                        EditableAnnotationImage(
-                            imageUri = image,
-                            annotations = frontAnnotations,
-                            modifier = Modifier.fillMaxWidth().height(220.dp),
-                            onAnnotationsChanged = { frontAnnotations = it },
-                            onReplace = { chooseImage("front") },
-                            onDelete = {
-                                frontImageUri = null
-                                frontAnnotations = ImageAnnotations()
-                            }
-                        )
-                    }
-                }
-                backImageUri?.let { image ->
-                    Text("Imagen trasera", color = TestarioMutedText)
-                    EditableAnnotationImage(
-                        imageUri = image,
-                        annotations = backAnnotations,
-                        modifier = Modifier.fillMaxWidth().height(220.dp),
-                        onAnnotationsChanged = { backAnnotations = it },
-                        onReplace = { chooseImage("back") },
-                        onDelete = {
-                            backImageUri = null
-                            backAnnotations = ImageAnnotations()
-                        }
-                    )
-                }
-                if (frontImageUri != null || backImageUri != null)
-                    Text("Imágenes asociadas: ${listOfNotNull(frontImageUri, backImageUri).size}",
-                        color = TestarioMutedText)
                 if (flashKind == FlashcardKind.REVERSED) {
                     Text("Se estudiarán ambas direcciones; la pregunta se mantiene encima de la solución.",
                         color = TestarioMutedText)
