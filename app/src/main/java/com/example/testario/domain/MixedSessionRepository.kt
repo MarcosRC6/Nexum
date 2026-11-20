@@ -22,7 +22,7 @@ class MixedSessionRepository(
         val streakToExit = preferences.getFailureExitCorrectStreak()
         val questions = snapshot.items.zip(snapshot.responses)
             .filter { (item, _) -> item.type == MixedItemType.TEST }
-            .associate { (item, response) -> item.id to response }
+            .associate { (item, response) -> item.id to (requireNotNull(item.question) to response) }
         val exercises = snapshot.items.zip(snapshot.responses)
             .filter { (item, _) -> item.type == MixedItemType.WRITTEN }
             .map { (item, response) ->
@@ -47,8 +47,15 @@ class MixedSessionRepository(
             }
         val topicUpdates = before.topics.map { topic ->
             topic.copy(questions = topic.questions.map { question ->
-                val response = questions["test:${question.id}"] ?: return@map question
-                val correct = response.selectedAnswerId == question.correctAnswerId
+                val (frozenQuestion, response) = questions["test:${question.id}"] ?: return@map question
+                // Grade against the snapshot, not an edited source question.
+                // If the original answer set/correct ID changed during a saved
+                // exam, preserve the historical result without corrupting the
+                // newly edited question's current statistics.
+                if (frozenQuestion.correctAnswerId != question.correctAnswerId ||
+                    frozenQuestion.answers.map { it.id }.toSet() !=
+                    question.answers.map { it.id }.toSet()) return@map question
+                val correct = response.selectedAnswerId == frozenQuestion.correctAnswerId
                 val blank = response.selectedAnswerId == null
                 val wrong = !correct && !blank
                 val streak = if (correct) question.stats.correctStreak + 1 else 0
