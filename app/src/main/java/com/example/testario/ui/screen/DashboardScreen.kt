@@ -646,6 +646,13 @@ fun HomeScreen(
                                                                     style = MaterialTheme.typography.labelSmall,
                                                                     maxLines = 1
                                                                 )
+                                                                if (link.icon == "other" &&
+                                                                    link.customTypeLabel.isNotBlank()) {
+                                                                    Text(link.customTypeLabel,
+                                                                        color = TestarioMutedText,
+                                                                        style = MaterialTheme.typography.labelSmall,
+                                                                        maxLines = 1)
+                                                                }
                                                             }
                                                         }
                                                     }
