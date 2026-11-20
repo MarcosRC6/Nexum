@@ -60,6 +60,7 @@ internal fun StudySketchCanvas(
     val green = TestarioGreen
     val red = TestarioRed
     val label = TestarioText
+    val erasedPreviewColor = TestarioSurface
     fun coordinates(px: Float, py: Float, w: Int, h: Int): SketchPoint {
         val scale = latestZoom.coerceIn(1f, 5f)
         val x = (px - w / 2f - panX) / scale + w / 2f
@@ -192,11 +193,11 @@ internal fun StudySketchCanvas(
                 }
                 val brush = 30.dp.toPx()
                 if (eraserPreview.size == 1) {
-                    drawCircle(TestarioSurface, radius = brush / 2f,
+                    drawCircle(erasedPreviewColor, radius = brush / 2f,
                         center = Offset(size.width * first.x.toFloat(),
                             size.height * first.y.toFloat()))
                 } else {
-                    drawPath(eraser, TestarioSurface, style = Stroke(width = brush,
+                    drawPath(eraser, erasedPreviewColor, style = Stroke(width = brush,
                         cap = androidx.compose.ui.graphics.StrokeCap.Round,
                         join = androidx.compose.ui.graphics.StrokeJoin.Round))
                 }
