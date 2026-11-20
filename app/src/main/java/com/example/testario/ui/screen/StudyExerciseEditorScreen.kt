@@ -108,6 +108,14 @@ fun StudyExerciseEditorScreen(
     var occlusionMarkMode by remember(exerciseId) { mutableStateOf(true) }
     var showAnkiImageTargets by remember(exerciseId) { mutableStateOf(false) }
     var imageTargetToAdd by remember(exerciseId) { mutableStateOf<String?>(null) }
+    var createdCanvasPaths by remember(exerciseId) { mutableStateOf<Set<String>>(emptySet()) }
+    val latestCreatedPaths by rememberUpdatedState(createdCanvasPaths)
+    DisposableEffect(exerciseId) {
+        onDispose {
+            latestCreatedPaths.forEach { imageManager.deleteImage(it) }
+        }
+    }
+
     var createdImageToEdit by remember(exerciseId) { mutableStateOf<String?>(null) }
 
     var pickerTarget by remember { mutableStateOf("written") }
@@ -235,12 +243,16 @@ fun StudyExerciseEditorScreen(
             onDismissRequest = { imageTargetToAdd = null },
             title = { Text(if (target == "front") "Imagen de pregunta" else "Imagen de respuesta") },
             text = { Text("¿Quieres crear un lienzo o importar una fotografía? " +
-                "Los colores y la edición funcionarán igual en ambos.") },
+                "Los colores y la edición funcionan igual en ambos. " +
+                "Si ya había una imagen, se sustituirá junto con sus anotaciones.") },
             confirmButton = {
                 Button(onClick = {
                     imageTargetToAdd = null
-                    runCatching { imageManager.createBlankCanvas() }
+                    if (target == "front" && masks.isNotEmpty()) {
+                        error = "Elimina las ocultaciones antes de sustituir la imagen."
+                    } else runCatching { imageManager.createBlankCanvas() }
                         .onSuccess { path ->
+                            createdCanvasPaths = createdCanvasPaths + path
                             if (target == "front") {
                                 frontImageUri = path
                                 frontAnnotations = ImageAnnotations()
@@ -914,7 +926,10 @@ fun StudyExerciseEditorScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(onClick = {
                     runCatching { libraryViewModel.saveStudyExercise(topicId, construct(draft = true), original?.revision) }
-                        .onSuccess { if (it) onBack() else error = "Este ejercicio se ha modificado en otro lugar." }
+                        .onSuccess { if (it) {
+                            createdCanvasPaths = emptySet()
+                            onBack()
+                        } else error = "Este ejercicio se ha modificado en otro lugar." }
                         .onFailure { error = it.message ?: "No se pudo guardar el borrador." }
                 }, modifier = Modifier.weight(1f)) { Text("Borrador") }
                 Button(onClick = {
@@ -924,7 +939,10 @@ fun StudyExerciseEditorScreen(
                     else runCatching {
                         libraryViewModel.saveStudyExercise(topicId, candidate, original?.revision)
                     }.onSuccess {
-                        if (it) onBack() else error = "Conflicto de edición; recarga el ejercicio."
+                        if (it) {
+                            createdCanvasPaths = emptySet()
+                            onBack()
+                        } else error = "Conflicto de edición; recarga el ejercicio."
                     }.onFailure { error = it.message ?: "No se pudo guardar." }
                 }, modifier = Modifier.weight(1f)) { Text("Guardar") }
             }
