@@ -515,20 +515,18 @@ private fun MixedWrittenReview(
     )
     Text("Nota: %.2f / 10".format(grade.scoreOutOfTen),
         color = if (grade.scoreOutOfTen >= 5.0) TestarioGreen else TestarioRed)
+    val numbered = exercise.solutions.any { it.points.isNotEmpty() }
     exercise.solutions.forEachIndexed { index, solution ->
         val submitted = response.writtenAnswers.getOrNull(index).orEmpty()
         val accepted = StudyExerciseRules.findAcceptedSolution(exercise, submitted)
+        val correctHere = accepted != null && (!numbered || accepted.id == solution.id)
         Text(
             "Respuesta ${index + 1}: " + (if (submitted.isBlank()) "Sin responder"
-                else submitted) + when {
-                submitted.isBlank() -> " ✗"
-                accepted != null -> " ✓"
-                else -> " ✗"
-            },
-            color = if (accepted != null) TestarioGreen else TestarioRed
+                else submitted) + if (correctHere) " ✓" else " ✗",
+            color = if (correctHere) TestarioGreen else TestarioRed
         )
         if (solution.id !in grade.correctIds)
-            Text("Faltaba: ${solution.text}", color = TestarioRed,
-                style = MaterialTheme.typography.bodySmall)
+            Text("Correcta de la zona ${index + 1}: ${solution.text}",
+                color = TestarioRed, style = MaterialTheme.typography.bodySmall)
     }
 }
