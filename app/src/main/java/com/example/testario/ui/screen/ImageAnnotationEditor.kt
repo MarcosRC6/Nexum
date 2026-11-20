@@ -317,7 +317,7 @@ internal fun ImageAnnotationEditorDialog(
                     value = zoom,
                     onValueChange = { target ->
                         zoom = target
-                        pan = clampImagePan(pan, zoom, 1000f, 1000f)
+                        if (zoom <= 1.001f) pan = Offset.Zero
                     },
                     valueRange = 1f..5f,
                     modifier = Modifier.weight(1f)
@@ -356,7 +356,7 @@ internal fun ImageAnnotationEditorDialog(
                                     listOf(ImageAnnotationPoint(it.first, it.second))
                                 }.orEmpty()
                             }
-                            do {
+                            while (true) {
                                 val event = awaitPointerEvent()
                                 val pressed = event.changes.filter { it.pressed }
                                 if (pressed.size > 1) {
@@ -383,7 +383,8 @@ internal fun ImageAnnotationEditorDialog(
                                     }
                                 }
                                 event.changes.forEach { if (it.pressed) it.consume() }
-                            } while (event.changes.any { it.pressed })
+                                if (event.changes.none { it.pressed }) break
+                            }
                             if (!multipleFingers && !moveCanvas && drawing.isNotEmpty()) {
                                 commit(strokes + ImageAnnotationStroke(
                                     tool = tool, colorArgb = colorArgb,
