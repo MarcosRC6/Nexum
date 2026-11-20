@@ -2,6 +2,7 @@ package com.example.testario.ui.screen
 
 import androidx.compose.ui.platform.LocalContext
 import com.example.testario.domain.ImageManager
+import com.example.testario.domain.WrittenMarkerRules
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -100,7 +101,7 @@ fun StudyExerciseEditorScreen(
     var masks by remember(exerciseId) { mutableStateOf(original?.flashcard?.masks.orEmpty()) }
     var aliasesText by remember(exerciseId) { mutableStateOf(original?.flashcard?.acceptedAnswers?.joinToString(", ").orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
-    var showPreview by remember { mutableStateOf(false) }
+
     var imageUri by remember(exerciseId) { mutableStateOf(original?.baseImageUri) }
     var frontImageUri by remember(exerciseId) { mutableStateOf(original?.flashcard?.frontImageUri) }
     var backImageUri by remember(exerciseId) { mutableStateOf(original?.flashcard?.backImageUri) }
@@ -126,24 +127,21 @@ fun StudyExerciseEditorScreen(
             (point.x - x) * (point.x - x) + (point.y - y) * (point.y - y)
         }
         if (nearby != null && (nearby.x - x) * (nearby.x - x) +
-            (nearby.y - y) * (nearby.y - y) <= 0.0025) {
+            (nearby.y - y) * (nearby.y - y) <= 0.001) {
             pendingMarkerId = nearby.id
             return
         }
-        val id = selectedSolutionId ?: return
-        val nextNumber = (solutions.flatMap { it.points }.maxOfOrNull { it.order } ?: 0) + 1
-        solutions = solutions.map { item ->
-            if (item.id == id) item.copy(points = item.points +
-                ImagePoint(x = x, y = y, order = nextNumber)) else item
-        }
+        val id = selectedSolutionId?.takeIf { candidate -> solutions.any { it.id == candidate } }
+            ?: solutions.firstOrNull { it.points.isEmpty() }?.id
+            ?: return
+        solutions = WrittenMarkerRules.place(solutions, id, x, y)
+        // Advance to the next solution that has no location. Do not create a fifth
+        // marker when there are only four written answers.
+        selectedSolutionId = solutions.firstOrNull { it.points.isEmpty() }?.id ?: id
     }
     fun removeMarker(markerId: String) {
-        val remaining = solutions.flatMap { it.points }
-            .filterNot { it.id == markerId }.sortedBy { it.order }
-        val orders = remaining.mapIndexed { index, p -> p.id to (index + 1) }.toMap()
-        solutions = solutions.map { item ->
-            item.copy(points = item.points.filterNot { it.id == markerId }
-                .map { it.copy(order = orders[it.id] ?: it.order) })
+        solutions = solutions.map { solution ->
+            solution.copy(points = solution.points.filterNot { it.id == markerId })
         }
         pendingMarkerId = null
     }
@@ -349,7 +347,8 @@ fun StudyExerciseEditorScreen(
                 }
                 if ((sketchEnabled && sketchMode == SketchMode.MARK) ||
                     (imageUri != null && photoMarkerMode)) {
-                    Text("Solución que vas a colocar", color = TestarioMutedText)
+                    Text("Elige la solución y toca dónde debe aparecer su número (máximo un punto por solución).",
+                        color = TestarioMutedText)
                     Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         solutions.forEachIndexed { index, solution ->
                             FilterChip(selected = selectedSolutionId == solution.id,
@@ -485,7 +484,7 @@ fun StudyExerciseEditorScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Solución ${index + 1}", color = TestarioText, modifier = Modifier.weight(1f))
                             TextButton(onClick = {
-                                solutions = solutions.filterNot { it.id == solution.id }
+                                solutions = WrittenMarkerRules.removeSolution(solutions, solution.id)
                                 if (selectedSolutionId == solution.id)
                                     selectedSolutionId = solutions.firstOrNull()?.id
                             }) { Text("Eliminar") }
@@ -795,73 +794,8 @@ fun StudyExerciseEditorScreen(
                 }
             }
 
-            if (showPreview) {
-                val candidate = runCatching { construct(draft = false) }
-                Column(Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(12.dp)).padding(12.dp)) {
-                    Text("Vista previa", color = TestarioText, style = MaterialTheme.typography.titleMedium)
-                    candidate.onSuccess { ex ->
-                        if (ex.kind == StudyExerciseKind.WRITTEN_MULTI) {
-                            Text(ex.prompt, color = TestarioText)
-                            ex.sketch?.let { drawing ->
-                                StudySketchCanvas(
-                                    sketch = drawing,
-                                    modifier = Modifier.fillMaxWidth().height(220.dp),
-                                    markers = ex.solutions.flatMap { it.points },
-                                    mode = SketchMode.PREVIEW,
-                                    showMarkers = previewRevealed
-                                )
-                            }
-                            ex.baseImageUri?.let { image ->
-                                StudyVisualImage(image, modifier = Modifier.fillMaxWidth().height(220.dp),
-                                    annotations = ex.baseAnnotations,
-                                    markers = ex.solutions.flatMap { it.points },
-                                    showCorrection = previewRevealed)
-                            }
-                            if (previewRevealed) ex.solutions.forEach {
-                                Text(it.text, color = TestarioGreen)
-                            }
-                        } else {
-                            val card = ex.flashcard
-                            if (card != null) {
-                                Text(if (previewRevealed) card.front else
-                                    ClozeMarkupEngine.mask(card.front, card.gaps, 0),
-                                    color = TestarioText)
-                                card.frontImageUri?.let { image ->
-                                    StudyVisualImage(image, modifier = Modifier.fillMaxWidth().height(190.dp),
-                                        annotations = card.frontAnnotations,
-                                        masks = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
-                                            card.masks else emptyList(),
-                                        showCorrection = previewRevealed)
-                                }
-                                if (previewRevealed) {
-                                    Divider()
-                                    Text("Respuesta", color = TestarioGreen)
-                                    Text(card.back.ifBlank { card.gaps.joinToString(", ") { g ->
-                                        card.front.substring(g.start, g.end) } }, color = TestarioText)
-                                }
-                            }
-                        }
-                        val reasons = StudyExerciseRules.errors(ex)
-                        if (reasons.isNotEmpty()) Text(reasons.joinToString("\n"), color = TestarioRed)
-                        else Text("Contenido válido", color = TestarioGreen)
-                    }.onFailure {
-                        Text(it.message ?: "Formato incompleto", color = TestarioRed)
-                    }
-                    OutlinedButton(onClick = { previewRevealed = !previewRevealed }) {
-                        Text(if (previewRevealed) "Ver como alumno" else "Mostrar corrección")
-                    }
-                }
-            }
-            OutlinedButton(onClick = { showPreview = !showPreview }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (showPreview) "Ocultar vista previa" else "Vista previa y comprobaciones")
-            }
             if (error != null) Text(error.orEmpty(), color = TestarioRed)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = {
-                    runCatching { libraryViewModel.saveStudyExercise(topicId, construct(draft = true), original?.revision) }
-                        .onSuccess { if (it) onBack() else error = "Este ejercicio se ha modificado en otro lugar." }
-                        .onFailure { error = it.message ?: "No se pudo guardar el borrador." }
-                }, modifier = Modifier.weight(1f)) { Text("Borrador") }
                 Button(onClick = {
                     runCatching { construct(draft = false) }.onSuccess { candidate ->
                         val errors = StudyExerciseRules.errors(candidate)
@@ -874,7 +808,7 @@ fun StudyExerciseEditorScreen(
                     }.onFailure {
                         error = it.message ?: "Hay una ocultación o un campo incompleto."
                     }
-                }, modifier = Modifier.weight(1f)) { Text("Guardar") }
+                }, modifier = Modifier.fillMaxWidth()) { Text("Guardar") }
             }
             Spacer(Modifier.height(18.dp))
         }
