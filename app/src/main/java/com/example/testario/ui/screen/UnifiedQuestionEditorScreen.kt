@@ -3,6 +3,7 @@ package com.example.testario.ui.screen
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.StudyExerciseKind
@@ -19,6 +20,7 @@ fun UnifiedQuestionEditorScreen(
     onBack: () -> Unit
 ) {
     var selected by remember(topicId) { mutableStateOf(AuthoringKind.TEST) }
+    val editorDrafts = rememberSaveableStateHolder()
     Column(Modifier.fillMaxSize()) {
         TestarioTopBar(title = "Añadir pregunta", onBack = onBack)
         Text("Tipo de pregunta", modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 6.dp),
@@ -38,7 +40,7 @@ fun UnifiedQuestionEditorScreen(
                 )
             }
         }
-        key(selected) {
+        editorDrafts.SaveableStateProvider(selected.name) {
             when (selected) {
                 AuthoringKind.TEST -> QuestionEditorScreen(
                     topicId = topicId, questionId = null,
