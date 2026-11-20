@@ -397,8 +397,14 @@ class ImportManager(private val context: Context, private val localStore: Testar
             staged.forEach { source ->
                 val target = File(imagesDir, source.name)
                 if (!target.exists()) {
-                    source.copyTo(target, overwrite = false)
-                    created += target
+                    require(target.createNewFile()) {
+                        "La imagen ${source.name} fue creada por otra operación durante la importación."
+                    }
+                    // Track before writing: a mid-stream I/O error must delete its partial file.
+                    created.add(target)
+                    source.inputStream().use { input ->
+                        target.outputStream().use { output -> input.copyTo(output) }
+                    }
                 }
             }
             // Only after ALL media is ready, commit the complete library.
