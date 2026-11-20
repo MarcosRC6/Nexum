@@ -300,7 +300,7 @@ fun StudyExerciseEditorScreen(
 
     Scaffold(
         containerColor = TestarioBackground,
-        topBar = if (embedded) ({}) else { TestarioTopBar("Editor de ejercicios", onBack = onBack) }
+        topBar = { if (!embedded) TestarioTopBar("Editor de ejercicios", onBack = onBack) }
     ) { pad ->
         if (topic == null) {
             Box(Modifier.padding(pad).fillMaxSize(), contentAlignment = Alignment.Center) {
