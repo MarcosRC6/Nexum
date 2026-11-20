@@ -96,6 +96,7 @@ internal fun StudyVisualImage(
     markers: List<ImagePoint> = emptyList(),
     annotations: ImageAnnotations = ImageAnnotations(),
     showCorrection: Boolean = false,
+    showAnswerMarkers: Boolean = false,
     markerStatuses: Map<String, Boolean> = emptyMap(),
     onTapImage: ((Double, Double) -> Unit)? = null
 ) {
@@ -138,7 +139,8 @@ internal fun StudyVisualImage(
                                     (fit.height*m.height).toFloat())
                             )
                         }
-                    } else {
+                    }
+                    if (showCorrection || showAnswerMarkers) {
                         markers.forEach { p ->
                             drawCircle(color = when (markerStatuses[p.id]) {
                                 true -> Color(0xFF51D79D)
@@ -148,7 +150,7 @@ internal fun StudyVisualImage(
                         }
                     }
                 }
-                if (showCorrection) markers.forEach { p ->
+                if (showCorrection || showAnswerMarkers) markers.forEach { p ->
                     val at = fit.locate(p.x, p.y)
                     Text(
                         text = p.order.toString(),
