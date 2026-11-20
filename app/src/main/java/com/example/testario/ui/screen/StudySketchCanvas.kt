@@ -53,6 +53,7 @@ internal fun StudySketchCanvas(
     val latestZoom by rememberUpdatedState(zoomFactor)
     val latestZoomChange by rememberUpdatedState(onZoomChange)
     val latestPen by rememberUpdatedState(Triple(penArgb, penWidthFraction, penOpacity))
+    val latestSketch by rememberUpdatedState(sketch)
     val purple = TestarioPrimary
     val green = TestarioGreen
     val red = TestarioRed
@@ -65,7 +66,7 @@ internal fun StudySketchCanvas(
             (y / h).toDouble().coerceIn(0.0, 1.0))
     }
     fun closestStroke(point: SketchPoint, width: Int, height: Int): String? =
-        sketch.strokes.mapNotNull { stroke ->
+        latestSketch.strokes.mapNotNull { stroke ->
             stroke.points.minOfOrNull { candidate ->
                 val dx = (candidate.x - point.x) * width
                 val dy = (candidate.y - point.y) * height
@@ -77,7 +78,7 @@ internal fun StudySketchCanvas(
 
     val gestures = when (mode) {
         SketchMode.DRAW, SketchMode.ERASE, SketchMode.PAN ->
-            Modifier.pointerInput(mode, sketch) {
+            Modifier.pointerInput(mode) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     var multiTouch = false
