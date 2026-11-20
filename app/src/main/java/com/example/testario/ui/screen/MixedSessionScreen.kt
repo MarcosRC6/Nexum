@@ -2,6 +2,8 @@ package com.example.testario.ui.screen
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -32,6 +34,7 @@ fun MixedSessionScreen(
     val error by session.error.collectAsState()
     val scope = rememberCoroutineScope()
     var exitConfirm by remember { mutableStateOf(false) }
+    var discardConfirm by remember { mutableStateOf(false) }
     val active = snapshot?.takeUnless { it.completed }?.let { it.items.getOrNull(it.currentIndex) }
     val currentResponse = snapshot?.takeUnless { it.completed }?.let { it.responses.getOrNull(it.currentIndex) }
     var writtenInput by rememberSaveable(active?.id) {
@@ -124,7 +127,7 @@ fun MixedSessionScreen(
                             val card = requireNotNull(item.exercise?.flashcard)
                             Text(card.front, color = TestarioText)
                             Text("Respuesta: " + card.back, color = TestarioGreen)
-                            Text("Repaso manual · sin calificación", color = TestarioMutedText)
+                            
                         }
                     }
                 }
@@ -192,23 +195,35 @@ fun MixedSessionScreen(
                         StudyVisualImage(imageUri = path, modifier = Modifier.fillMaxWidth().height(230.dp),
                             annotations = exercise.baseAnnotations,
                             markers = exercise.solutions.flatMap { it.points },
-                            markerStatuses = statuses, showCorrection = showAnswer)
+                            markerStatuses = statuses, showCorrection = showAnswer,
+                            showMarkerNumbersBeforeReveal = true)
                     }
                     exercise.sketch?.let { drawing ->
                         StudySketchCanvas(
                             sketch = drawing, modifier = Modifier.fillMaxWidth().height(220.dp),
                             markers = exercise.solutions.flatMap { it.points },
-                            mode = SketchMode.PREVIEW, showMarkers = showAnswer
+                            mode = SketchMode.PREVIEW, showMarkers = true,
+                            markerStatuses = statuses
                         )
                     }
-                    OutlinedTextField(
-                        value = writtenInput,
-                        onValueChange = { writtenInput = it },
-                        label = { Text("Una respuesta por línea") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                        enabled = !locked && !showAnswer
-                    )
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .background(TestarioSurface, RoundedCornerShape(18.dp)).padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Soluciones", style = MaterialTheme.typography.titleMedium,
+                            color = TestarioText)
+                        OutlinedTextField(
+                            value = writtenInput,
+                            onValueChange = { writtenInput = it },
+                            label = { Text("Una respuesta por línea") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = maxOf(3, exercise.solutions.size),
+                            enabled = !locked && !showAnswer
+                        )
+                        Text("${exercise.solutions.size} soluciones esperadas. Los números de la imagen señalan qué debes identificar.",
+                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                    }
                     if (!showAnswer) {
                         Button(onClick = { session.submitWritten(writtenInput) },
                             enabled = !locked, modifier = Modifier.fillMaxWidth()) {
@@ -218,7 +233,8 @@ fun MixedSessionScreen(
                         val graded = StudyExerciseRules.gradeWritten(
                             exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
                         )
-                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10", color = TestarioGreen)
+                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
+                            color = if (graded.incorrect > 0 || graded.omitted > 0) TestarioRed else TestarioGreen)
                         response.writtenAnswers.forEach { entry ->
                             val solution = StudyExerciseRules.findAcceptedSolution(exercise, entry)
                             Text(entry + (solution?.let { " ✓" } ?: " ✗"),
@@ -226,7 +242,7 @@ fun MixedSessionScreen(
                         }
                         val missing = exercise.solutions.filterNot { it.id in graded.correctIds }
                         if (missing.isNotEmpty()) Text("Faltaban: " +
-                            missing.joinToString(" · ") { it.text }, color = TestarioGreen)
+                            missing.joinToString(" · ") { it.text }, color = TestarioRed)
                     }
                 }
                 MixedItemType.ANKI -> {
@@ -260,8 +276,7 @@ fun MixedSessionScreen(
                                 annotations = if (reverse) card.frontAnnotations else card.backAnnotations,
                                 modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true)
                         }
-                        Text("Repaso manual: esta tarjeta no cuenta para la nota ni altera Anki.",
-                            color = TestarioMutedText)
+                        
                     }
                 }
             }
@@ -280,11 +295,31 @@ fun MixedSessionScreen(
                         modifier = Modifier.weight(1f)) { Text("Finalizar") }
                 }
             }
-            OutlinedButton(onClick = { exitConfirm = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("Guardar y salir")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { exitConfirm = true }, modifier = Modifier.weight(1f)) {
+                    Text("Guardar y salir")
+                }
+                TextButton(onClick = { discardConfirm = true }, modifier = Modifier.weight(1f)) {
+                    Text("Salir sin guardar", color = TestarioRed)
+                }
             }
         }
     }
+
+    if (discardConfirm) AlertDialog(
+        onDismissRequest = { discardConfirm = false },
+        title = { Text("Salir sin guardar") },
+        text = { Text("Se perderá el progreso, tiempo y respuestas de esta sesión. No podrá retomarse ni registrarse en los resultados.") },
+        confirmButton = {
+            TextButton(onClick = {
+                if (session.discardSaved()) {
+                    discardConfirm = false
+                    onLeave()
+                }
+            }) { Text("Descartar sesión", color = TestarioRed) }
+        },
+        dismissButton = { TextButton(onClick = { discardConfirm = false }) { Text("Continuar") } }
+    )
 
     if (exitConfirm) {
         AlertDialog(
