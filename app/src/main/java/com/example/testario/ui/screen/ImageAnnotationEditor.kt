@@ -8,6 +8,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -69,15 +74,22 @@ internal fun EditableAnnotationImage(
     var pendingReplace by remember(imageUri) { mutableStateOf(false) }
     var pendingDelete by remember(imageUri) { mutableStateOf(false) }
 
-    StudyVisualImage(
-        imageUri = imageUri,
-        annotations = annotations,
-        markers = markers, masks = masks, showCorrection = showCorrection,
-        modifier = modifier,
-        onTapImage = if (onMarkerTap != null) onMarkerTap else { _, _ -> showActions = true }
-    )
-    if (onMarkerTap != null) {
-        TextButton(onClick = { showActions = true }) { Text("Imagen · Ver / Anotar / Cambiar") }
+    Box(modifier) {
+        StudyVisualImage(
+            imageUri = imageUri,
+            annotations = annotations,
+            markers = markers, masks = masks, showCorrection = showCorrection,
+            modifier = Modifier.fillMaxSize(),
+            onTapImage = if (onMarkerTap != null) onMarkerTap else { _, _ -> viewing = true }
+        )
+        IconButton(
+            onClick = { showActions = true },
+            modifier = Modifier.align(Alignment.TopEnd).padding(6.dp)
+                .background(TestarioSurface.copy(alpha = .94f), CircleShape)
+                .semantics { contentDescription = "Editar imagen" }
+        ) {
+            Text("✎", color = TestarioText, style = MaterialTheme.typography.titleLarge)
+        }
     }
     if (showActions) {
         AlertDialog(
@@ -167,6 +179,10 @@ internal fun ImageAnnotationEditorDialog(
     var tool by remember { mutableStateOf(ImageAnnotationTool.PEN) }
     var colorArgb by remember { mutableLongStateOf(0xFFFFD54FL) }
     var sizeScale by remember { mutableFloatStateOf(1f) }
+    var highlighterOpacity by remember { mutableFloatStateOf(.34f) }
+    var zoom by remember { mutableFloatStateOf(1f) }
+    var panX by remember { mutableFloatStateOf(0f) }
+    var panY by remember { mutableFloatStateOf(0f) }
     var clearConfirm by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -192,7 +208,7 @@ internal fun ImageAnnotationEditorDialog(
         error = null
     }
     val widthFraction = (if (tool == ImageAnnotationTool.PEN) .005 else .045) * sizeScale
-    val opacity = if (tool == ImageAnnotationTool.PEN) 1.0 else .34
+    val opacity = if (tool == ImageAnnotationTool.PEN) 1.0 else highlighterOpacity.toDouble()
 
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
@@ -205,7 +221,10 @@ internal fun ImageAnnotationEditorDialog(
                 TextButton(onClick = onCancel) { Text("Cancelar") }
                 Button(onClick = {
                     val layer = ImageAnnotations(strokes)
-                    runCatching { ImageAnnotationRules.requireValid(layer) }
+                    runCatching {
+                        check(intrinsic != null) { "La imagen no está disponible." }
+                        ImageAnnotationRules.requireValid(layer)
+                    }
                         .onSuccess { onSave(layer) }
                         .onFailure { error = it.message }
                 }) { Text("Guardar") }
@@ -249,6 +268,24 @@ internal fun ImageAnnotationEditorDialog(
                 )
             }
 
+            if (tool == ImageAnnotationTool.HIGHLIGHTER) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Opacidad", color = TestarioMutedText)
+                    Slider(value = highlighterOpacity, onValueChange = { highlighterOpacity = it },
+                        valueRange = .1f..1f, modifier = Modifier.weight(1f))
+                    Text("${(highlighterOpacity * 100).toInt()}%", color = TestarioText)
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Zoom", color = TestarioMutedText)
+                Slider(value = zoom, onValueChange = { zoom = it },
+                    valueRange = 1f..5f, modifier = Modifier.weight(1f))
+                Text("${"%.1f".format(zoom)}×", color = TestarioText)
+                TextButton(onClick = { zoom = 1f; panX = 0f; panY = 0f }) {
+                    Text("Restablecer")
+                }
+            }
+
             BoxWithConstraints(
                 Modifier.fillMaxWidth().weight(1f)
                     .clip(RoundedCornerShape(12.dp))
@@ -258,37 +295,68 @@ internal fun ImageAnnotationEditorDialog(
                 val widthPx = with(density) { maxWidth.toPx() }
                 val heightPx = with(density) { maxHeight.toPx() }
                 val fit = intrinsic?.let { fitImageToBox(it.first, it.second, widthPx, heightPx) }
-                val gestures = if (fit != null) Modifier
-                    .pointerInput(imageUri, fit, tool, colorArgb, widthFraction) {
-                        detectDragGestures(
-                            onDragStart = { start ->
-                                drawing = fit.toImage(start.x, start.y)?.let {
-                                    listOf(ImageAnnotationPoint(it.first, it.second))
-                                } ?: emptyList()
-                            },
-                            onDrag = { change, _ ->
-                                change.consume()
-                                if (drawing.isNotEmpty() && drawing.size < 8000) {
-                                    fit.toImage(change.position.x, change.position.y)?.let { pair ->
-                                        val p = ImageAnnotationPoint(pair.first, pair.second)
-                                        if (drawing.last() != p) drawing = drawing + p
+                // One gesture recognizer: one finger draws, two fingers zoom/pan.
+                // The whole image + vector layer is transformed together; drawing
+                // positions use the inverse transformation into image pixels.
+                val gestures = if (fit != null) Modifier.pointerInput(
+                    imageUri, fit, tool, colorArgb, widthFraction, opacity
+                ) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        var pinched = false
+                        var isDrawing = false
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val pressed = event.changes.filter { it.pressed }
+                            if (pressed.size >= 2) {
+                                pinched = true
+                                drawing = emptyList()
+                                val factor = event.calculateZoom().coerceIn(.5f, 2f)
+                                val previousZoom = zoom
+                                val newZoom = (zoom * factor).coerceIn(1f, 5f)
+                                val shift = event.calculatePan()
+                                val adjustment = newZoom / previousZoom
+                                panX = (panX + shift.x) * adjustment
+                                panY = (panY + shift.y) * adjustment
+                                zoom = newZoom
+                            } else if (!pinched && pressed.size == 1) {
+                                val point = pressed.first().position
+                                val centerX = size.width / 2f
+                                val centerY = size.height / 2f
+                                val originalX = (point.x - centerX - panX) / zoom + centerX
+                                val originalY = (point.y - centerY - panY) / zoom + centerY
+                                fit.toImage(originalX, originalY)?.let { (x, y) ->
+                                    val next = ImageAnnotationPoint(x, y)
+                                    if (!isDrawing) {
+                                        drawing = listOf(next)
+                                        isDrawing = true
+                                    } else if (drawing.size < 8000 && drawing.lastOrNull() != next) {
+                                        drawing = drawing + next
                                     }
                                 }
-                            },
-                            onDragEnd = {
-                                if (drawing.isNotEmpty()) {
-                                    if (drawing.size >= 2) commit(strokes + ImageAnnotationStroke(
-                                        tool = tool, colorArgb = colorArgb,
-                                        widthFraction = widthFraction.toDouble(),
-                                        opacity = opacity, points = drawing
-                                    ))
-                                }
-                                drawing = emptyList()
-                            },
-                            onDragCancel = { drawing = emptyList() }
-                        )
-                    } else Modifier
+                            }
+                            event.changes.forEach { if (it.pressed) it.consume() }
+                            if (pressed.isEmpty()) break
+                        }
+                        if (!pinched && drawing.size >= 2) {
+                            commit(strokes + ImageAnnotationStroke(
+                                tool = tool, colorArgb = colorArgb,
+                                widthFraction = widthFraction.toDouble(),
+                                opacity = opacity, points = drawing
+                            ))
+                        }
+                        drawing = emptyList()
+                    }
+                } else Modifier
                 Box(Modifier.fillMaxSize().then(gestures)) {
+                    Box(
+                        Modifier.fillMaxSize().graphicsLayer {
+                            scaleX = zoom
+                            scaleY = zoom
+                            translationX = panX
+                            translationY = panY
+                        }
+                    ) {
                     AsyncImage(
                         model = if (imageUri.startsWith("/")) File(imageUri) else imageUri,
                         contentDescription = "Fotografía original",
@@ -304,6 +372,7 @@ internal fun ImageAnnotationEditorDialog(
                             )) else emptyList()
                             drawImageAnnotations(ImageAnnotations(strokes + current), fit)
                         }
+                    }
                     }
                 }
             }
