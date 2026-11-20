@@ -193,6 +193,7 @@ internal fun inverseImageViewport(
 }
 
 internal fun clampImagePan(pan: Offset, zoom: Float, width: Float, height: Float): Offset {
+    if (zoom <= 1f || width <= 0f || height <= 0f) return Offset.Zero
     val x = ((zoom - 1f) * width / 2f).coerceAtLeast(0f)
     val y = ((zoom - 1f) * height / 2f).coerceAtLeast(0f)
     return Offset(pan.x.coerceIn(-x, x), pan.y.coerceIn(-y, y))
