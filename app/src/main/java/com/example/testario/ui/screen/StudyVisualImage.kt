@@ -4,6 +4,8 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.material3.Text
@@ -98,9 +100,16 @@ internal fun StudyVisualImage(
     showCorrection: Boolean = false,
     showMarkerNumbersBeforeReveal: Boolean = false,
     markerStatuses: Map<String, Boolean> = emptyMap(),
-    onTapImage: ((Double, Double) -> Unit)? = null
+    onTapImage: ((Double, Double) -> Unit)? = null,
+    onMaskUpdate: ((ImageOcclusionMask) -> Unit)? = null,
+    selectedMaskId: String? = null,
+    onMaskSelect: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val latestMasks by rememberUpdatedState(masks)
+    val latestTap by rememberUpdatedState(onTapImage)
+    val latestMaskUpdate by rememberUpdatedState(onMaskUpdate)
+    val latestMaskSelect by rememberUpdatedState(onMaskSelect)
     var intrinsic by remember(imageUri) { mutableStateOf<Pair<Int, Int>?>(null) }
     LaunchedEffect(imageUri) {
         intrinsic = withContext(Dispatchers.IO) {
@@ -112,10 +121,88 @@ internal fun StudyVisualImage(
         val boxW = with(density) { maxWidth.toPx() }
         val boxH = with(density) { maxHeight.toPx() }
         val fit = intrinsic?.let { (w,h) -> fitImageToBox(w,h,boxW,boxH) }
-        val touch = if (onTapImage != null && fit != null) {
+        val touch = if (onMaskUpdate != null && fit != null) {
+            Modifier.pointerInput(imageUri, fit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val origin = fit.toImage(down.position.x, down.position.y)
+                    val originX = origin?.first ?: -1.0
+                    val originY = origin?.second ?: -1.0
+                    val tolerance = (16.dp.toPx() / min(fit.width, fit.height))
+                        .toDouble().coerceIn(.012, .065)
+                    val mask = latestMasks.asReversed().firstOrNull { m ->
+                        originX >= m.x - tolerance && originX <= m.x + m.width + tolerance &&
+                            originY >= m.y - tolerance && originY <= m.y + m.height + tolerance
+                    }
+                    val handle = if (mask == null) "" else {
+                        val left = kotlin.math.abs(originX - mask.x) <= tolerance
+                        val right = kotlin.math.abs(originX - mask.x - mask.width) <= tolerance
+                        val top = kotlin.math.abs(originY - mask.y) <= tolerance
+                        val bottom = kotlin.math.abs(originY - mask.y - mask.height) <= tolerance
+                        when {
+                            left && top -> "LT"
+                            right && top -> "RT"
+                            left && bottom -> "LB"
+                            right && bottom -> "RB"
+                            left -> "L"
+                            right -> "R"
+                            top -> "T"
+                            bottom -> "B"
+                            else -> "MOVE"
+                        }
+                    }
+                    if (mask != null) latestMaskSelect?.invoke(mask.id)
+                    var dragged = false
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val pressed = event.changes.filter { it.pressed }
+                        if (pressed.size == 1 && mask != null) {
+                            val position = pressed.first().position
+                            val current = fit.toImage(position.x, position.y)
+                            if (current != null) {
+                                val dx = current.first - originX
+                                val dy = current.second - originY
+                                if (kotlin.math.abs(dx) > .002 || kotlin.math.abs(dy) > .002) {
+                                    dragged = true
+                                    var x = mask.x
+                                    var y = mask.y
+                                    var w = mask.width
+                                    var h = mask.height
+                                    if (handle == "MOVE") {
+                                        x = (mask.x + dx).coerceIn(0.0, 1.0 - w)
+                                        y = (mask.y + dy).coerceIn(0.0, 1.0 - h)
+                                    } else {
+                                        if (handle.contains("L")) {
+                                            x = (mask.x + dx).coerceIn(0.0, mask.x + mask.width - .04)
+                                            w = mask.width + mask.x - x
+                                        }
+                                        if (handle.contains("R"))
+                                            w = (mask.width + dx).coerceIn(.04, 1.0 - x)
+                                        if (handle.contains("T")) {
+                                            y = (mask.y + dy).coerceIn(0.0, mask.y + mask.height - .04)
+                                            h = mask.height + mask.y - y
+                                        }
+                                        if (handle.contains("B"))
+                                            h = (mask.height + dy).coerceIn(.04, 1.0 - y)
+                                    }
+                                    latestMaskUpdate?.invoke(mask.copy(x = x, y = y, width = w, height = h))
+                                }
+                            }
+                        } else if (pressed.size >= 2) {
+                            // Two-finger gestures are reserved for zoom in the image editor.
+                            dragged = true
+                        }
+                        event.changes.forEach { if (it.pressed) it.consume() }
+                        if (pressed.isEmpty()) break
+                    }
+                    if (!dragged && mask == null && origin != null)
+                        latestTap?.invoke(originX, originY)
+                }
+            }
+        } else if (onTapImage != null && fit != null) {
             Modifier.pointerInput(imageUri, fit, onTapImage) {
                 detectTapGestures { p ->
-                    fit.toImage(p.x, p.y)?.let { (x,y) -> onTapImage(x,y) }
+                    fit.toImage(p.x, p.y)?.let { (x, y) -> onTapImage(x, y) }
                 }
             }
         } else Modifier
@@ -138,6 +225,34 @@ internal fun StudyVisualImage(
                                 size = Size((fit.width*m.width).toFloat(),
                                     (fit.height*m.height).toFloat())
                             )
+                        }
+                    }
+                    if (onMaskUpdate != null && !showCorrection) {
+                        val selected = masks.firstOrNull { it.id == selectedMaskId }
+                        if (selected != null) {
+                            val left = selected.x
+                            val top = selected.y
+                            val right = selected.x + selected.width
+                            val bottom = selected.y + selected.height
+                            drawRect(color = Color(0xFFBD83FA),
+                                topLeft = fit.locate(left, top),
+                                size = Size(fit.width * selected.width.toFloat(),
+                                    fit.height * selected.height.toFloat()),
+                                style = Stroke(width = 2.dp.toPx()))
+                            listOf(
+                                left to top,
+                                (left + right) / 2 to top,
+                                right to top,
+                                left to (top + bottom) / 2,
+                                right to (top + bottom) / 2,
+                                left to bottom,
+                                (left + right) / 2 to bottom,
+                                right to bottom
+                            ).forEach { (x,y) ->
+                                drawCircle(Color.White, radius = 6.dp.toPx(), center = fit.locate(x,y))
+                                drawCircle(Color(0xFFBD83FA), radius = 3.5.dp.toPx(),
+                                    center = fit.locate(x,y))
+                            }
                         }
                     }
                     if (showCorrection || showMarkerNumbersBeforeReveal) {
