@@ -245,12 +245,19 @@ object StudyExerciseRules {
         val aliases = ownerIndex(exercise)
         val correctIds = linkedSetOf<String>()
         val invalid = linkedMapOf<String, String>()
-        submitted.forEach { input ->
+        // A numbered photo/sketch establishes a correspondence between
+        // answer field N and its labelled position N. Swapped answers must not
+        // count as correct for the wrong point. Unnumbered enumeration remains
+        // set-based and accepts responses in any order.
+        val positionsMatter = exercise.solutions.any { it.points.isNotEmpty() }
+        submitted.forEachIndexed { index, input ->
             val key = normalize(input)
-            if (key.isEmpty()) return@forEach
+            if (key.isEmpty()) return@forEachIndexed
             val owner = aliases[key]
-            if (owner == null) invalid.putIfAbsent(key, input.trim())
-            else correctIds.add(owner)
+            val expected = exercise.solutions.getOrNull(index)?.id
+            if (owner == null || (positionsMatter && owner != expected)) {
+                invalid.putIfAbsent(if (positionsMatter) "$index:$key" else key, input.trim())
+            } else correctIds.add(owner)
         }
         val count = exercise.solutions.size
         // Avoid 0 * Infinity => NaN for finite but extremely unbalanced baremos.
