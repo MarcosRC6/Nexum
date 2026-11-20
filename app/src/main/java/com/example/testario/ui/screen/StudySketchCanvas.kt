@@ -112,6 +112,8 @@ internal fun StudySketchCanvas(
         SketchMode.PREVIEW -> Modifier
     }
     BoxWithConstraints(modifier.background(TestarioSurface, RoundedCornerShape(14.dp)).then(gestures)) {
+        val drawingWidth = maxWidth
+        val drawingHeight = maxHeight
         Box(Modifier.fillMaxSize().graphicsLayer {
             scaleX = zoomFactor
             scaleY = zoomFactor
@@ -155,8 +157,8 @@ internal fun StudySketchCanvas(
             Text(marker.order.toString(), color = statusColor,
                 style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
                 modifier = Modifier.offset(
-                    x = maxWidth * marker.x.toFloat() - 8.dp,
-                    y = maxHeight * marker.y.toFloat() - 12.dp
+                    x = drawingWidth * marker.x.toFloat() - 8.dp,
+                    y = drawingHeight * marker.y.toFloat() - 12.dp
                 ))
         }
         }
