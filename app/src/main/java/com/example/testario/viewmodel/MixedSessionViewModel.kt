@@ -205,6 +205,9 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
         ticker?.cancel()
         return runCatching {
             store.clear()
+            check(store.load() == null) {
+                "La sesión sigue en almacenamiento; no es seguro abandonarla todavía."
+            }
             _pending.value = null
             _snapshot.value = null
             _result.value = null
