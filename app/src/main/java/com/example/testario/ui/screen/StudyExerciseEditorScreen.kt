@@ -692,77 +692,17 @@ fun StudyExerciseEditorScreen(
                     )
                 }
                 if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
-                    Text("Toca las zonas de la imagen que quieras tapar. Al revelar la tarjeta los bloques desaparecen.",
-                        color = TestarioMutedText)
                     frontImageUri?.let { image ->
-                        FilterChip(
-                            selected = occlusionMarkMode,
-                            onClick = { occlusionMarkMode = !occlusionMarkMode },
-                            label = { Text(if (occlusionMarkMode) "Ocultar zonas · activo"
-                                else "Ocultar zonas") }
-                        )
-                        EditableAnnotationImage(
+                        EditableOcclusionImage(
                             imageUri = image,
                             annotations = frontAnnotations,
-                            modifier = Modifier.fillMaxWidth().height(240.dp),
                             masks = masks,
-                            onMarkerTap = if (occlusionMarkMode) { x, y ->
-                                masks = masks + ImageOcclusionMask(
-                                    x = x.coerceAtMost(0.82), y = y.coerceAtMost(0.82),
-                                    width = 0.18, height = 0.18
-                                )
-                            } else null,
-                            onAnnotationsChanged = { frontAnnotations = it },
-                            onReplace = { chooseImage("front") },
-                            onDelete = {
-                                if (masks.isNotEmpty()) error =
-                                    "Elimina primero las máscaras asociadas a esta fotografía."
-                                else {
-                                    frontImageUri = null
-                                    frontAnnotations = ImageAnnotations()
-                                }
-                            }
+                            onMasksChanged = { masks = it },
+                            modifier = Modifier.fillMaxWidth()
                         )
-                    }
-                    masks.forEach { mask ->
-                        Text("Zona oculta ${masks.indexOf(mask) + 1}", color = TestarioMutedText)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Ancho", color = TestarioMutedText)
-                            Slider(
-                                value = mask.width.toFloat().coerceIn(.04f,.7f),
-                                onValueChange = { v ->
-                                    masks = masks.map { if (it.id == mask.id)
-                                        it.copy(width = v.toDouble(), x = it.x.coerceAtMost(1.0 - v))
-                                        else it }
-                                },
-                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
-                            )
+                        TextButton(onClick = { chooseImage("front") }) {
+                            Text("Cambiar fotografía")
                         }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Alto", color = TestarioMutedText)
-                            Slider(
-                                value = mask.height.toFloat().coerceIn(.04f,.7f),
-                                onValueChange = { v ->
-                                    masks = masks.map { if (it.id == mask.id)
-                                        it.copy(height = v.toDouble(), y = it.y.coerceAtMost(1.0 - v))
-                                        else it }
-                                },
-                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
-                            )
-                        }
-                        OutlinedTextField(
-                            value = mask.answer,
-                            onValueChange = { newText -> masks = masks.map {
-                                if (it.id == mask.id) it.copy(answer = newText) else it
-                            } },
-                            label = { Text("Respuesta de la zona ${masks.indexOf(mask) + 1}") },
-                            modifier = Modifier.fillMaxWidth(),
-                            trailingIcon = {
-                                TextButton(onClick = { masks = masks.filterNot { it.id == mask.id } }) {
-                                    Text("Quitar")
-                                }
-                            }
-                        )
                     }
                 }
                 if (flashKind != FlashcardKind.IMAGE_OCCLUSION) {
