@@ -343,13 +343,26 @@ fun StudyExerciseEditorScreen(
                 }
                 if ((sketchEnabled && sketchMode == SketchMode.MARK) ||
                     (imageUri != null && photoMarkerMode)) {
-                    Text("Solución que vas a colocar", color = TestarioMutedText)
-                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("Selecciona la solución que vas a colocar", color = TestarioText,
+                        style = MaterialTheme.typography.titleSmall)
+                    Row(Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         solutions.forEachIndexed { index, solution ->
-                            FilterChip(selected = selectedSolutionId == solution.id,
+                            val selected = selectedSolutionId == solution.id
+                            FilterChip(
+                                selected = selected,
                                 onClick = { selectedSolutionId = solution.id },
-                                label = { Text("${index + 1}: ${solution.text.take(16).ifBlank { "Sin escribir" }}") },
-                                enabled = solution.text.isNotBlank())
+                                leadingIcon = {
+                                    RadioButton(
+                                        selected = selected, onClick = null,
+                                        modifier = Modifier.size(22.dp),
+                                        colors = RadioButtonDefaults.colors(
+                                            selectedColor = TestarioPrimary)
+                                    )
+                                },
+                                label = { Text("${index + 1}: ${solution.text.take(15).ifBlank { "Sin escribir" }}") },
+                                enabled = solution.text.isNotBlank()
+                            )
                         }
                     }
                 }
