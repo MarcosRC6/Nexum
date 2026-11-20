@@ -606,8 +606,8 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("Comportamiento de los tests", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                                Text("Prioridad de Fallos y reglas de salida del repaso.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                Text("Comportamiento de los ejercicios", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                Text("Tests, preguntas falladas y repaso espaciado de tarjetas.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
                             Text(if (showBehaviorSettings) "▲" else "▼", color = TestarioPrimary)
                         }
@@ -639,6 +639,29 @@ fun SettingsScreen(
                                     Checkbox(checked = behaviorSettingsViewModel.prioritizeFailuresInNormalTests, onCheckedChange = null)
                                 }
 
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable {
+                                            libraryViewModel.setAnkiReviewEnabled(!database.ankiReviewEnabled)
+                                        }
+                                        .padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("Repetición espaciada de Anki",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = TestarioText)
+                                        Text("Opcional. Programa el siguiente repaso según Otra vez, Difícil, Bien o Fácil. " +
+                                            "Solo registra repasos cuando eliges expresamente una sesión programada; " +
+                                            "los exámenes no cambian los intervalos.",
+                                            color = TestarioMutedText,
+                                            style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    Checkbox(checked = database.ankiReviewEnabled, onCheckedChange = {
+                                        libraryViewModel.setAnkiReviewEnabled(it)
+                                    })
+                                }
                                 Text("Salir de Fallos", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                                 val failureStreak = behaviorSettingsViewModel.failureExitCorrectStreak
                                 Text(
