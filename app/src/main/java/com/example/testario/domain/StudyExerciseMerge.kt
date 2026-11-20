@@ -41,12 +41,9 @@ object StudyExerciseMerge {
      * Stroke order, brush and normalized points remain significant.
      */
     private fun sketchSignature(drawing: SketchDrawing?): String =
-        drawing?.strokes?.joinToString("|") { stroke ->
-            "${stroke.brush}:${stroke.colorArgb}:${stroke.opacity}:${stroke.widthFraction}:" +
-                stroke.points.joinToString(";") { point ->
-                    "${point.x},${point.y}"
-                }
-        }.orEmpty()
+        if (drawing == null) "" else ImageAnnotationRules.signature(
+            SketchAnnotationCodec.toAnnotations(drawing)
+        )
 
     fun unique(incoming: List<StudyExercise>, existing: List<StudyExercise>): List<StudyExercise> {
         val known = existing.mapTo(hashSetOf(), ::signature)
