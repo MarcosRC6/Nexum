@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -130,36 +131,35 @@ internal fun StudyVisualImage(
                     drawImageAnnotations(annotations, fit)
                     if (!showCorrection) {
                         masks.forEach { m ->
-                            val topLeft = fit.locate(m.x,m.y)
+                            val topLeft = fit.locate(m.x, m.y)
                             drawRect(
-                                color = Color.Black.copy(alpha = 0.94f),
+                                color = Color.Black.copy(alpha = .94f),
                                 topLeft = topLeft,
-                                size = Size((fit.width*m.width).toFloat(),
-                                    (fit.height*m.height).toFloat())
+                                size = Size(fit.width * m.width.toFloat(), fit.height * m.height.toFloat())
                             )
                         }
-                    } else {
-                        markers.forEach { p ->
-                            drawCircle(color = when (markerStatuses[p.id]) {
-                                true -> Color(0xFF51D79D)
-                                false -> Color(0xFFEA6877)
-                                null -> Color(0xFFA85AFF)
-                            }, radius = 11.dp.toPx(), center = fit.locate(p.x,p.y))
-                        }
+                    }
+                    // Written-answer locations are QUESTIONS, not answer reveals.
+                    // Show 1/2/3 before typing, then color each location on correction.
+                    markers.forEach { marker ->
+                        drawCircle(
+                            color = when (markerStatuses[marker.id]) {
+                                true -> Color(0xFF21784D)
+                                false -> Color(0xFF9D263A)
+                                null -> Color(0xFF9347D9)
+                            }, radius = 16.dp.toPx(), center = fit.locate(marker.x, marker.y)
+                        )
                     }
                 }
-                if (showCorrection) markers.forEach { p ->
+                markers.forEach { p ->
                     val at = fit.locate(p.x, p.y)
                     Text(
                         text = p.order.toString(),
-                        color = when (markerStatuses[p.id]) {
-                            true -> Color(0xFF51D79D)
-                            false -> Color(0xFFEA6877)
-                            null -> Color.White
-                        },
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.offset(
-                            x = with(density) { at.x.toDp() } - 6.dp,
-                            y = with(density) { at.y.toDp() } - 12.dp
+                            x = with(density) { at.x.toDp() } - 8.dp,
+                            y = with(density) { at.y.toDp() } - 15.dp
                         )
                     )
                 }
