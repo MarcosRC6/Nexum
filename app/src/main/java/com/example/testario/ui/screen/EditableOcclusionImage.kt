@@ -1,5 +1,6 @@
 package com.example.testario.ui.screen
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -85,6 +86,7 @@ internal fun EditableOcclusionImage(
                             .background(Color.Black.copy(alpha = .93f), RoundedCornerShape(4.dp))
                             .border(if (selected) 3.dp else 1.dp,
                                 TestarioPrimary, RoundedCornerShape(4.dp))
+                            .clickable { selectedId = mask.id }
                             .pointerInput(mask.id, fit) {
                                 detectDragGestures(
                                     onDragStart = { selectedId = mask.id },
