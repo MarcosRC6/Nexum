@@ -165,7 +165,8 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
 
     fun submitWritten(text: String, reveal: Boolean = true) = edit { state ->
         require(state.items[state.currentIndex].type == MixedItemType.WRITTEN)
-        val answers = text.lines().map(String::trim).filter(String::isNotBlank)
+        // Keep blank slots: Solution 3 must remain solution 3 after suspend/resume.
+        val answers = text.lines().map(String::trim)
         state.copy(responses = state.responses.mapIndexed { idx, response ->
             if (idx == state.currentIndex) response.copy(
                 writtenAnswers = answers,
