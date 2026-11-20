@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import com.example.testario.data.model.*
 import com.example.testario.ui.theme.*
 
@@ -115,11 +117,14 @@ internal fun StudySketchCanvas(
                 false -> red
                 null -> purple
             }
-            Text(marker.order.toString(), color = statusColor,
+            Text(
+                marker.order.toString(), color = statusColor,
+                fontSize = 19.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.offset(
-                    x = maxWidth * marker.x.toFloat() - 8.dp,
-                    y = maxHeight * marker.y.toFloat() - 12.dp
-                ))
+                    x = maxWidth * marker.x.toFloat() - 10.dp,
+                    y = maxHeight * marker.y.toFloat() - 14.dp
+                )
+            )
         }
     }
 }
