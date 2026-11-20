@@ -20,6 +20,7 @@ data class WebQuickLink(
     val title: String,
     val url: String,
     val icon: String = "web",
+    val customIconLabel: String = "",
     val hidden: Boolean = false
 )
 
@@ -34,7 +35,7 @@ object WebQuickLinkPolicy {
     const val MAX_LINKS = 40
     const val MAX_TITLE_LENGTH = 50
     const val MAX_URL_LENGTH = 2048
-    val icons = listOf("web", "academy", "map", "document")
+    val icons = listOf("web", "academy", "map", "document", "other")
 
     fun normalizeUrl(input: String): String? {
         val trimmed = input.trim()
@@ -62,7 +63,12 @@ object WebQuickLinkPolicy {
         val url = normalizeUrl(link.url) ?: return null
         if (title.isEmpty() || title.length > MAX_TITLE_LENGTH ||
             title.any { it.isISOControl() }) return null
-        return link.copy(title = title, url = url, icon = link.icon.takeIf { it in icons } ?: "web")
+        val custom = link.customIconLabel.trim()
+        if (custom.length > 30 || custom.any { it.isISOControl() }) return null
+        if (link.icon == "other" && custom.isBlank()) return null
+        return link.copy(title = title, url = url,
+            icon = link.icon.takeIf { it in icons } ?: "web",
+            customIconLabel = if (link.icon == "other") custom else "")
     }
 
     fun parseBackup(raw: String): List<WebQuickLink> {
