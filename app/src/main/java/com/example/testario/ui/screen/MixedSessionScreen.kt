@@ -84,7 +84,7 @@ fun MixedSessionScreen(
         }
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             val current = snapshot
@@ -108,6 +108,8 @@ fun MixedSessionScreen(
 
             if (result != null) {
                 val finished = requireNotNull(result)
+                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (reviewingResults) {
                     Text("Revisión del test", style = MaterialTheme.typography.titleLarge,
                         color = TestarioText)
@@ -158,6 +160,7 @@ fun MixedSessionScreen(
                         Text("Volver al inicio de Test")
                     }
                 }
+                }
                 return@Column
             }
 
@@ -200,11 +203,11 @@ fun MixedSessionScreen(
                 }
             }
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().weight(1f),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = TestarioSurface)
             ) {
-                Column(Modifier.fillMaxWidth().padding(18.dp),
+                Column(Modifier.fillMaxSize().padding(18.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (item.type != MixedItemType.TEST) {
                 Text(item.topicName.uppercase(), color = TestarioPrimary,
