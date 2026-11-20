@@ -67,9 +67,13 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
             ticker?.cancel()
             _snapshot.value = saved
             _pending.value = saved
-            _result.value = if (saved.completed) MixedSessionEngine.finish(saved) else null
+            _result.value = null
             _error.value = null
-            if (!saved.completed) startTicker(saved)
+            if (saved.completed) {
+                // A process may have died between durable session completion
+                // and durable stats. Reconcile idempotently before showing success.
+                viewModelScope.launch { finish() }
+            } else startTicker(saved)
             true
         }.getOrElse {
             _error.value = it.message ?: "No se pudo reanudar la sesión."
