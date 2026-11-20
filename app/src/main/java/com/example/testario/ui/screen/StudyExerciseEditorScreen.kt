@@ -84,6 +84,10 @@ fun StudyExerciseEditorScreen(
     var flashKind by remember(exerciseId) { mutableStateOf(original?.flashcard?.kind ?: FlashcardKind.BASIC) }
     var gaps by remember(exerciseId) { mutableStateOf(original?.flashcard?.gaps.orEmpty()) }
     var clozeTurnInput by remember(exerciseId) { mutableStateOf("1") }
+    var showAnkiHelp by remember(exerciseId) { mutableStateOf(false) }
+    var showClozeMarkMenu by remember(exerciseId) { mutableStateOf(false) }
+    var showOtherTurnDialog by remember(exerciseId) { mutableStateOf(false) }
+
     var previewRevealed by remember(exerciseId) { mutableStateOf(false) }
     var masks by remember(exerciseId) { mutableStateOf(original?.flashcard?.masks.orEmpty()) }
     var aliasesText by remember(exerciseId) { mutableStateOf(original?.flashcard?.acceptedAnswers?.joinToString(", ").orEmpty()) }
@@ -217,6 +221,40 @@ fun StudyExerciseEditorScreen(
 
     val schematicLineColor = TestarioPrimary
 
+    if (showOtherTurnDialog) {
+        AlertDialog(
+            onDismissRequest = { showOtherTurnDialog = false },
+            title = { Text("Turno de ocultación") },
+            text = {
+                OutlinedTextField(
+                    value = clozeTurnInput,
+                    onValueChange = { clozeTurnInput = it.filter(Char::isDigit).take(3) },
+                    label = { Text("Número de turno (1–999)") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val n = clozeTurnInput.toIntOrNull()
+                    if (n == null || n !in 1..999) error = "El turno debe ser del 1 al 999."
+                    else {
+                        runCatching {
+                            ClozeMarkupEngine.markSelection(
+                                front.text, front.selection.min, front.selection.max, n
+                            )
+                        }.onSuccess {
+                            front = TextFieldValue(it)
+                            showOtherTurnDialog = false
+                            error = null
+                        }.onFailure { error = it.message }
+                    }
+                }) { Text("Marcar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOtherTurnDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
     if (showSketchInkEditor) {
         ImageAnnotationEditorDialog(
             imageUri = "nexum://blank",
@@ -480,51 +518,128 @@ fun StudyExerciseEditorScreen(
                     modifier = Modifier.fillMaxWidth(), minLines = 3
                 )
                 if (simpleAnki) {
-                    Text("Selecciona una palabra o frase en el texto y márcala. Sin número se ocultará siempre; los turnos 1, 2, 3… se alternan cada vez que reveles la tarjeta.",
-                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
-                    OutlinedButton(onClick = {
-                        runCatching {
-                            ClozeMarkupEngine.markSelection(
-                                front.text, front.selection.min, front.selection.max, null
-                            )
-                        }.onSuccess {
-                            front = TextFieldValue(it)
-                            error = null
-                        }.onFailure { error = it.message }
-                    }, modifier = Modifier.fillMaxWidth()) { Text("Ocultar siempre la selección") }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = clozeTurnInput,
-                            onValueChange = { clozeTurnInput = it.filter(Char::isDigit).take(3) },
-                            label = { Text("Turno nº") },
-                            modifier = Modifier.width(120.dp), singleLine = true
-                        )
-                        OutlinedButton(onClick = {
-                            val number = clozeTurnInput.toIntOrNull()
-                            if (number == null || number !in 1..999) {
-                                error = "Elige un número entre 1 y 999."
-                            } else runCatching {
-                                ClozeMarkupEngine.markSelection(
-                                    front.text, front.selection.min, front.selection.max, number
+                    TextButton(
+                        onClick = { showAnkiHelp = !showAnkiHelp },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (showAnkiHelp) "Cómo funciona  ▴" else "Cómo funciona  ▾",
+                            color = TestarioPrimary)
+                    }
+                    if (showAnkiHelp) {
+                        Column(
+                            Modifier.fillMaxWidth()
+                                .background(TestarioSurface, RoundedCornerShape(12.dp))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("Selecciona en el enunciado cualquier palabra o frase que quieras ocultar. " +
+                                "Pulsa «Marcar selección» para elegir cuándo esconderla.",
+                                color = TestarioMutedText)
+                            Text("{{palabra}}: se oculta siempre. {{1:palabra}}: se oculta " +
+                                "solo en el turno 1; {{2:frase}} en el turno 2. " +
+                                "Los fragmentos con el mismo número se ocultan a la vez.",
+                                color = TestarioMutedText)
+                            Text("Los turnos numerados avanzan al volver a aparecer " +
+                                "la tarjeta. También puedes usar [[1:palabra]]. " +
+                                "La explicación se ve al revelar la respuesta.",
+                                color = TestarioMutedText)
+                        }
+                    }
+                    if (front.selection.min != front.selection.max) {
+                        Box {
+                            OutlinedButton(
+                                onClick = { showClozeMarkMenu = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Marcar selección") }
+                            DropdownMenu(
+                                expanded = showClozeMarkMenu,
+                                onDismissRequest = { showClozeMarkMenu = false }
+                            ) {
+                                listOf(
+                                    null to "Ocultar siempre",
+                                    1 to "Turno 1",
+                                    2 to "Turno 2",
+                                    3 to "Turno 3"
+                                ).forEach { (group, label) ->
+                                    DropdownMenuItem(text = { Text(label) }, onClick = {
+                                        showClozeMarkMenu = false
+                                        runCatching {
+                                            ClozeMarkupEngine.markSelection(
+                                                front.text,
+                                                front.selection.min,
+                                                front.selection.max,
+                                                group
+                                            )
+                                        }.onSuccess {
+                                            front = TextFieldValue(it)
+                                            error = null
+                                        }.onFailure { error = it.message }
+                                    })
+                                }
+                                DropdownMenuItem(
+                                    text = { Text("Otro turno…") },
+                                    onClick = {
+                                        showClozeMarkMenu = false
+                                        showOtherTurnDialog = true
+                                    }
                                 )
-                            }.onSuccess {
-                                front = TextFieldValue(it)
-                                error = null
-                            }.onFailure { error = it.message }
-                        }, modifier = Modifier.weight(1f)) { Text("Ocultar en este turno") }
+                            }
+                        }
                     }
                     val candidateMarkup = runCatching { ClozeMarkupEngine.parse(front.text) }
                     candidateMarkup.onSuccess { parsed ->
                         if (parsed.gaps.isNotEmpty()) {
                             Text("Fragmentos ocultos", color = TestarioText)
                             parsed.gaps.forEachIndexed { idx, gap ->
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                var editingGroup by remember(front.text, idx) {
+                                    mutableStateOf(false)
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Text(
-                                        "${parsed.text.substring(gap.start, gap.end)} · " +
-                                            (gap.groupNumber?.let { "Turno $it" } ?: "Siempre"),
-                                        modifier = Modifier.weight(1f), color = TestarioText
+                                        parsed.text.substring(gap.start, gap.end),
+                                        modifier = Modifier.weight(1f),
+                                        color = TestarioText
                                     )
+                                    Box {
+                                        TextButton(onClick = { editingGroup = true }) {
+                                            Text(gap.groupNumber?.let { "Turno $it ▾" }
+                                                ?: "Siempre ▾")
+                                        }
+                                        DropdownMenu(
+                                            expanded = editingGroup,
+                                            onDismissRequest = { editingGroup = false }
+                                        ) {
+                                            listOf(
+                                                null to "Siempre",
+                                                1 to "Turno 1",
+                                                2 to "Turno 2",
+                                                3 to "Turno 3"
+                                            ).forEach { (group, label) ->
+                                                DropdownMenuItem(
+                                                    text = { Text(label) },
+                                                    onClick = {
+                                                        editingGroup = false
+                                                        runCatching {
+                                                            ClozeMarkupEngine.encode(
+                                                                parsed.text,
+                                                                parsed.gaps.mapIndexed { i, g ->
+                                                                    if (i == idx)
+                                                                        g.copy(groupNumber = group)
+                                                                    else g
+                                                                }
+                                                            )
+                                                        }.onSuccess {
+                                                            front = TextFieldValue(it)
+                                                            error = null
+                                                        }.onFailure { error = it.message }
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
                                     TextButton(onClick = {
                                         runCatching { ClozeMarkupEngine.unmark(front.text, idx) }
                                             .onSuccess { front = TextFieldValue(it) }
@@ -537,8 +652,6 @@ fun StudyExerciseEditorScreen(
                         Text(it.message ?: "Marcador incompleto", color = TestarioRed,
                             style = MaterialTheme.typography.bodySmall)
                     }
-                    Text("También puedes escribir {{palabra}}, {{1:palabra}}, {{2:frase}} o [[1:palabra]].",
-                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedTextField(
                     value = back, onValueChange = { back = it },
