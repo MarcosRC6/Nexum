@@ -205,68 +205,6 @@ fun QuestionEditorScreen(
                 ) { Text("+ Añadir respuesta") }
             }
 
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = TestarioSurface)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Marcar pregunta (🚩)", color = TestarioText, style = MaterialTheme.typography.titleMedium)
-                        Switch(checked = flagged, onCheckedChange = { flagged = it }, colors = SwitchDefaults.colors(checkedThumbColor = TestarioPrimary))
-                    }
-                }
-            }
-
-            item {
-                EditorSectionCard {
-                    Text(text = "Dificultad", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        DifficultyButton(text = "Nada", selected = difficulty == null, color = TestarioMutedText, modifier = Modifier.weight(1f)) { difficulty = null }
-                        DifficultyButton(text = "Fácil", selected = difficulty == 1, color = TestarioGreen, modifier = Modifier.weight(1f)) { difficulty = 1 }
-                        DifficultyButton(text = "Medio", selected = difficulty == 2, color = TestarioYellow, modifier = Modifier.weight(1f)) { difficulty = 2 }
-                        DifficultyButton(text = "Difícil", selected = difficulty == 3, color = TestarioRed, modifier = Modifier.weight(1f)) { difficulty = 3 }
-                    }
-                }
-            }
-
-            item {
-                EditorSectionCard {
-                    Text(text = "Imagen del enunciado", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Se muestra mientras respondes la pregunta.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TestarioMutedText
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    if (statementImageUri == null) {
-                        OutlinedButton(
-                            onClick = { statementImagePicker.launch("image/*") },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("Adjuntar imagen del enunciado") }
-                    } else {
-                        Text("Toca la imagen para verla o editar sus anotaciones.",
-                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
-                        EditableAnnotationImage(
-                            imageUri = requireNotNull(statementImageUri),
-                            annotations = statementAnnotations,
-                            modifier = Modifier.fillMaxWidth().height(210.dp),
-                            onAnnotationsChanged = { statementAnnotations = it },
-                            onReplace = { statementImagePicker.launch("image/*") },
-                            onDelete = {
-                                statementImageUri = null
-                                statementAnnotations = ImageAnnotations()
-                            }
-                        )
-                    }
-                }
-            }
 
             item {
                 EditorSectionCard {
@@ -280,34 +218,60 @@ fun QuestionEditorScreen(
                         minLines = 3,
                         shape = RoundedCornerShape(18.dp)
                     )
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(text = "Imagen de la explicación", style = MaterialTheme.typography.titleSmall, color = TestarioText)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Solo aparece al corregir: al responder en Entrenamiento y en la revisión del Examen.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TestarioMutedText
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    if (correctionImageUri == null) {
-                        OutlinedButton(
-                            onClick = { correctionImagePicker.launch("image/*") },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("Adjuntar imagen de explicación") }
-                    } else {
-                        Text("Toca la imagen para verla o editar sus anotaciones.",
-                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            item {
+                EditorSectionCard {
+                    Text("Añadir imagen", style = MaterialTheme.typography.titleMedium,
+                        color = TestarioText)
+                    var imageMenu by remember { mutableStateOf(false) }
+                    Box {
+                        OutlinedButton(onClick = { imageMenu = true },
+                            modifier = Modifier.fillMaxWidth()) { Text("Añadir imagen") }
+                        DropdownMenu(expanded = imageMenu, onDismissRequest = { imageMenu = false }) {
+                            DropdownMenuItem(text = { Text("Imagen del enunciado") }, onClick = {
+                                imageMenu = false
+                                statementImagePicker.launch("image/*")
+                            })
+                            DropdownMenuItem(text = { Text("Imagen de la explicación") }, onClick = {
+                                imageMenu = false
+                                correctionImagePicker.launch("image/*")
+                            })
+                        }
+                    }
+                    if (statementImageUri != null) {
+                        Text("Imagen del enunciado", color = TestarioMutedText)
+                        EditableAnnotationImage(
+                            imageUri = requireNotNull(statementImageUri),
+                            annotations = statementAnnotations,
+                            modifier = Modifier.fillMaxWidth().height(210.dp),
+                            onAnnotationsChanged = { statementAnnotations = it },
+                            onReplace = { statementImagePicker.launch("image/*") },
+                            onDelete = { statementImageUri = null; statementAnnotations = ImageAnnotations() }
+                        )
+                    }
+                    if (correctionImageUri != null) {
+                        Text("Imagen de explicación", color = TestarioMutedText)
                         EditableAnnotationImage(
                             imageUri = requireNotNull(correctionImageUri),
                             annotations = correctionAnnotations,
                             modifier = Modifier.fillMaxWidth().height(210.dp),
                             onAnnotationsChanged = { correctionAnnotations = it },
                             onReplace = { correctionImagePicker.launch("image/*") },
-                            onDelete = {
-                                correctionImageUri = null
-                                correctionAnnotations = ImageAnnotations()
-                            }
+                            onDelete = { correctionImageUri = null; correctionAnnotations = ImageAnnotations() }
                         )
+                    }
+                }
+            }
+            item {
+                EditorSectionCard {
+                    Text(text = "Dificultad", style = MaterialTheme.typography.titleMedium, color = TestarioText)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        DifficultyButton(text = "Nada", selected = difficulty == null, color = TestarioMutedText, modifier = Modifier.weight(1f)) { difficulty = null }
+                        DifficultyButton(text = "Fácil", selected = difficulty == 1, color = TestarioGreen, modifier = Modifier.weight(1f)) { difficulty = 1 }
+                        DifficultyButton(text = "Medio", selected = difficulty == 2, color = TestarioYellow, modifier = Modifier.weight(1f)) { difficulty = 2 }
+                        DifficultyButton(text = "Difícil", selected = difficulty == 3, color = TestarioRed, modifier = Modifier.weight(1f)) { difficulty = 3 }
                     }
                 }
             }
