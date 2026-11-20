@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FilterOutputStream
@@ -67,6 +68,21 @@ class NexumNearbyArchive(private val context: Context) {
         } catch (error: Exception) {
             file.delete()
             throw error
+        }
+    }
+
+    /**
+     * Manual global restore uses the same verified, reversible transaction
+     * coordinator as Nearby reception. A failure retains a durable recovery
+     * ZIP in private storage instead of silently leaving mixed data.
+     */
+    suspend fun applyUserSelectedGlobalBackup(bytes: ByteArray): String {
+        val expected = MessageDigest.getInstance("SHA-256").digest(bytes).hex()
+        val prepared = stageReceiver(ByteArrayInputStream(bytes), expected, bytes.size.toLong())
+        return try {
+            applyToReceiver(prepared)
+        } finally {
+            cleanup(prepared)
         }
     }
 
