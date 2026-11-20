@@ -106,7 +106,17 @@ internal fun StudySketchCanvas(
                     "red" -> red
                     else -> purple
                 }
-                drawPath(shape, brushColor, style = Stroke(width = 5.dp.toPx()))
+                val ink = stroke.colorArgb?.let { Color(it.toInt()) } ?: brushColor
+                drawPath(
+                    shape, ink.copy(alpha = stroke.opacity?.toFloat()?.coerceIn(.05f, 1f) ?: 1f),
+                    style = Stroke(
+                        width = stroke.widthFraction?.let {
+                            (minOf(size.width, size.height) * it.toFloat()).coerceAtLeast(1f)
+                        } ?: 5.dp.toPx(),
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                        join = androidx.compose.ui.graphics.StrokeJoin.Round
+                    )
+                )
             }
         }
         if (showMarkers) markers.forEach { marker ->
@@ -115,11 +125,16 @@ internal fun StudySketchCanvas(
                 false -> red
                 null -> purple
             }
-            Text(marker.order.toString(), color = statusColor,
+            Text(
+                marker.order.toString(),
+                color = statusColor,
+                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                 modifier = Modifier.offset(
-                    x = maxWidth * marker.x.toFloat() - 8.dp,
-                    y = maxHeight * marker.y.toFloat() - 12.dp
-                ))
+                    x = maxWidth * marker.x.toFloat() - 10.dp,
+                    y = maxHeight * marker.y.toFloat() - 14.dp
+                )
+            )
         }
     }
 }
