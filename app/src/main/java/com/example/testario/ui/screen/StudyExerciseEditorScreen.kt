@@ -2,6 +2,7 @@ package com.example.testario.ui.screen
 
 import androidx.compose.ui.platform.LocalContext
 import com.example.testario.domain.ImageManager
+import com.example.testario.domain.SketchStrokeEraser
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -419,7 +420,10 @@ fun StudyExerciseEditorScreen(
                             sketchWidthMultiplier.toDouble(),
                         penOpacity = if (sketchToolHighlighter) sketchOpacity.toDouble() else 1.0,
                         onDrawStroke = { stroke -> editSketch(sketchStrokes + stroke) },
-                        onEraseStroke = { id -> editSketch(sketchStrokes.filterNot { it.id == id }) },
+                        onEraseGesture = { path ->
+                            val changed = SketchStrokeEraser.erasePath(sketchStrokes, path)
+                            if (changed != sketchStrokes) editSketch(changed)
+                        },
                         onMarkTap = ::placeOrSelectMarker
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
