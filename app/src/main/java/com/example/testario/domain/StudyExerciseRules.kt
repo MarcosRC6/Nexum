@@ -232,6 +232,48 @@ object StudyExerciseRules {
      * The raw submitted SET is scored once. Changing text before delivery has no
      * cost; duplicate aliases of an already accepted solution have no penalty.
      */
+    /**
+     * A photographed exercise with numbered answer positions uses those positions
+     * for grading. Without markers, legacy enumeration keeps order-independent scoring.
+     * Empty slots are retained by MixedSessionViewModel so they cannot shift the answers.
+     */
+    fun gradeWrittenInSession(
+        exercise: StudyExercise,
+        submitted: List<String>,
+        pointsCorrect: Double = 1.0,
+        penaltyWrong: Double = -0.25
+    ): WrittenResult {
+        if (exercise.solutions.none { it.points.isNotEmpty() }) {
+            return gradeWritten(exercise, submitted, pointsCorrect, penaltyWrong)
+        }
+        requireValid(exercise)
+        require(pointsCorrect.isFinite() && pointsCorrect > 0.0)
+        require(penaltyWrong.isFinite() && penaltyWrong <= 0.0)
+        val accepted = linkedSetOf<String>()
+        val wrong = mutableListOf<String>()
+        exercise.solutions.forEachIndexed { index, solution ->
+            val input = submitted.getOrNull(index)?.trim().orEmpty()
+            if (input.isNotEmpty()) {
+                if (findAcceptedSolution(exercise, input)?.id == solution.id) accepted.add(solution.id)
+                else wrong.add(input)
+            }
+        }
+        val count = exercise.solutions.size
+        val raw = (accepted.size * pointsCorrect + wrong.size * penaltyWrong) /
+            (count * pointsCorrect)
+        val normalized = raw.coerceIn(0.0, 1.0)
+        return WrittenResult(
+            correct = accepted.size,
+            incorrect = wrong.size,
+            omitted = count - accepted.size,
+            correctIds = accepted,
+            incorrectInputs = wrong,
+            percent = normalized * 100.0,
+            scoreOutOfTen = normalized * 10.0,
+            recallPercent = accepted.size * 100.0 / count
+        )
+    }
+
     fun gradeWritten(
         exercise: StudyExercise,
         submitted: List<String>,
