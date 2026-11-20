@@ -146,12 +146,13 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
         })
     }
 
-    fun submitWritten(text: String) = edit { state ->
+    fun submitWritten(text: String, reveal: Boolean = true) = edit { state ->
         require(state.items[state.currentIndex].type == MixedItemType.WRITTEN)
         val answers = text.lines().map(String::trim).filter(String::isNotBlank)
         state.copy(responses = state.responses.mapIndexed { idx, response ->
             if (idx == state.currentIndex) response.copy(
-                writtenAnswers = answers, revealed = state.mode != TestMode.EXAM
+                writtenAnswers = answers,
+                revealed = response.revealed || (reveal && state.mode != TestMode.EXAM)
             ) else response
         })
     }
