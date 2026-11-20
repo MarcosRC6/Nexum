@@ -23,6 +23,11 @@ import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.domain.StudyExerciseRules
 import com.example.testario.domain.ClozeMarkupEngine
+import com.example.testario.domain.StudyImageStore
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.LibraryViewModel
 import java.util.UUID
@@ -95,6 +100,16 @@ fun StudyExerciseEditorScreen(
     var photoMarkerMode by remember(exerciseId) { mutableStateOf(false) }
     var occlusionMarkMode by remember(exerciseId) { mutableStateOf(true) }
     var pickerTarget by remember { mutableStateOf("written") }
+    val context = LocalContext.current
+    val editorScope = rememberCoroutineScope()
+    val imageStore = remember(context) { StudyImageStore(context.applicationContext) }
+    var showImageAddMenu by remember(exerciseId) { mutableStateOf(false) }
+    var showAnkiImageMenu by remember(exerciseId) { mutableStateOf(false) }
+    var showHowItWorks by remember(exerciseId) { mutableStateOf(false) }
+    var showSelectionTurnEditor by remember(exerciseId) { mutableStateOf<Int?>(null) }
+    var customTurnInput by remember(exerciseId) { mutableStateOf("1") }
+    var showCustomTurnInput by remember(exerciseId) { mutableStateOf(false) }
+
     LaunchedEffect(exerciseId, solutions.size) {
         if (selectedSolutionId == null || solutions.none { it.id == selectedSolutionId }) {
             selectedSolutionId = solutions.firstOrNull()?.id
@@ -160,6 +175,40 @@ fun StudyExerciseEditorScreen(
         pickerTarget = target
         pickImage.launch("image/*")
     }
+    fun createBlankImage(target: String) {
+        if (target == "front" && masks.isNotEmpty()) {
+            error = "Quita las máscaras existentes antes de sustituir su imagen."
+            return
+        }
+        editorScope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { imageStore.createBlankCanvas() }
+            }.onSuccess { path ->
+                when (target) {
+                    "written" -> {
+                        if (solutions.any { it.points.isNotEmpty() }) {
+                            error = "Retira antes las soluciones colocadas en la imagen actual."
+                        } else {
+                            imageUri = path
+                            baseAnnotations = ImageAnnotations()
+                            sketchEnabled = false
+                            photoMarkerMode = false
+                        }
+                    }
+                    "front" -> {
+                        frontImageUri = path
+                        frontAnnotations = ImageAnnotations()
+                        masks = emptyList()
+                    }
+                    "back" -> {
+                        backImageUri = path
+                        backAnnotations = ImageAnnotations()
+                    }
+                }
+            }.onFailure { error = it.message ?: "No se pudo crear la imagen." }
+        }
+    }
+
     fun construct(draft: Boolean): StudyExercise {
         val markup = if (exerciseKind == StudyExerciseKind.ANKI_CARD &&
             flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)) {
