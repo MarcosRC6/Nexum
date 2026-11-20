@@ -88,7 +88,9 @@ fun QuestionEditorScreen(
     topicId: String,
     questionId: String?,
     libraryViewModel: LibraryViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    creationType: NewQuestionType? = null,
+    onCreationTypeChange: (NewQuestionType) -> Unit = {}
 ) {
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
@@ -156,6 +158,11 @@ fun QuestionEditorScreen(
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            if (existingQuestion == null && creationType != null) {
+                item {
+                    NewQuestionTypePicker(creationType, onCreationTypeChange)
+                }
+            }
 
             item {
                 EditorSectionCard {
