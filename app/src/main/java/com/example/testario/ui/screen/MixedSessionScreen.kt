@@ -32,7 +32,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun MixedSessionScreen(
     session: MixedSessionViewModel,
-    onLeave: () -> Unit
+    onLeave: () -> Unit,
+    onEditQuestion: (String, String) -> Unit = { _, _ -> }
 ) {
     val snapshot by session.snapshot.collectAsState()
     val result by session.result.collectAsState()
@@ -231,6 +232,9 @@ fun MixedSessionScreen(
                                     })
                                 }
                             }
+                        }
+                        IconButton(onClick = { onEditQuestion(item.topicId, question.id) }) {
+                            Text("✏️")
                         }
                         IconButton(onClick = { session.toggleTestFlag() }) {
                             Text(if (question.flagged) "🚩" else "🏳️")
