@@ -143,12 +143,9 @@ fun StudyExerciseEditorScreen(
         }
     }
     fun removeMarker(markerId: String) {
-        val remaining = solutions.flatMap { it.points }
-            .filterNot { it.id == markerId }.sortedBy { it.order }
-        val orders = remaining.mapIndexed { index, p -> p.id to (index + 1) }.toMap()
-        solutions = solutions.map { item ->
+        solutions = solutions.mapIndexed { position, item ->
             item.copy(points = item.points.filterNot { it.id == markerId }
-                .map { it.copy(order = orders[it.id] ?: it.order) })
+                .map { it.copy(order = position + 1) })
         }
         pendingMarkerId = null
     }
@@ -359,7 +356,8 @@ fun StudyExerciseEditorScreen(
                         solutions.forEachIndexed { index, solution ->
                             FilterChip(selected = selectedSolutionId == solution.id,
                                 onClick = { selectedSolutionId = solution.id },
-                                label = { Text("${index + 1}") })
+                                label = { Text("${index + 1}: ${solution.text.take(16).ifBlank { "Sin escribir" }}") },
+                                enabled = solution.text.isNotBlank())
                         }
                     }
                 }
