@@ -141,7 +141,7 @@ internal fun EditableAnnotationImage(
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Column(
-                Modifier.fillMaxSize().background(TestarioBackground).padding(16.dp),
+                Modifier.fillMaxSize().background(TestarioBackground.copy(alpha = 1f)).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 TextButton(onClick = { viewing = false }) { Text("Volver") }
@@ -236,7 +236,7 @@ internal fun ImageAnnotationEditorDialog(
 
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            Modifier.fillMaxSize().background(TestarioBackground).padding(12.dp),
+            Modifier.fillMaxSize().background(TestarioBackground.copy(alpha = 1f)).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
