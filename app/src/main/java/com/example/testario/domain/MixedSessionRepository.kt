@@ -26,7 +26,7 @@ class MixedSessionRepository(
         val exercises = snapshot.items.zip(snapshot.responses)
             .filter { (item, _) -> item.type == MixedItemType.WRITTEN }
             .map { (item, response) ->
-                val written = StudyExerciseRules.gradeWritten(
+                val written = StudyExerciseRules.gradeWrittenInSession(
                     requireNotNull(item.exercise), response.writtenAnswers,
                     snapshot.pointsCorrect, snapshot.penaltyWrong
                 )
