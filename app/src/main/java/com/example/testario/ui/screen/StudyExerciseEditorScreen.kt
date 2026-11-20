@@ -131,11 +131,27 @@ fun StudyExerciseEditorScreen(
             return
         }
         val id = selectedSolutionId ?: return
-        val nextNumber = (solutions.flatMap { it.points }.maxOfOrNull { it.order } ?: 0) + 1
-        solutions = solutions.map { item ->
-            if (item.id == id) item.copy(points = item.points +
-                ImagePoint(x = x, y = y, order = nextNumber)) else item
+        val target = solutions.firstOrNull { it.id == id } ?: return
+        if (target.text.isBlank()) {
+            error = "Escribe la solución antes de colocar su número."
+            return
         }
+        if (target.points.isNotEmpty()) {
+            pendingMarkerId = target.points.first().id
+            error = "Esta solución ya tiene su marcador. Elimínalo para colocarlo de nuevo."
+            return
+        }
+        if (solutions.sumOf { it.points.size } >= solutions.size) {
+            error = "Ya están colocadas todas las soluciones escritas."
+            return
+        }
+        val nextNumber = solutions.indexOfFirst { it.id == id } + 1
+        solutions = solutions.map { item ->
+            if (item.id == id) item.copy(points = listOf(
+                ImagePoint(x = x, y = y, order = nextNumber)
+            )) else item
+        }
+        error = null
     }
     fun removeMarker(markerId: String) {
         val remaining = solutions.flatMap { it.points }
@@ -485,9 +501,16 @@ fun StudyExerciseEditorScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Solución ${index + 1}", color = TestarioText, modifier = Modifier.weight(1f))
                             TextButton(onClick = {
-                                solutions = solutions.filterNot { it.id == solution.id }
+                                val remaining = solutions.filterNot { it.id == solution.id }
+                                var order = 1
+                                solutions = remaining.map { candidate ->
+                                    candidate.copy(points = candidate.points.map { point ->
+                                        point.copy(order = order++)
+                                    })
+                                }
                                 if (selectedSolutionId == solution.id)
                                     selectedSolutionId = solutions.firstOrNull()?.id
+                                error = null
                             }) { Text("Eliminar") }
                         }
                         OutlinedTextField(
