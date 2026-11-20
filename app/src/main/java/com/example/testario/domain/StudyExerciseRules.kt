@@ -188,8 +188,16 @@ object StudyExerciseRules {
                     errors += "Trazo con cantidad de puntos inválida."
                 if (stroke.points.any { !valid01(it.x) || !valid01(it.y) })
                     errors += "El dibujo tiene puntos fuera del lienzo."
-                if (stroke.brush !in setOf("purple", "white", "green", "red"))
-                    errors += "Color de dibujo incompatible."
+                if (stroke.brush !in setOf("purple", "white", "green", "red", "black", "highlighter"))
+                    errors += "Herramienta del dibujo incompatible."
+                if (stroke.colorArgb != null && stroke.colorArgb !in 0L..0xFFFFFFFFL)
+                    errors += "Color ARGB inválido."
+                if (stroke.opacity != null && (!stroke.opacity.isFinite() ||
+                    stroke.opacity !in .05..1.0))
+                    errors += "Opacidad de dibujo inválida."
+                if (stroke.widthFraction != null && (!stroke.widthFraction.isFinite() ||
+                    stroke.widthFraction !in .001..0.1))
+                    errors += "Grosor de dibujo inválido."
             }
             if (sum > 100_000L) errors += "La imagen tiene demasiados puntos."
         }
