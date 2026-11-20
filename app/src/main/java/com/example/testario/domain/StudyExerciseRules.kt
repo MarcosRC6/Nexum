@@ -232,6 +232,55 @@ object StudyExerciseRules {
      * The raw submitted SET is scored once. Changing text before delivery has no
      * cost; duplicate aliases of an already accepted solution have no penalty.
      */
+    /** Position-aware scoring is used ONLY when a drawing/photo has numbered
+     * answer locations. A correct answer typed in the wrong numbered box is
+     * wrong for that location, even if it is correct for a different box.
+     * Plain enumeration exercises keep their traditional unordered matching.
+     */
+    fun gradeWrittenForQuestion(
+        exercise: StudyExercise,
+        submitted: List<String>,
+        pointsCorrect: Double = 1.0,
+        penaltyWrong: Double = -0.25
+    ): WrittenResult {
+        if (exercise.solutions.none { it.points.isNotEmpty() }) {
+            return gradeWritten(exercise, submitted, pointsCorrect, penaltyWrong)
+        }
+        requireValid(exercise)
+        require(pointsCorrect.isFinite() && pointsCorrect > 0.0)
+        require(penaltyWrong.isFinite() && penaltyWrong <= 0.0)
+        val matched = linkedSetOf<String>()
+        val incorrect = mutableListOf<String>()
+        exercise.solutions.forEachIndexed { index, solution ->
+            val input = submitted.getOrNull(index)?.trim().orEmpty()
+            if (input.isNotBlank()) {
+                val recognized = findAcceptedSolution(exercise, input)
+                if (recognized?.id == solution.id) matched += solution.id
+                else incorrect += input
+            }
+        }
+        // Excess lines cannot be mapped to any numbered position.
+        submitted.drop(exercise.solutions.size).filter(String::isNotBlank).forEach {
+            incorrect += it.trim()
+        }
+        val count = exercise.solutions.size
+        require(count > 0)
+        val fraction = matched.size.toDouble() / count
+        val penalty = if (incorrect.isEmpty() || penaltyWrong == 0.0) 0.0 else
+            (incorrect.size.toDouble() / count) * (penaltyWrong / pointsCorrect)
+        val score = (fraction + penalty).coerceIn(0.0, 1.0)
+        return WrittenResult(
+            correct = matched.size,
+            incorrect = incorrect.size,
+            omitted = count - matched.size,
+            correctIds = matched,
+            incorrectInputs = incorrect,
+            percent = 100.0 * score,
+            scoreOutOfTen = 10.0 * score,
+            recallPercent = 100.0 * matched.size / count
+        )
+    }
+
     fun gradeWritten(
         exercise: StudyExercise,
         submitted: List<String>,
