@@ -7,6 +7,8 @@ import com.example.planario.data.local.StudyLocalDataSource
 import com.example.testario.data.model.TestarioDatabase
 import com.example.testario.data.local.MigrationManager
 import com.example.testario.data.local.QuickTestLinkManager
+import com.example.testario.data.local.WebQuickLinkStore
+import com.example.testario.data.local.WebQuickLinkPolicy
 import com.example.testario.data.local.SavedTestSessionStore
 import com.example.testario.data.local.SavedMixedSessionStore
 import com.example.testario.data.local.TestarioLocalStore
@@ -117,6 +119,7 @@ class UnifiedDataManager(private val context: Context) {
         val databaseJson = json.encodeToString(localStore.database.value)
         val planJson = PlanarioDependencies.studyRepository.exportBackupJson()
         val quickLinksJson = QuickTestLinkManager(context).exportJson()
+        val webQuickLinksJson = WebQuickLinkStore.get(context).exportJson()
         val settingsJson = exportTestarioSettings()
         val pendingTest = SavedTestSessionStore(context).exportJson()
         val pendingMixed = SavedMixedSessionStore(context).exportJson()
@@ -131,6 +134,7 @@ class UnifiedDataManager(private val context: Context) {
             writeText(zos, "testario_database.json", databaseJson)
             writeText(zos, "planario_backup.json", planJson)
             writeText(zos, "quick_test_links.json", quickLinksJson)
+            writeText(zos, "quick_web_links.json", webQuickLinksJson)
             writeText(zos, "testario_settings.json", settingsJson)
             if (pendingTest != null) writeText(zos, "pending_test_session.json", pendingTest)
             if (pendingMixed != null) writeText(zos, "pending_mixed_session.json", pendingMixed)
@@ -155,6 +159,7 @@ class UnifiedDataManager(private val context: Context) {
             "testario_database.json",
             "planario_backup.json",
             "quick_test_links.json",
+            "quick_web_links.json",
             "testario_settings.json",
             "pending_test_session.json",
             "pending_mixed_session.json"
@@ -181,6 +186,11 @@ class UnifiedDataManager(private val context: Context) {
         if (quickLinksRaw != null && runCatching { JSONObject(quickLinksRaw) }.isFailure) {
             return false
         }
+
+        val webQuickLinksRaw = textEntries["quick_web_links.json"]
+        if (webQuickLinksRaw != null &&
+            runCatching { WebQuickLinkPolicy.parseBackup(webQuickLinksRaw) }.isFailure
+        ) return false
 
         val settingsRaw = textEntries["testario_settings.json"]
         if (settingsRaw != null && runCatching { JSONObject(settingsRaw) }.isFailure) {
@@ -212,6 +222,11 @@ class UnifiedDataManager(private val context: Context) {
         }
         if (quickLinksRaw != null) {
             runCatching { QuickTestLinkManager(context).importJson(quickLinksRaw) }.getOrElse { return false }
+        }
+        if (webQuickLinksRaw != null) {
+            if (!runCatching {
+                WebQuickLinkStore.get(context).importJson(webQuickLinksRaw)
+            }.getOrDefault(false)) return false
         }
         if (settingsRaw != null) {
             runCatching { restoreTestarioSettings(settingsRaw) }.getOrElse { return false }
