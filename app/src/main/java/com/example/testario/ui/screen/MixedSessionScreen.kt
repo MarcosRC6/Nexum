@@ -228,10 +228,13 @@ fun MixedSessionScreen(
                         IconButton(onClick = { onEditQuestion(item.topicId, question.id) }) {
                             Text("✏", color = TestarioText)
                         }
-                        IconButton(onClick = {
-                            if (libraryViewModel.toggleQuestionFlag(question.id))
-                                session.updateTestQuestion(question.id, flagged = !question.flagged)
-                        }) { Text(if (question.flagged) "🚩" else "⚑", color = TestarioText) }
+                        IconButton(
+                            enabled = !question.flagged,
+                            onClick = {
+                                if (!question.flagged && libraryViewModel.toggleQuestionFlag(question.id))
+                                    session.updateTestQuestion(question.id, flagged = true)
+                            }
+                        ) { Text(if (question.flagged) "🚩" else "⚑", color = TestarioText) }
                     }
                     Text(question.text, color = TestarioText, style = MaterialTheme.typography.titleLarge)
                     question.explanationImageUri?.let { path ->
