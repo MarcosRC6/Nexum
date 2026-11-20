@@ -54,6 +54,8 @@ data class FlashcardContent(
     val back: String,
     val frontImageUri: String? = null,
     val backImageUri: String? = null,
+    val frontAnnotations: ImageAnnotations = ImageAnnotations(),
+    val backAnnotations: ImageAnnotations = ImageAnnotations(),
     val acceptedAnswers: List<String> = emptyList(),
     // Character offsets of the FULL front string; do not overwrite original text.
     val gaps: List<ClozeGap> = emptyList(),
@@ -94,6 +96,7 @@ data class StudyExercise(
     val flashcard: FlashcardContent? = null,
     // The original unannotated image. Correction markers are stored only in solutions.
     val baseImageUri: String? = null,
+    val baseAnnotations: ImageAnnotations = ImageAnnotations(),
     val diagram: LineDiagram? = null,
     val sketch: SketchDrawing? = null,
     val revision: Int = 1,
