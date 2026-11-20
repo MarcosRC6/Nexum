@@ -20,8 +20,8 @@ data class WebQuickLink(
     val title: String,
     val url: String,
     val icon: String = "web",
-    val customIconLabel: String = "",
-    val hidden: Boolean = false
+    val hidden: Boolean = false,
+    val customIconLabel: String = ""
 )
 
 @Serializable
