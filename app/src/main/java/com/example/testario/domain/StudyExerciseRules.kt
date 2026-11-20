@@ -217,6 +217,19 @@ object StudyExerciseRules {
         require(errors.isEmpty()) { errors.joinToString(" ") }
     }
 
+    /** Keeps displayed marker numbers continuous if a written solution is removed. */
+    fun removeSolutionAndRenumber(
+        solutions: List<CanonicalSolution>,
+        removedId: String
+    ): List<CanonicalSolution> {
+        var next = 1
+        return solutions.filterNot { it.id == removedId }.map { solution ->
+            solution.copy(points = solution.points.map { point ->
+                point.copy(order = next++)
+            })
+        }
+    }
+
     data class WrittenResult(
         val correct: Int,
         val incorrect: Int,
