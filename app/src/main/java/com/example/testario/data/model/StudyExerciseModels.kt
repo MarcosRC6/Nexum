@@ -70,7 +70,11 @@ data class SketchPoint(val x: Double, val y: Double)
 data class SketchStroke(
     val id: String = UUID.randomUUID().toString(),
     val points: List<SketchPoint>,
-    val brush: String = "purple"
+    val brush: String = "purple",
+    /** Optional v7+ editable brush attributes; null uses the historical look. */
+    val colorArgb: Long? = null,
+    val widthFraction: Double? = null,
+    val opacity: Double? = null
 )
 
 @Serializable
