@@ -45,8 +45,8 @@ fun MixedSessionScreen(
     val error by session.error.collectAsState()
     val scope = rememberCoroutineScope()
     val current = snapshot
-    val item = current?.takeUnless { it.completed }?.items?.getOrNull(current.currentIndex)
-    val response = current?.takeUnless { it.completed }?.responses?.getOrNull(current.currentIndex)
+    val item = current?.takeUnless { it.completed }?.let { it.items.getOrNull(it.currentIndex) }
+    val response = current?.takeUnless { it.completed }?.let { it.responses.getOrNull(it.currentIndex) }
     var exitConfirm by remember { mutableStateOf(false) }
     var reviewing by remember { mutableStateOf(false) }
     var reviewIndex by remember { mutableIntStateOf(0) }
@@ -137,7 +137,7 @@ fun MixedSessionScreen(
                         Text("Volver a Test")
                     }
                 } else {
-                    val i = reviewIndex.coerceIn(current.items.indices)
+                    val i = reviewIndex.coerceIn(0, current.items.lastIndex)
                     val review = current.items[i]
                     val answer = current.responses[i]
                     Card(
