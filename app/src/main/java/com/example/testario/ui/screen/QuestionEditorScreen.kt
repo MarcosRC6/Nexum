@@ -88,7 +88,8 @@ fun QuestionEditorScreen(
     topicId: String,
     questionId: String?,
     libraryViewModel: LibraryViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    embedded: Boolean = false
 ) {
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
@@ -142,7 +143,7 @@ fun QuestionEditorScreen(
 
     Scaffold(
         containerColor = TestarioBackground,
-        topBar = {
+        topBar = if (embedded) ({}) else {
             TestarioTopBar(
                 title = if (existingQuestion == null) "Nueva pregunta" else "Editar pregunta",
                 onBack = onBack
