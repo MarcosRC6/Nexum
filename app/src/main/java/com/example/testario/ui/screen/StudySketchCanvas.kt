@@ -56,7 +56,7 @@ internal fun StudySketchCanvas(
             (y / h).toDouble().coerceIn(0.0, 1.0))
     }
     val gestures = when (mode) {
-        SketchMode.DRAW -> Modifier.pointerInput(mode) {
+        SketchMode.DRAW -> Modifier.pointerInput(mode, zoomFactor, penArgb, penWidthFraction, penOpacity) {
             detectDragGestures(
                 onDragStart = { start ->
                     inProgress = listOf(coordinates(start.x, start.y, size.width, size.height))
@@ -83,7 +83,7 @@ internal fun StudySketchCanvas(
                 onDragCancel = { inProgress = emptyList() }
             )
         }
-        SketchMode.ERASE, SketchMode.MARK -> Modifier.pointerInput(mode, sketch, markers) {
+        SketchMode.ERASE, SketchMode.MARK -> Modifier.pointerInput(mode, sketch, markers, zoomFactor) {
             detectTapGestures { pos ->
                 val p = coordinates(pos.x, pos.y, size.width, size.height)
                 if (mode == SketchMode.MARK) latestMark(p.x, p.y)
