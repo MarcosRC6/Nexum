@@ -91,7 +91,7 @@ fun StudyExercisePracticeScreen(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = tab == 0, onClick = { tab = 0 },
-                    label = { Text("Enumerar (${written.size})") })
+                    label = { Text("Respuesta escrita (${written.size})") })
                 FilterChip(selected = tab == 1, onClick = { tab = 1 },
                     label = { Text("Anki (${cards.size})") })
             }
