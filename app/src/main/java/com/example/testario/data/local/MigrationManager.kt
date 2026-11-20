@@ -79,6 +79,13 @@ object MigrationManager {
             jsonObject.put("version", currentVersion)
         }
 
+        // v7: non-destructive per-photo vector overlays. Older JSON readers
+        // use empty annotation defaults; no image or answer IDs are rewritten.
+        if (currentVersion < 7) {
+            currentVersion = 7
+            jsonObject.put("version", currentVersion)
+        }
+
         return jsonObject.toString()
     }
 }
