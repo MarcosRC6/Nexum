@@ -37,7 +37,8 @@ fun StudyExerciseEditorScreen(
     exerciseId: String?,
     initialKind: StudyExerciseKind = StudyExerciseKind.WRITTEN_MULTI,
     libraryViewModel: LibraryViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    embedded: Boolean = false
 ) {
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
@@ -240,7 +241,7 @@ fun StudyExerciseEditorScreen(
 
     Scaffold(
         containerColor = TestarioBackground,
-        topBar = { TestarioTopBar("Editor de ejercicios", onBack = onBack) }
+        topBar = if (embedded) ({}) else { TestarioTopBar("Editor de ejercicios", onBack = onBack) }
     ) { pad ->
         if (topic == null) {
             Box(Modifier.padding(pad).fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -253,21 +254,10 @@ fun StudyExerciseEditorScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Tema: ${topic.name}", color = TestarioMutedText)
-            Text("Tipo de ejercicio", color = TestarioText)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    StudyExerciseKind.WRITTEN_MULTI to "Enumerar",
-                    StudyExerciseKind.ANKI_CARD to "Tarjeta Anki"
-                ).forEach { (kind, name) ->
-                    FilterChip(selected = exerciseKind == kind,
-                        onClick = {
-                            if (original == null) { exerciseKind = kind; error = null }
-                            else if (kind != original.kind)
-                                error = "Para proteger tus datos, no se puede cambiar el tipo de un ejercicio guardado. Duplícalo y crea otro tipo."
-                        },
-                        enabled = original == null || kind == original.kind,
-                        label = { Text(name) })
-                }
+            if (!embedded) {
+                Text("Tipo de contenido", color = TestarioText)
+                Text(if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) "Respuesta escrita" else "Tarjeta Anki",
+                    color = TestarioMutedText)
             }
 
             if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) {
