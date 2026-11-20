@@ -56,7 +56,9 @@ data class MixedSessionHistory(
     val objectiveItems: Int,
     val manualReviewItems: Int,
     val scoreOutOfTen: Double?,
-    val timeSpentSeconds: Long
+    val timeSpentSeconds: Long,
+    /** Up to 5 reviewable exam snapshots; older records keep compact statistics. */
+    val snapshot: MixedSessionSnapshot? = null
 )
 
 data class MixedSessionResult(
