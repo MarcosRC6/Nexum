@@ -19,7 +19,7 @@ object StudyExerciseMerge {
                         solution.points.map { p -> "${p.x}:${p.y}:${p.order}:${p.side}" }.sorted()
                 }.map { it.joinToString(";") }.sorted()
                 "${value.kind}|$prompt|${solutions.joinToString("|")}|"+
-                    "${value.baseImageUri?.let { File(it).name }}|${value.diagram}|${sketchSignature(value.sketch)}"
+                    "${value.baseImageUri?.let { File(it).name }}|${value.diagram}|${sketchSignature(value.sketch)}|${ImageAnnotationRules.signature(value.baseAnnotations)}"
             }
             StudyExerciseKind.ANKI_CARD -> {
                 val card = value.flashcard
@@ -29,7 +29,9 @@ object StudyExerciseMerge {
                     "${card?.backImageUri?.let { File(it).name }}|" +
                     "${card?.acceptedAnswers?.sorted()}|" +
                     "${card?.gaps?.map { listOf(it.start, it.end, it.hint, it.groupNumber) }}|" +
-                    "${card?.masks?.map { listOf(it.x,it.y,it.width,it.height,it.answer) }}"
+                    "${card?.masks?.map { listOf(it.x,it.y,it.width,it.height,it.answer) }}|" +
+                    "${ImageAnnotationRules.signature(card?.frontAnnotations ?: ImageAnnotations())}|" +
+                    "${ImageAnnotationRules.signature(card?.backAnnotations ?: ImageAnnotations())}"
             }
         }
     }
@@ -50,11 +52,15 @@ object StudyExerciseMerge {
         return incoming.filter { known.add(signature(it)) }
     }
 
+    private fun copyAnnotations(layer: ImageAnnotations): ImageAnnotations =
+        layer.copy(strokes = layer.strokes.map { it.copy(id = UUID.randomUUID().toString()) })
+
     /** Imported copies must not collide with source IDs or existing review progress. */
     fun duplicate(exercise: StudyExercise): StudyExercise =
         exercise.copy(
             id = UUID.randomUUID().toString(),
             revision = 1,
+            baseAnnotations = copyAnnotations(exercise.baseAnnotations),
             solutions = exercise.solutions.map { solution ->
                 solution.copy(
                     id = UUID.randomUUID().toString(),
@@ -63,6 +69,8 @@ object StudyExerciseMerge {
             },
             flashcard = exercise.flashcard?.let { card ->
                 card.copy(
+                    frontAnnotations = copyAnnotations(card.frontAnnotations),
+                    backAnnotations = copyAnnotations(card.backAnnotations),
                     gaps = card.gaps.map { it.copy(id = UUID.randomUUID().toString()) },
                     masks = card.masks.map { it.copy(id = UUID.randomUUID().toString()) }
                 )
