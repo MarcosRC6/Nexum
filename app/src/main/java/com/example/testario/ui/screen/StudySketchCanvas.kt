@@ -10,8 +10,10 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -192,12 +194,16 @@ internal fun StudySketchCanvas(
                 false -> red
                 null -> purple
             }
-            Text(marker.order.toString(), color = statusColor,
-                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+            Box(
                 modifier = Modifier.offset(
-                    x = drawingWidth * marker.x.toFloat() - 8.dp,
-                    y = drawingHeight * marker.y.toFloat() - 12.dp
-                ))
+                    x = drawingWidth * marker.x.toFloat() - 15.dp,
+                    y = drawingHeight * marker.y.toFloat() - 15.dp
+                ).size(30.dp).background(statusColor, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(marker.order.toString(), color = Color.White,
+                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+            }
         }
         }
     }
