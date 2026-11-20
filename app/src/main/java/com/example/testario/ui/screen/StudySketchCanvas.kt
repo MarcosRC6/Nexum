@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.ui.theme.*
@@ -41,24 +42,30 @@ internal fun StudySketchCanvas(
     val green = TestarioGreen
     val red = TestarioRed
     val label = TestarioText
-    fun coordinates(px: Float, py: Float, w: Int, h: Int): SketchPoint =
-        SketchPoint((px / w).toDouble().coerceIn(0.0, 1.0),
-            (py / h).toDouble().coerceIn(0.0, 1.0))
+    fun coordinates(px: Float, py: Float, w: Int, h: Int): SketchPoint? {
+        val fit = fitImageToBox(1200, 800, w.toFloat(), h.toFloat()) ?: return null
+        val point = fit.toImage(px, py) ?: return null
+        return SketchPoint(point.first, point.second)
+    }
     val gestures = when (mode) {
         SketchMode.DRAW -> Modifier.pointerInput(mode) {
             detectDragGestures(
                 onDragStart = { start ->
-                    inProgress = listOf(coordinates(start.x, start.y, size.width, size.height))
+                    inProgress = listOfNotNull(
+                        coordinates(start.x, start.y, size.width, size.height)
+                    )
                 },
                 onDrag = { change, _ ->
                     change.consume()
-                    val next = coordinates(
-                        change.position.x, change.position.y, size.width, size.height)
-                    val previous = inProgress.lastOrNull()
-                    if (inProgress.size < 8000 && (previous == null ||
-                        (next.x - previous.x) * (next.x - previous.x) +
-                            (next.y - previous.y) * (next.y - previous.y) > 0.000003)) {
-                        inProgress = inProgress + next
+                    coordinates(change.position.x, change.position.y,
+                        size.width, size.height)?.let { next ->
+                        val previous = inProgress.lastOrNull()
+                        if (inProgress.isNotEmpty() && inProgress.size < 8000 &&
+                            (previous == null ||
+                                (next.x - previous.x) * (next.x - previous.x) +
+                                (next.y - previous.y) * (next.y - previous.y) > .000003)) {
+                            inProgress = inProgress + next
+                        }
                     }
                 },
                 onDragEnd = {
@@ -72,6 +79,7 @@ internal fun StudySketchCanvas(
         SketchMode.ERASE, SketchMode.MARK -> Modifier.pointerInput(mode, sketch, markers) {
             detectTapGestures { pos ->
                 val p = coordinates(pos.x, pos.y, size.width, size.height)
+                    ?: return@detectTapGestures
                 if (mode == SketchMode.MARK) latestMark(p.x, p.y)
                 else {
                     val nearest = sketch.strokes.mapNotNull { stroke ->
@@ -90,15 +98,19 @@ internal fun StudySketchCanvas(
     }
     BoxWithConstraints(modifier.background(TestarioSurface, RoundedCornerShape(14.dp)).then(gestures)) {
         Canvas(Modifier.fillMaxSize()) {
+            val fit = fitImageToBox(1200, 800, size.width, size.height)
+                ?: return@Canvas
             val allStrokes = sketch.strokes + if (inProgress.size > 1) listOf(
                 SketchStroke(points = inProgress)) else emptyList()
             for (stroke in allStrokes) {
                 if (stroke.points.size < 2) continue
                 val shape = Path()
                 val start = stroke.points.first()
-                shape.moveTo(size.width * start.x.toFloat(), size.height * start.y.toFloat())
+                val origin = fit.locate(start.x, start.y)
+                shape.moveTo(origin.x, origin.y)
                 stroke.points.drop(1).forEach {
-                    shape.lineTo(size.width * it.x.toFloat(), size.height * it.y.toFloat())
+                    val mapped = fit.locate(it.x, it.y)
+                    shape.lineTo(mapped.x, mapped.y)
                 }
                 val brushColor = when (stroke.brush) {
                     "white" -> label
@@ -111,7 +123,7 @@ internal fun StudySketchCanvas(
                     shape, ink.copy(alpha = stroke.opacity?.toFloat()?.coerceIn(.05f, 1f) ?: 1f),
                     style = Stroke(
                         width = stroke.widthFraction?.let {
-                            (minOf(size.width, size.height) * it.toFloat()).coerceAtLeast(1f)
+                            (minOf(fit.width, fit.height) * it.toFloat()).coerceAtLeast(1f)
                         } ?: 5.dp.toPx(),
                         cap = androidx.compose.ui.graphics.StrokeCap.Round,
                         join = androidx.compose.ui.graphics.StrokeJoin.Round
@@ -119,20 +131,25 @@ internal fun StudySketchCanvas(
                 )
             }
         }
-        if (showMarkers) markers.forEach { marker ->
+        val density = LocalDensity.current
+        val containerWidth = with(density) { maxWidth.toPx() }
+        val containerHeight = with(density) { maxHeight.toPx() }
+        val markerFit = fitImageToBox(1200, 800, containerWidth, containerHeight)
+        if (showMarkers && markerFit != null) markers.forEach { marker ->
             val statusColor = when (markerStatuses[marker.id]) {
                 true -> green
                 false -> red
                 null -> purple
             }
+            val position = markerFit.locate(marker.x, marker.y)
             Text(
                 marker.order.toString(),
                 color = statusColor,
                 style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                 modifier = Modifier.offset(
-                    x = maxWidth * marker.x.toFloat() - 10.dp,
-                    y = maxHeight * marker.y.toFloat() - 14.dp
+                    x = with(density) { position.x.toDp() } - 10.dp,
+                    y = with(density) { position.y.toDp() } - 14.dp
                 )
             )
         }
