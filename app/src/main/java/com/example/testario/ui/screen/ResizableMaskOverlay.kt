@@ -57,7 +57,7 @@ internal fun ResizableMaskOverlay(
                         detectDragGestures { change, delta ->
                             change.consume()
                             latestDrag(mask.id, MaskHandle.MOVE,
-                                delta.x / fit.width, delta.y / fit.height)
+                                (delta.x / fit.width).toDouble(), (delta.y / fit.height).toDouble())
                         }
                     }
             ) {
@@ -81,7 +81,7 @@ internal fun ResizableMaskOverlay(
                                 detectDragGestures { change, delta ->
                                     change.consume()
                                     latestDrag(mask.id, part,
-                                        delta.x / fit.width, delta.y / fit.height)
+                                        (delta.x / fit.width).toDouble(), (delta.y / fit.height).toDouble())
                                 }
                             }
                     )
