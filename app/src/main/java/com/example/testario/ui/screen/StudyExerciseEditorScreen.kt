@@ -60,6 +60,10 @@ fun StudyExerciseEditorScreen(
                 SketchPoint(d.startX, d.startY), SketchPoint(d.endX, d.endY))))
         }.orEmpty())
     }
+    var sketchColor by remember(exerciseId) { mutableLongStateOf(0xFFA855F7L) }
+    var sketchToolHighlighter by remember(exerciseId) { mutableStateOf(false) }
+    var sketchWidthMultiplier by remember(exerciseId) { mutableFloatStateOf(1f) }
+    var sketchOpacity by remember(exerciseId) { mutableFloatStateOf(.34f) }
     var sketchMode by remember(exerciseId) { mutableStateOf(SketchMode.DRAW) }
     var sketchUndo by remember(exerciseId) { mutableStateOf<List<List<SketchStroke>>>(emptyList()) }
     var sketchRedo by remember(exerciseId) { mutableStateOf<List<List<SketchStroke>>>(emptyList()) }
@@ -347,8 +351,32 @@ fun StudyExerciseEditorScreen(
                     }
                 }
                 if (sketchEnabled) {
-                    Text("Dibuja con el dedo o lápiz táctil y después pasa a «Colocar soluciones».",
+                    Text("Dibuja con rotulador o subrayador y después utiliza «Colocar soluciones».",
                         color = TestarioMutedText)
+                    if (sketchMode == SketchMode.DRAW) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilterChip(selected = !sketchToolHighlighter,
+                                onClick = { sketchToolHighlighter = false },
+                                label = { Text("Rotulador fino") })
+                            FilterChip(selected = sketchToolHighlighter,
+                                onClick = { sketchToolHighlighter = true },
+                                label = { Text("Subrayador") })
+                        }
+                        AnnotationColorPalette(selected = sketchColor,
+                            onSelect = { sketchColor = it })
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Grosor", color = TestarioMutedText)
+                            Slider(value = sketchWidthMultiplier,
+                                onValueChange = { sketchWidthMultiplier = it },
+                                valueRange = .5f..2f, modifier = Modifier.weight(1f))
+                        }
+                        if (sketchToolHighlighter) Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Opacidad", color = TestarioMutedText)
+                            Slider(value = sketchOpacity,
+                                onValueChange = { sketchOpacity = it },
+                                valueRange = .1f..1f, modifier = Modifier.weight(1f))
+                        }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         listOf(
                             SketchMode.DRAW to "Dibujar",
@@ -366,6 +394,10 @@ fun StudyExerciseEditorScreen(
                         markers = solutions.flatMap { it.points },
                         showMarkers = sketchMode == SketchMode.MARK,
                         mode = sketchMode,
+                        penArgb = sketchColor,
+                        penWidthFraction = (if (sketchToolHighlighter) .045 else .005) *
+                            sketchWidthMultiplier.toDouble(),
+                        penOpacity = if (sketchToolHighlighter) sketchOpacity.toDouble() else 1.0,
                         onDrawStroke = { stroke -> editSketch(sketchStrokes + stroke) },
                         onEraseStroke = { id -> editSketch(sketchStrokes.filterNot { it.id == id }) },
                         onMarkTap = ::placeOrSelectMarker
