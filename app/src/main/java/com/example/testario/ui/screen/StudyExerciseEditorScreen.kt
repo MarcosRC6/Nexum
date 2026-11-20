@@ -570,66 +570,136 @@ fun StudyExerciseEditorScreen(
 
             } else {
                 val simpleAnki = flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)
-                Text(
-                    if (simpleAnki) "Tarjeta · pregunta y respuestas ocultables"
-                    else "Tarjeta heredada · ${flashKind.name}",
-                    color = TestarioText, style = MaterialTheme.typography.titleMedium
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (simpleAnki) "Tarjeta Anki" else "Tarjeta heredada · ${flashKind.name}",
+                        color = TestarioText, style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Box {
+                        TextButton(onClick = { showAnkiImageMenu = true }) {
+                            Text("Añadir imagen +", color = TestarioPrimary)
+                        }
+                        DropdownMenu(
+                            expanded = showAnkiImageMenu,
+                            onDismissRequest = { showAnkiImageMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Imagen de pregunta") },
+                                onClick = {
+                                    showAnkiImageMenu = false
+                                    pendingAnkiImageTarget = "front"
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Imagen de respuesta") },
+                                onClick = {
+                                    showAnkiImageMenu = false
+                                    pendingAnkiImageTarget = "back"
+                                }
+                            )
+                        }
+                    }
+                }
                 if (!simpleAnki) {
-                    Text("Este formato antiguo se conserva por compatibilidad. Las tarjetas nuevas usan un editor simplificado.",
+                    Text("El formato anterior se conserva para no alterar tarjetas guardadas.",
                         color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedTextField(
                     value = front, onValueChange = { front = it; error = null },
-                    label = { Text("Pregunta o texto de la tarjeta") },
+                    label = { Text("Pregunta / enunciado") },
                     modifier = Modifier.fillMaxWidth(), minLines = 3
                 )
+                TextButton(onClick = { showHowItWorks = !showHowItWorks }) {
+                    Text(if (showHowItWorks) "Cómo funciona  ▴" else "Cómo funciona  ▾",
+                        color = TestarioPrimary)
+                }
+                if (showHowItWorks) {
+                    Column(
+                        Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(12.dp))
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        Text("Escribe el enunciado y selecciona una palabra o frase. Pulsa Marcar selección: aparecerá en la lista y podrás asignarle Siempre o un turno.",
+                            color = TestarioText)
+                        Text("{{palabra}} se oculta cada vez. {{1:palabra}} y {{2:frase}} se alternan en turnos 1 y 2. Repetir el mismo número oculta los fragmentos juntos.",
+                            color = TestarioMutedText)
+                        Text("También sirven [[palabra]] y [[1:palabra]]. Puedes escribir los marcadores directamente.",
+                            color = TestarioMutedText)
+                        Text("En imágenes de pregunta, activa Colocar oclusiones y toca la foto para añadir bloques que tapan zonas; al corregir se descubre la respuesta. El rotulador y el subrayador se editan con el lápiz.",
+                            color = TestarioMutedText)
+                    }
+                }
                 if (simpleAnki) {
-                    Text("Selecciona una palabra o frase en el texto y márcala. Sin número se ocultará siempre; los turnos 1, 2, 3… se alternan cada vez que reveles la tarjeta.",
-                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
-                    OutlinedButton(onClick = {
-                        runCatching {
-                            ClozeMarkupEngine.markSelection(
-                                front.text, front.selection.min, front.selection.max, null
-                            )
-                        }.onSuccess {
-                            front = TextFieldValue(it)
-                            error = null
-                        }.onFailure { error = it.message }
-                    }, modifier = Modifier.fillMaxWidth()) { Text("Ocultar siempre la selección") }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = clozeTurnInput,
-                            onValueChange = { clozeTurnInput = it.filter(Char::isDigit).take(3) },
-                            label = { Text("Turno nº") },
-                            modifier = Modifier.width(120.dp), singleLine = true
-                        )
-                        OutlinedButton(onClick = {
-                            val number = clozeTurnInput.toIntOrNull()
-                            if (number == null || number !in 1..999) {
-                                error = "Elige un número entre 1 y 999."
-                            } else runCatching {
+                    if (front.selection.min < front.selection.max) {
+                        Button(onClick = {
+                            runCatching {
                                 ClozeMarkupEngine.markSelection(
-                                    front.text, front.selection.min, front.selection.max, number
+                                    front.text, front.selection.min, front.selection.max, null
                                 )
                             }.onSuccess {
                                 front = TextFieldValue(it)
                                 error = null
                             }.onFailure { error = it.message }
-                        }, modifier = Modifier.weight(1f)) { Text("Ocultar en este turno") }
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Marcar el texto seleccionado")
+                        }
                     }
                     val candidateMarkup = runCatching { ClozeMarkupEngine.parse(front.text) }
                     candidateMarkup.onSuccess { parsed ->
                         if (parsed.gaps.isNotEmpty()) {
-                            Text("Fragmentos ocultos", color = TestarioText)
+                            Text("Fragmentos ocultos", color = TestarioText,
+                                style = MaterialTheme.typography.titleMedium)
+                            val setTurn: (Int, Int?) -> Unit = { idx, group ->
+                                runCatching {
+                                    val changed = parsed.gaps.toMutableList()
+                                    changed[idx] = changed[idx].copy(groupNumber = group)
+                                    ClozeMarkupEngine.encode(parsed.text, changed)
+                                }.onSuccess {
+                                    front = TextFieldValue(it)
+                                    error = null
+                                }.onFailure { error = it.message }
+                            }
                             parsed.gaps.forEachIndexed { idx, gap ->
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
                                     Text(
-                                        "${parsed.text.substring(gap.start, gap.end)} · " +
-                                            (gap.groupNumber?.let { "Turno $it" } ?: "Siempre"),
-                                        modifier = Modifier.weight(1f), color = TestarioText
+                                        parsed.text.substring(gap.start, gap.end),
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 2, color = TestarioText
                                     )
+                                    Box {
+                                        TextButton(onClick = { turnMenuGap = idx }) {
+                                            Text(gap.groupNumber?.let { "Turno $it ▾" }
+                                                ?: "Siempre ▾")
+                                        }
+                                        DropdownMenu(
+                                            expanded = turnMenuGap == idx,
+                                            onDismissRequest = { turnMenuGap = null }
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text("Siempre") },
+                                                onClick = { turnMenuGap = null; setTurn(idx, null) }
+                                            )
+                                            (1..3).forEach { number ->
+                                                DropdownMenuItem(
+                                                    text = { Text("Turno $number") },
+                                                    onClick = { turnMenuGap = null; setTurn(idx, number) }
+                                                )
+                                            }
+                                            DropdownMenuItem(
+                                                text = { Text("Otro turno…") },
+                                                onClick = {
+                                                    turnMenuGap = null
+                                                    customTurnInput = (gap.groupNumber ?: 4).toString()
+                                                    showSelectionTurnEditor = idx
+                                                }
+                                            )
+                                        }
+                                    }
                                     TextButton(onClick = {
                                         runCatching { ClozeMarkupEngine.unmark(front.text, idx) }
                                             .onSuccess { front = TextFieldValue(it) }
@@ -639,11 +709,9 @@ fun StudyExerciseEditorScreen(
                             }
                         }
                     }.onFailure {
-                        Text(it.message ?: "Marcador incompleto", color = TestarioRed,
-                            style = MaterialTheme.typography.bodySmall)
+                        Text(it.message ?: "Comprueba los marcadores.",
+                            color = TestarioRed, style = MaterialTheme.typography.bodySmall)
                     }
-                    Text("También puedes escribir {{palabra}}, {{1:palabra}}, {{2:frase}} o [[1:palabra]].",
-                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedTextField(
                     value = back, onValueChange = { back = it },
