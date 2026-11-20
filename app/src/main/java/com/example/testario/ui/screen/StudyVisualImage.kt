@@ -1,6 +1,9 @@
 package com.example.testario.ui.screen
 
+import android.content.Context
 import android.graphics.BitmapFactory
+import android.media.ExifInterface
+import java.io.FileInputStream
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -37,6 +40,39 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.min
+
+/**
+ * Coil displays JPEG photos using EXIF orientation, while BitmapFactory bounds
+ * report raw stored pixels. Keep overlays and solution taps in the SAME
+ * orientation as the visible image (including 90°/270° camera photographs).
+ */
+internal fun readVisibleImageDimensions(context: Context, imageUri: String): Pair<Int, Int>? {
+    return runCatching {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        fun input() = if (imageUri.startsWith("/"))
+            FileInputStream(File(imageUri)) else
+            context.contentResolver.openInputStream(Uri.parse(imageUri))
+        input()?.use { BitmapFactory.decodeStream(it, null, options) }
+        val width = options.outWidth
+        val height = options.outHeight
+        if (width <= 0 || height <= 0 || width.toLong() * height > 100_000_000L)
+            return@runCatching null
+        val orientation = runCatching {
+            input()?.use { stream ->
+                ExifInterface(stream).getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL
+                )
+            } ?: ExifInterface.ORIENTATION_NORMAL
+        }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+        val rotateAxes = orientation in setOf(
+            ExifInterface.ORIENTATION_TRANSPOSE,
+            ExifInterface.ORIENTATION_ROTATE_90,
+            ExifInterface.ORIENTATION_TRANSVERSE,
+            ExifInterface.ORIENTATION_ROTATE_270
+        )
+        if (rotateAxes) height to width else width to height
+    }.getOrNull()
+}
 
 /** Immutable content-to-screen transform. Does not confuse letterboxing with image pixels. */
 internal data class FitImageTransform(
@@ -111,16 +147,7 @@ internal fun StudyVisualImage(
     var intrinsic by remember(imageUri) { mutableStateOf<Pair<Int, Int>?>(null) }
     LaunchedEffect(imageUri) {
         intrinsic = withContext(Dispatchers.IO) {
-            runCatching {
-                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                if (imageUri.startsWith("/")) BitmapFactory.decodeFile(imageUri, options)
-                else context.contentResolver.openInputStream(Uri.parse(imageUri))?.use { stream ->
-                    BitmapFactory.decodeStream(stream, null, options)
-                }
-                if (options.outWidth > 0 && options.outHeight > 0 &&
-                    options.outWidth.toLong() * options.outHeight <= 100_000_000L)
-                    options.outWidth to options.outHeight else null
-            }.getOrNull()
+            readVisibleImageDimensions(context.applicationContext, imageUri)
         }
     }
     BoxWithConstraints(modifier = modifier) {
