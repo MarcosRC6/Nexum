@@ -39,6 +39,7 @@ internal fun StudySketchCanvas(
     penOpacity: Double = 1.0,
     onDrawStroke: (SketchStroke) -> Unit = {},
     onEraseStroke: (String) -> Unit = {},
+    onEraseGesture: (List<SketchPoint>) -> Unit = {},
     onMarkTap: (Double, Double) -> Unit = { _, _ -> }
 ) {
     var inProgress by remember { mutableStateOf<List<SketchPoint>>(emptyList()) }
@@ -54,6 +55,7 @@ internal fun StudySketchCanvas(
     val latestBrushAlpha by rememberUpdatedState(penOpacity)
     val latestDraw by rememberUpdatedState(onDrawStroke)
     val latestErase by rememberUpdatedState(onEraseStroke)
+    val latestEraseGesture by rememberUpdatedState(onEraseGesture)
     val latestMark by rememberUpdatedState(onMarkTap)
     val purple = TestarioPrimary
     val green = TestarioGreen
@@ -106,19 +108,9 @@ internal fun StudySketchCanvas(
                                     inProgress = inProgress + next
                             }
                             SketchMode.ERASE -> {
-                                val nearest = latestSketch.strokes.mapNotNull { stroke ->
-                                    stroke.points.minOfOrNull { sp ->
-                                        val dx = (sp.x - next.x) * size.width
-                                        val dy = (sp.y - next.y) * size.height
-                                        dx * dx + dy * dy
-                                    }?.let { stroke.id to it }
-                                }.minByOrNull { it.second }
-                                if (nearest != null && nearest.second <
-                                    (25.dp.toPx() / latestZoom).let { it * it } &&
-                                    nearest.first != lastErased) {
-                                    lastErased = nearest.first
-                                    latestErase(nearest.first)
-                                }
+                                if (inProgress.isEmpty()) inProgress = listOf(markerPoint)
+                                if (inProgress.size < 8000 && inProgress.lastOrNull() != next)
+                                    inProgress = inProgress + next
                             }
                             SketchMode.PAN -> {
                                 val delta = pressed[0].positionChange()
@@ -145,6 +137,8 @@ internal fun StudySketchCanvas(
                                 colorArgb = latestBrushColor, widthFraction = latestBrushWidth,
                                 opacity = latestBrushAlpha)
                         )
+                        SketchMode.ERASE -> if (inProgress.isNotEmpty())
+                            latestEraseGesture(inProgress)
                         SketchMode.MARK -> latestMark(markerPoint.x, markerPoint.y)
                         else -> Unit
                     }
