@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
@@ -22,6 +25,7 @@ import com.example.testario.domain.ClozeMarkupEngine
 import com.example.testario.domain.StudyExerciseRules
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.MixedSessionViewModel
+import com.example.testario.viewmodel.LibraryViewModel
 import kotlinx.coroutines.launch
 
 /**
@@ -31,6 +35,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun MixedSessionScreen(
     session: MixedSessionViewModel,
+    libraryViewModel: LibraryViewModel,
+    onEditQuestion: (String, String) -> Unit,
     onLeave: () -> Unit
 ) {
     val snapshot by session.snapshot.collectAsState()
@@ -39,6 +45,7 @@ fun MixedSessionScreen(
     val scope = rememberCoroutineScope()
     var exitConfirm by remember { mutableStateOf(false) }
     var discardConfirm by remember { mutableStateOf(false) }
+    var reviewingResults by rememberSaveable { mutableStateOf(false) }
     val active = snapshot?.takeUnless { it.completed }?.let { it.items.getOrNull(it.currentIndex) }
     val currentResponse = snapshot?.takeUnless { it.completed }?.let { it.responses.getOrNull(it.currentIndex) }
     var writtenInput by rememberSaveable(active?.id) {
@@ -90,7 +97,42 @@ fun MixedSessionScreen(
 
             if (result != null) {
                 val finished = requireNotNull(result)
-                Text("Sesión finalizada", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                if (!reviewingResults) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = TestarioSurface)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("Resultados", color = TestarioText,
+                                style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                finished.scoreOutOfTen?.let { "${"%.2f".format(it)} / 10" }
+                                    ?: "Repaso completado",
+                                style = MaterialTheme.typography.displayLarge,
+                                color = if ((finished.scoreOutOfTen ?: 10.0) >= 5.0)
+                                    TestarioGreen else TestarioRed
+                            )
+                            Text("${finished.objectiveItems} evaluados · " +
+                                "${finished.manualReviewItems} tarjetas manuales",
+                                color = TestarioMutedText)
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = { reviewingResults = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Revisar preguntas") }
+                    Button(onClick = onLeave, modifier = Modifier.fillMaxWidth()) {
+                        Text("Volver al inicio")
+                    }
+                    return@Column
+                }
+                TextButton(onClick = { reviewingResults = false }) {
+                    Text("Volver a resultados")
+                }
                 if (finished.scoreOutOfTen == null) {
                     Text("Sin nota objetiva · ${finished.manualReviewItems} tarjetas de repaso manual.",
                         color = TestarioPrimary)
@@ -172,28 +214,105 @@ fun MixedSessionScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(item.topicName, color = TestarioPrimary,
-                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                if (item.type != MixedItemType.TEST) {
+                    Text(item.topicName.uppercase(), color = TestarioPrimary,
+                        style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                }
             when (item.type) {
                 MixedItemType.TEST -> {
                     val question = requireNotNull(item.question)
+                    var diffMenu by remember(item.id) { mutableStateOf(false) }
+                    val diffText = when (question.difficulty) {
+                        1 -> "Fácil"; 2 -> "Medio"; 3 -> "Difícil"; else -> "¿Dificultad?"
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(item.topicName.uppercase(),
+                            modifier = Modifier.weight(1f), color = TestarioPrimary,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold)
+                        Box {
+                            TextButton(onClick = { diffMenu = true }) {
+                                Text(diffText, color = TestarioMutedText)
+                            }
+                            DropdownMenu(expanded = diffMenu, onDismissRequest = { diffMenu = false }) {
+                                listOf(
+                                    null to "Sin dificultad",
+                                    1 to "Fácil", 2 to "Medio", 3 to "Difícil"
+                                ).forEach { (difficulty, label) ->
+                                    DropdownMenuItem(text = { Text(label) }, onClick = {
+                                        libraryViewModel.updateQuestionDifficulty(
+                                            item.topicId, question.id, difficulty
+                                        )
+                                        session.setTestDifficulty(question.id, difficulty)
+                                        diffMenu = false
+                                    })
+                                }
+                            }
+                        }
+                        IconButton(onClick = {
+                            if (persistDraft() && session.saveAndLeave())
+                                onEditQuestion(item.topicId, question.id)
+                        }) {
+                            Text("✎", color = TestarioPrimary,
+                                style = MaterialTheme.typography.titleLarge)
+                        }
+                        IconButton(onClick = {
+                            if (libraryViewModel.toggleQuestionFlag(question.id))
+                                session.toggleTestFlag(question.id)
+                        }) {
+                            Text(if (question.flagged) "🚩" else "⚑",
+                                color = TestarioPrimary,
+                                style = MaterialTheme.typography.titleLarge)
+                        }
+                    }
                     Text(question.text, color = TestarioText, style = MaterialTheme.typography.titleLarge)
                     question.explanationImageUri?.let { path ->
                         StudyVisualImage(imageUri = path,
                             annotations = question.statementAnnotations,
                             modifier = Modifier.fillMaxWidth().height(220.dp))
                     }
-                    question.answers.forEach { answer ->
-                        OutlinedButton(
-                            onClick = { session.selectTestAnswer(answer.id) },
-                            enabled = !locked && !(current.mode == TestMode.TRAINING && response.revealed),
+                    question.answers.forEachIndexed { index, answer ->
+                        val selected = response.selectedAnswerId == answer.id
+                        val correct = showAnswer && answer.id == question.correctAnswerId
+                        val wrong = showAnswer && selected && !correct
+                        val bg = when {
+                            correct -> TestarioGreenDark
+                            wrong -> TestarioRedDark
+                            selected -> TestarioPrimaryDark
+                            else -> TestarioSurfaceLight
+                        }
+                        val borderColor = when {
+                            correct -> TestarioGreen
+                            wrong -> TestarioRed
+                            selected -> TestarioPrimary
+                            else -> TestarioSurfaceLight
+                        }
+                        Card(
                             modifier = Modifier.fillMaxWidth()
+                                .clickable(enabled = !locked &&
+                                    !(current.mode == TestMode.TRAINING && response.revealed)) {
+                                    session.selectTestAnswer(answer.id)
+                                },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = bg),
+                            border = BorderStroke(1.dp, borderColor)
                         ) {
-                            Text(
-                                answer.text,
-                                color = if (showAnswer && answer.id == question.correctAnswerId)
-                                    TestarioGreen else TestarioText
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = CircleShape, color = TestarioSurface,
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(('A' + index).toString(), color = TestarioText)
+                                    }
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Text(answer.text, color = TestarioText,
+                                    modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                     if (showAnswer) {
