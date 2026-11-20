@@ -107,7 +107,6 @@ fun StudyExerciseEditorScreen(
     var backAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.backAnnotations ?: ImageAnnotations()) }
     var photoMarkerMode by remember(exerciseId) { mutableStateOf(false) }
     var showImageOptions by remember { mutableStateOf(false) }
-    var occlusionMarkMode by remember(exerciseId) { mutableStateOf(true) }
     var pickerTarget by remember { mutableStateOf("written") }
     LaunchedEffect(exerciseId, solutions.size) {
         if (selectedSolutionId == null || solutions.none { it.id == selectedSolutionId }) {
@@ -684,38 +683,24 @@ fun StudyExerciseEditorScreen(
                                 error = "Para ocultar zonas en la imagen, elimina primero los huecos de texto. Puedes conservar esta tarjeta y crear otra para la imagen."
                             } else {
                                 flashKind = FlashcardKind.IMAGE_OCCLUSION
-                                occlusionMarkMode = true
                             }
                         },
                         label = { Text("Ocultar partes de la imagen") }
                     )
                 }
                 if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
-                    Text("Toca las zonas de la imagen que quieras tapar. Al revelar la tarjeta los bloques desaparecen.",
+                    Text("Cubre las zonas con bloques movibles y redimensionables. Se revelan al mostrar la respuesta.",
                         color = TestarioMutedText)
                     frontImageUri?.let { image ->
-                        FilterChip(
-                            selected = occlusionMarkMode,
-                            onClick = { occlusionMarkMode = !occlusionMarkMode },
-                            label = { Text(if (occlusionMarkMode) "Ocultar zonas · activo"
-                                else "Ocultar zonas") }
-                        )
-                        EditableAnnotationImage(
-                            imageUri = image,
+                        ResizableOcclusionImage(
+                            imageUri = image, masks = masks,
                             annotations = frontAnnotations,
-                            modifier = Modifier.fillMaxWidth().height(240.dp),
-                            masks = masks,
-                            onMarkerTap = if (occlusionMarkMode) { x, y ->
-                                masks = masks + ImageOcclusionMask(
-                                    x = x.coerceAtMost(0.82), y = y.coerceAtMost(0.82),
-                                    width = 0.18, height = 0.18
-                                )
-                            } else null,
+                            onMasksChanged = { masks = it },
                             onAnnotationsChanged = { frontAnnotations = it },
                             onReplace = { chooseImage("front") },
                             onDelete = {
                                 if (masks.isNotEmpty()) error =
-                                    "Elimina primero las máscaras asociadas a esta fotografía."
+                                    "Elimina primero los bloques vinculados a esta fotografía."
                                 else {
                                     frontImageUri = null
                                     frontAnnotations = ImageAnnotations()
@@ -723,47 +708,8 @@ fun StudyExerciseEditorScreen(
                             }
                         )
                     }
-                    masks.forEach { mask ->
-                        Text("Zona oculta ${masks.indexOf(mask) + 1}", color = TestarioMutedText)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Ancho", color = TestarioMutedText)
-                            Slider(
-                                value = mask.width.toFloat().coerceIn(.04f,.7f),
-                                onValueChange = { v ->
-                                    masks = masks.map { if (it.id == mask.id)
-                                        it.copy(width = v.toDouble(), x = it.x.coerceAtMost(1.0 - v))
-                                        else it }
-                                },
-                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Alto", color = TestarioMutedText)
-                            Slider(
-                                value = mask.height.toFloat().coerceIn(.04f,.7f),
-                                onValueChange = { v ->
-                                    masks = masks.map { if (it.id == mask.id)
-                                        it.copy(height = v.toDouble(), y = it.y.coerceAtMost(1.0 - v))
-                                        else it }
-                                },
-                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
-                            )
-                        }
-                        OutlinedTextField(
-                            value = mask.answer,
-                            onValueChange = { newText -> masks = masks.map {
-                                if (it.id == mask.id) it.copy(answer = newText) else it
-                            } },
-                            label = { Text("Respuesta de la zona ${masks.indexOf(mask) + 1}") },
-                            modifier = Modifier.fillMaxWidth(),
-                            trailingIcon = {
-                                TextButton(onClick = { masks = masks.filterNot { it.id == mask.id } }) {
-                                    Text("Quitar")
-                                }
-                            }
-                        )
-                    }
                 }
+
                 if (flashKind != FlashcardKind.IMAGE_OCCLUSION) {
                     frontImageUri?.let { image ->
                         Text("Imagen delantera", color = TestarioMutedText)
