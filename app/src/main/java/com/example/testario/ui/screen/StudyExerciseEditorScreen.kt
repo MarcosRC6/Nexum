@@ -501,13 +501,9 @@ fun StudyExerciseEditorScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Solución ${index + 1}", color = TestarioText, modifier = Modifier.weight(1f))
                             TextButton(onClick = {
-                                val remaining = solutions.filterNot { it.id == solution.id }
-                                var order = 1
-                                solutions = remaining.map { candidate ->
-                                    candidate.copy(points = candidate.points.map { point ->
-                                        point.copy(order = order++)
-                                    })
-                                }
+                                solutions = StudyExerciseRules.removeSolutionAndRenumber(
+                                    solutions, solution.id
+                                )
                                 if (selectedSolutionId == solution.id)
                                     selectedSolutionId = solutions.firstOrNull()?.id
                                 error = null
