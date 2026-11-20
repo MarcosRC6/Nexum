@@ -4,6 +4,8 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.material3.Text
@@ -12,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -22,6 +25,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import com.example.testario.data.model.ImageOcclusionMask
 import com.example.testario.data.model.ImagePoint
@@ -97,7 +104,8 @@ internal fun StudyVisualImage(
     annotations: ImageAnnotations = ImageAnnotations(),
     showCorrection: Boolean = false,
     markerStatuses: Map<String, Boolean> = emptyMap(),
-    onTapImage: ((Double, Double) -> Unit)? = null
+    onTapImage: ((Double, Double) -> Unit)? = null,
+    zoomable: Boolean = false
 ) {
     val context = LocalContext.current
     var intrinsic by remember(imageUri) { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -120,14 +128,38 @@ internal fun StudyVisualImage(
         val boxW = with(density) { maxWidth.toPx() }
         val boxH = with(density) { maxHeight.toPx() }
         val fit = intrinsic?.let { (w,h) -> fitImageToBox(w,h,boxW,boxH) }
-        val touch = if (onTapImage != null && fit != null) {
-            Modifier.pointerInput(imageUri, fit, onTapImage) {
-                detectTapGestures { p ->
-                    fit.toImage(p.x, p.y)?.let { (x,y) -> onTapImage(x,y) }
+        var zoom by remember(imageUri) { mutableFloatStateOf(1f) }
+        var pan by remember(imageUri) { mutableStateOf(Offset.Zero) }
+        val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+            if (zoomable) {
+                zoom = (zoom * zoomChange).coerceIn(1f, 5f)
+                pan = clampImagePan(pan + panChange, zoom, boxW, boxH)
+            }
+        }
+        val tapGesture = if (onTapImage != null && fit != null) {
+            Modifier.pointerInput(imageUri, fit, onTapImage, zoomable) {
+                detectTapGestures { point ->
+                    val logical = if (zoomable)
+                        inverseImageViewport(point, zoom, pan, boxW, boxH) else point
+                    fit.toImage(logical.x, logical.y)?.let { (x, y) ->
+                        onTapImage(x, y)
+                    }
                 }
             }
         } else Modifier
-        Box(Modifier.fillMaxSize().then(touch)) {
+        Box(
+            Modifier.fillMaxSize()
+                .clip(RoundedCornerShape(12.dp))
+                .then(tapGesture)
+                .then(if (zoomable) Modifier.transformable(transformState) else Modifier)
+        ) {
+            // Photo, marker labels and annotations share exactly one transform.
+            Box(Modifier.fillMaxSize().graphicsLayer {
+                scaleX = if (zoomable) zoom else 1f
+                scaleY = if (zoomable) zoom else 1f
+                translationX = if (zoomable) pan.x else 0f
+                translationY = if (zoomable) pan.y else 0f
+            }) {
             AsyncImage(
                 model = if (imageUri.startsWith("/")) File(imageUri) else imageUri,
                 contentDescription = "Imagen base del ejercicio",
@@ -153,7 +185,7 @@ internal fun StudyVisualImage(
                                 true -> Color(0xFF51D79D)
                                 false -> Color(0xFFEA6877)
                                 null -> Color(0xFFA85AFF)
-                            }, radius = 11.dp.toPx(), center = fit.locate(p.x,p.y))
+                            }, radius = 15.dp.toPx(), center = fit.locate(p.x,p.y))
                         }
                     }
                 }
@@ -161,17 +193,30 @@ internal fun StudyVisualImage(
                     val at = fit.locate(p.x, p.y)
                     Text(
                         text = p.order.toString(),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
                         color = when (markerStatuses[p.id]) {
                             true -> Color(0xFF51D79D)
                             false -> Color(0xFFEA6877)
                             null -> Color.White
                         },
                         modifier = Modifier.offset(
-                            x = with(density) { at.x.toDp() } - 6.dp,
-                            y = with(density) { at.y.toDp() } - 12.dp
+                            x = with(density) { at.x.toDp() } - 10.dp,
+                            y = with(density) { at.y.toDp() } - 13.dp
                         )
                     )
                 }
+            }
+
+            }
+            if (zoomable && zoom > 1.01f) {
+                Text(
+                    "${(zoom * 100).toInt()}%",
+                    color = Color.White,
+                    modifier = Modifier.align(Alignment.BottomStart)
+                        .padding(6.dp).background(Color(0xCC131B2B), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
             }
         }
     }
