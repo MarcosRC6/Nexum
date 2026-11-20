@@ -201,7 +201,7 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
     /** Leave an unfinished mixed test without creating resumable progress or stats. */
     fun discardActive(): Boolean {
         ticker?.cancel()
-        val erased = store.clear()
+        val erased = runCatching { store.clear(); store.load() == null }.getOrDefault(false)
         if (!erased) {
             _error.value = "No se pudo descartar la sesión; no se ha cerrado."
             return false
