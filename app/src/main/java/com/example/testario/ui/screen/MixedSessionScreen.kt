@@ -364,10 +364,19 @@ fun MixedSessionScreen(
                         )
                         Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
                             color = if (graded.scoreOutOfTen >= 5) TestarioGreen else TestarioRed)
-                        response.writtenAnswers.forEach { entry ->
-                            val solution = StudyExerciseRules.findAcceptedSolution(exercise, entry)
-                            Text(entry + (solution?.let { " ✓" } ?: " ✗"),
-                                color = if (solution == null) TestarioRed else TestarioGreen)
+                        val numbered = exercise.solutions.any { it.points.isNotEmpty() }
+                        repeat(exercise.solutions.size) { index ->
+                            val entry = response.writtenAnswers.getOrNull(index).orEmpty()
+                            val accepted = if (numbered)
+                                exercise.solutions[index].id in graded.correctIds
+                            else StudyExerciseRules.findAcceptedSolution(exercise, entry) != null
+                            Text("${index + 1}. ${entry.ifBlank { "Sin responder" }} " +
+                                if (accepted) "✓" else "✗",
+                                color = if (accepted) TestarioGreen else TestarioRed)
+                            if (!accepted && numbered) {
+                                Text("Correcta: ${exercise.solutions[index].text}",
+                                    color = TestarioGreen, style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                         val missing = exercise.solutions.filterNot { it.id in graded.correctIds }
                         if (missing.isNotEmpty()) Text("Faltaban: " +
