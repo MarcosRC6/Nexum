@@ -53,4 +53,32 @@ class WebQuickLinkPolicyTest {
         }.isFailure)
         assertFalse(WebQuickLinkPolicy.MAX_LINKS < 1)
     }
+
+    @Test fun customOtherCategoryMustBeExplicitAndSurviveBackup() {
+        assertNull(WebQuickLinkPolicy.validate(WebQuickLink(
+            title = "Acceso", url = "https://example.com", icon = "other"
+        )))
+        val custom = WebQuickLink(
+            id = "extra", title = "Herramienta",
+            url = "https://example.com/tool",
+            icon = "other", customTypeLabel = "Simuladores"
+        )
+        val verified = WebQuickLinkPolicy.validate(custom)
+        assertNotNull(verified)
+        assertEquals("Simuladores", verified?.customTypeLabel)
+        val output = WebQuickLinkPolicy.parseBackup(
+            WebQuickLinkPolicy.encodeBackup(listOf(verified!!))
+        )
+        assertEquals(verified, output.single())
+    }
+
+    @Test fun unknownTypeFromOldBackupFallsBackWithoutTrustingCustomText() {
+        val link = WebQuickLink(
+            title = "Biblioteca", url = "https://example.com",
+            icon = "unknown", customTypeLabel = "Otro"
+        )
+        val normalized = WebQuickLinkPolicy.validate(link)
+        assertEquals("web", normalized?.icon)
+        assertNull(normalized?.customTypeLabel)
+    }
 }
