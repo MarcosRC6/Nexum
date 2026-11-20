@@ -217,10 +217,10 @@ fun StudyExerciseEditorScreen(
         val marker = solutions.flatMap { it.points }.find { it.id == pendingMarkerId }
         if (marker != null) AlertDialog(
             onDismissRequest = { pendingMarkerId = null },
-            title = { Text("Marcador ${marker.order}") },
-            text = { Text("¿Eliminar este número de la imagen? La respuesta escrita se conservará.") },
+            title = { Text("Solución ${marker.order}") },
+            text = { Text("¿Quitar esta marca de solución de la imagen? La respuesta escrita se conservará.") },
             confirmButton = {
-                TextButton(onClick = { removeMarker(marker.id) }) { Text("Eliminar número") }
+                TextButton(onClick = { removeMarker(marker.id) }) { Text("Quitar marcador") }
             },
             dismissButton = {
                 TextButton(onClick = { pendingMarkerId = null }) { Text("Cancelar") }
@@ -259,7 +259,7 @@ fun StudyExerciseEditorScreen(
                 Text("Tipo de ejercicio", color = TestarioText)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf(
-                        StudyExerciseKind.WRITTEN_MULTI to "Enumerar",
+                        StudyExerciseKind.WRITTEN_MULTI to "Respuesta escrita",
                         StudyExerciseKind.ANKI_CARD to "Tarjeta Anki"
                     ).forEach { (kind, name) ->
                         FilterChip(selected = exerciseKind == kind,
@@ -279,8 +279,8 @@ fun StudyExerciseEditorScreen(
                     value = prompt, onValueChange = { prompt = it },
                     label = { Text("Enunciado") }, modifier = Modifier.fillMaxWidth(), minLines = 2
                 )
-                Text("Respuestas correctas", color = TestarioText)
-                Text("NEXUM reconoce automáticamente variantes y abreviaturas inequívocas.",
+                Text("Soluciones", color = TestarioText)
+                Text("Todas las soluciones añadidas son correctas. NEXUM reconoce abreviaturas inequívocas.",
                     color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = { showOptionalAliases = !showOptionalAliases }) {
                     Text(if (showOptionalAliases) "Ocultar excepciones manuales"
@@ -290,9 +290,6 @@ fun StudyExerciseEditorScreen(
                     val index = solutions.indexOfFirst { it.id == solution.id }
                     Column(Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(12.dp)).padding(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = selectedSolutionId == solution.id, onClick = {
-                                selectedSolutionId = solution.id
-                            })
                             Text("Solución ${index + 1}", color = TestarioText, modifier = Modifier.weight(1f))
                             TextButton(onClick = {
                                 solutions = solutions.filterNot { it.id == solution.id }
@@ -305,7 +302,7 @@ fun StudyExerciseEditorScreen(
                             onValueChange = { text -> solutions = solutions.map {
                                 if (it.id == solution.id) it.copy(text = text) else it
                             } },
-                            label = { Text("Respuesta") }, modifier = Modifier.fillMaxWidth()
+                            label = { Text("Solución ${index + 1}") }, modifier = Modifier.fillMaxWidth()
                         )
                         if (showOptionalAliases || solution.aliases.isNotEmpty()) {
                             OutlinedTextField(
@@ -328,7 +325,7 @@ fun StudyExerciseEditorScreen(
                             if (expandedMarkersSolutionId == solution.id) {
                                 solution.points.sortedBy { it.order }.forEach { marker ->
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Número ${marker.order}", modifier = Modifier.weight(1f),
+                                        Text("Solución marcada ${marker.order}", modifier = Modifier.weight(1f),
                                             color = TestarioText)
                                         TextButton(onClick = { removeMarker(marker.id) }) {
                                             Text("Eliminar")
@@ -360,13 +357,13 @@ fun StudyExerciseEditorScreen(
                     Text(if (sketchEnabled) "Cerrar editor de imagen" else "Crear imagen")
                 }
                 if (sketchEnabled) {
-                    Text("Dibuja con el dedo o lápiz táctil y después pasa a «Poner números».",
+                    Text("Dibuja con el dedo o lápiz táctil y después pasa a «Colocar soluciones».",
                         color = TestarioMutedText)
                     Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         listOf(
                             SketchMode.DRAW to "Dibujar",
                             SketchMode.ERASE to "Borrar",
-                            SketchMode.MARK to "Números"
+                            SketchMode.MARK to "Colocar soluciones"
                         ).forEach { (mode, title) ->
                             FilterChip(selected = sketchMode == mode,
                                 onClick = { sketchMode = mode },
@@ -403,14 +400,14 @@ fun StudyExerciseEditorScreen(
                     }
                 } else if (imageUri != null) {
                     Text(
-                        if (photoMarkerMode) "Modo números: toca la fotografía para colocar o editar números."
-                        else "Toca la fotografía para ver, anotar o cambiar. Los números van por separado.",
+                        if (photoMarkerMode) "Toca la fotografía para colocar o editar marcadores de solución."
+                        else "Toca el lápiz para ver, anotar o cambiar. Las soluciones van por separado.",
                         color = TestarioMutedText
                     )
                     FilterChip(
                         selected = photoMarkerMode,
                         onClick = { photoMarkerMode = !photoMarkerMode },
-                        label = { Text(if (photoMarkerMode) "Poner números · activo" else "Poner números") }
+                        label = { Text(if (photoMarkerMode) "Colocar soluciones · activo" else "Colocar soluciones") }
                     )
                     EditableAnnotationImage(
                         imageUri = requireNotNull(imageUri),
