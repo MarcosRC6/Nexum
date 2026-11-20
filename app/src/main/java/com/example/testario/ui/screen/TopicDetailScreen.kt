@@ -408,7 +408,7 @@ fun TopicDetailScreen(
                         listOf(
                             LibraryTypeFilter.ALL to "Todos",
                             LibraryTypeFilter.TEST to "Test",
-                            LibraryTypeFilter.ENUMERATE to "Enumerar",
+                            LibraryTypeFilter.ENUMERATE to "Respuesta escrita",
                             LibraryTypeFilter.ANKI to "Tarjetas"
                         ).forEach { (filter, name) ->
                             DropdownMenuItem(
@@ -932,7 +932,7 @@ private fun StudyExerciseCard(
                         style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
                     Text(when (exercise.kind) {
-                        StudyExerciseKind.WRITTEN_MULTI -> "Enumerar · ${exercise.solutions.size} respuestas"
+                        StudyExerciseKind.WRITTEN_MULTI -> "Respuesta escrita · ${exercise.solutions.size} soluciones"
                         StudyExerciseKind.ANKI_CARD -> "Tarjeta"
                     } + if (exercise.draft) " · Borrador" else "",
                         color = TestarioMutedText)
