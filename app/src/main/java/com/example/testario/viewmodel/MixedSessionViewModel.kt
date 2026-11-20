@@ -152,7 +152,9 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
 
     fun submitWritten(text: String, reveal: Boolean = true) = edit { state ->
         require(state.items[state.currentIndex].type == MixedItemType.WRITTEN)
-        val answers = text.lines().map(String::trim).filter(String::isNotBlank)
+        // Keep empty slots so the learner's entry #1/#2/#3 still corresponds
+        // to the number on the image after saving, resuming and correction.
+        val answers = text.lines().map(String::trim)
         state.copy(responses = state.responses.mapIndexed { idx, response ->
             if (idx == state.currentIndex) response.copy(
                 writtenAnswers = answers,
@@ -198,14 +200,20 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    /** Explicit abandon-without-saving. Never registers a test result. */
     fun discardSaved(): Boolean {
         ticker?.cancel()
-        store.clear()
-        _pending.value = null
-        _snapshot.value = null
-        _result.value = null
-        _error.value = null
-        return true
+        return runCatching {
+            store.clear()
+            _pending.value = null
+            _snapshot.value = null
+            _result.value = null
+            _error.value = null
+            true
+        }.getOrElse {
+            _error.value = "No se pudo eliminar la sesión guardada. Reinténtalo."
+            false
+        }
     }
 
     override fun onCleared() {
