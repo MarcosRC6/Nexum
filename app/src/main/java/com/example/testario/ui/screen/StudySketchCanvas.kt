@@ -6,7 +6,6 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.ui.input.pointer.awaitPointerEventScope
 import kotlin.math.hypot
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -114,7 +113,6 @@ internal fun StudySketchCanvas(
                 } else if (!multitouch && pressed.size == 1) {
                     val change = pressed[0]
                     val pos = change.position
-                    if (first == androidx.compose.ui.geometry.Offset.Unspecified) first = pos
                     if (last != androidx.compose.ui.geometry.Offset.Unspecified) {
                         if ((pos - last).getDistance() >= 1f) moved = true
                     }
