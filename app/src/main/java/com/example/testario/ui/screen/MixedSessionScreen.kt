@@ -2,6 +2,12 @@ package com.example.testario.ui.screen
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -32,6 +38,7 @@ fun MixedSessionScreen(
     val error by session.error.collectAsState()
     val scope = rememberCoroutineScope()
     var exitConfirm by remember { mutableStateOf(false) }
+    var discardConfirm by remember { mutableStateOf(false) }
     val active = snapshot?.takeUnless { it.completed }?.let { it.items.getOrNull(it.currentIndex) }
     val currentResponse = snapshot?.takeUnless { it.completed }?.let { it.responses.getOrNull(it.currentIndex) }
     var writtenInput by rememberSaveable(active?.id) {
@@ -49,7 +56,7 @@ fun MixedSessionScreen(
 
     Scaffold(
         containerColor = TestarioBackground,
-        topBar = { TestarioTopBar(title = "NEXUM · Sesión mixta", onBack = {
+        topBar = { TestarioTopBar(title = if (snapshot?.mode == TestMode.EXAM) "Modo Examen" else "Entrenamiento", onBack = {
             if (result == null) exitConfirm = true else onLeave()
         }) }
     ) { padding ->
@@ -65,9 +72,9 @@ fun MixedSessionScreen(
             }
 
             Text(
-                "Elemento ${current.currentIndex + 1} de ${current.items.size} · " +
-                    if (current.mode == TestMode.EXAM) "Examen" else "Entrenamiento",
-                color = TestarioMutedText
+                "Pregunta ${current.currentIndex + 1} de ${current.items.size}",
+                color = TestarioMutedText,
+                style = MaterialTheme.typography.bodyMedium
             )
             if (current.remainingSeconds != null) {
                 Text(
@@ -140,11 +147,33 @@ fun MixedSessionScreen(
                 return@Column
             }
 
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                itemsIndexed(current.items) { idx, _ ->
+                    val isCurrent = idx == current.currentIndex
+                    OutlinedButton(
+                        onClick = { if (persistDraft()) session.goTo(idx) },
+                        enabled = !current.completed,
+                        modifier = Modifier.size(48.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) { Text("${idx + 1}",
+                        color = if (isCurrent) TestarioPrimary else TestarioText) }
+                }
+            }
             val item = current.items[current.currentIndex]
             val response = current.responses[current.currentIndex]
             val showAnswer = response.revealed
             val locked = current.remainingSeconds == 0
-            Text(item.topicName, color = TestarioMutedText)
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .background(TestarioSurface, RoundedCornerShape(24.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(item.topicName, color = TestarioPrimary,
+                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             when (item.type) {
                 MixedItemType.TEST -> {
                     val question = requireNotNull(item.question)
@@ -192,14 +221,20 @@ fun MixedSessionScreen(
                         StudyVisualImage(imageUri = path, modifier = Modifier.fillMaxWidth().height(230.dp),
                             annotations = exercise.baseAnnotations,
                             markers = exercise.solutions.flatMap { it.points },
-                            markerStatuses = statuses, showCorrection = showAnswer)
+                            markerStatuses = statuses, showCorrection = showAnswer,
+                            showMarkersBeforeCorrection = true)
                     }
                     exercise.sketch?.let { drawing ->
                         StudySketchCanvas(
                             sketch = drawing, modifier = Modifier.fillMaxWidth().height(220.dp),
                             markers = exercise.solutions.flatMap { it.points },
-                            mode = SketchMode.PREVIEW, showMarkers = showAnswer
+                            mode = SketchMode.PREVIEW, showMarkers = true,
+                            markerStatuses = statuses
                         )
+                    }
+                    if (!showAnswer && exercise.solutions.any { it.points.isNotEmpty() }) {
+                        Text("Identifica las zonas numeradas y escribe cada respuesta en una línea.",
+                            color = TestarioMutedText)
                     }
                     OutlinedTextField(
                         value = writtenInput,
@@ -218,7 +253,9 @@ fun MixedSessionScreen(
                         val graded = StudyExerciseRules.gradeWritten(
                             exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
                         )
-                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10", color = TestarioGreen)
+                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
+                            color = if (graded.correct == exercise.solutions.size &&
+                                graded.incorrect == 0) TestarioGreen else TestarioRed)
                         response.writtenAnswers.forEach { entry ->
                             val solution = StudyExerciseRules.findAcceptedSolution(exercise, entry)
                             Text(entry + (solution?.let { " ✓" } ?: " ✗"),
@@ -226,7 +263,7 @@ fun MixedSessionScreen(
                         }
                         val missing = exercise.solutions.filterNot { it.id in graded.correctIds }
                         if (missing.isNotEmpty()) Text("Faltaban: " +
-                            missing.joinToString(" · ") { it.text }, color = TestarioGreen)
+                            missing.joinToString(" · ") { it.text }, color = TestarioRed)
                     }
                 }
                 MixedItemType.ANKI -> {
@@ -260,10 +297,10 @@ fun MixedSessionScreen(
                                 annotations = if (reverse) card.frontAnnotations else card.backAnnotations,
                                 modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true)
                         }
-                        Text("Repaso manual: esta tarjeta no cuenta para la nota ni altera Anki.",
-                            color = TestarioMutedText)
+
                     }
                 }
+            }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -286,6 +323,25 @@ fun MixedSessionScreen(
         }
     }
 
+    if (discardConfirm) {
+        AlertDialog(
+            onDismissRequest = { discardConfirm = false },
+            title = { Text("Salir sin guardar") },
+            text = { Text("Se descartará este examen y no podrás retomarlo. Las respuestas no se guardarán.") },
+            confirmButton = {
+                Button(onClick = {
+                    if (session.discardSaved()) {
+                        discardConfirm = false
+                        exitConfirm = false
+                        onLeave()
+                    }
+                }) { Text("Descartar sesión") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { discardConfirm = false }) { Text("Cancelar") }
+            }
+        )
+    }
     if (exitConfirm) {
         AlertDialog(
             onDismissRequest = { exitConfirm = false },
@@ -299,7 +355,14 @@ fun MixedSessionScreen(
                     }
                 }) { Text("Guardar y salir") }
             },
-            dismissButton = { OutlinedButton(onClick = { exitConfirm = false }) { Text("Continuar") } }
+            dismissButton = {
+                Column {
+                    TextButton(onClick = { exitConfirm = false; discardConfirm = true }) {
+                        Text("Salir sin guardar", color = TestarioRed)
+                    }
+                    OutlinedButton(onClick = { exitConfirm = false }) { Text("Continuar") }
+                }
+            }
         )
     }
 }
