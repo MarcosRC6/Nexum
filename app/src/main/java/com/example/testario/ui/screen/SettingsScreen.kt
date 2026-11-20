@@ -1181,16 +1181,26 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showTestarioBackupRestoreConfirm = false; pendingTestarioBackupBytes = null },
             title = { Text("Copia anterior de Biblioteca detectada") },
-            text = { Text("El archivo corresponde a una copia completa de Testario. Restaurará Biblioteca, preguntas, imágenes, grupos, plantillas y estadísticas de test; tu Plan, tiempos y objetivos de estudio no se tocarán.") },
+            text = { Text("Esta copia sustituye Biblioteca, preguntas, imágenes, grupos, plantillas y estadísticas de test. NEXUM guardará antes una copia completa verificable para recuperar los datos anteriores ante un fallo. El Plan no se cambia si la operación termina bien.") },
             confirmButton = {
                 Button(
+                    enabled = !timerHasUnsavedTime,
                     onClick = {
                         val bytes = pendingTestarioBackupBytes
                         if (bytes != null) {
                             isLoading = true
                             coroutineScope.launch {
-                                val ok = runCatching { unifiedDataManager.restoreTestarioBackup(bytes) }.getOrDefault(false)
-                                message = if (ok) "Copia de Biblioteca restaurada correctamente." else "Error: la copia de Biblioteca no es válida."
+                                val restore = runCatching {
+                                    verifiedGlobalRestore.applyUserSelectedTestarioBackup(bytes)
+                                }
+                                message = restore.fold(
+                                    onSuccess = { backupName ->
+                                        "Biblioteca restaurada. Copia del estado anterior: $backupName."
+                                    },
+                                    onFailure = { failure ->
+                                        "No se restauró la Biblioteca: ${failure.message ?: "Error de integridad."}"
+                                    }
+                                )
                                 pendingTestarioBackupBytes = null
                                 showTestarioBackupRestoreConfirm = false
                                 isLoading = false
