@@ -80,6 +80,7 @@ fun MixedSessionScreen(
                 return@Column
             }
 
+            if (result == null) {
             Text(
                 "Pregunta ${current.currentIndex + 1} de ${current.items.size} · " +
                     "⏱ %02d:%02d".format(current.elapsedSeconds / 60,
@@ -87,6 +88,7 @@ fun MixedSessionScreen(
                 color = TestarioMutedText,
                 style = MaterialTheme.typography.bodyMedium
             )
+            }
             if (current.remainingSeconds != null) {
                 Text(
                     "Tiempo restante: ${current.remainingSeconds!! / 60} min " +
@@ -155,12 +157,62 @@ fun MixedSessionScreen(
                             Text("Nota: ${"%.2f".format(grade.scoreOutOfTen)} / 10 · " +
                                 "${grade.correct} aciertos, ${grade.incorrect} errores, ${grade.omitted} omitidas",
                                 color = TestarioText)
-                            Text("Soluciones: " + ex.solutions.joinToString(" · ") { it.text }, color = TestarioGreen)
+                            val statuses = ex.solutions.flatMap { solution ->
+                                solution.points.map { it.id to (solution.id in grade.correctIds) }
+                            }.toMap()
+                            ex.baseImageUri?.let { path ->
+                                StudyVisualImage(
+                                    imageUri = path, annotations = ex.baseAnnotations,
+                                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                                    markers = ex.solutions.flatMap { it.points },
+                                    markerStatuses = statuses, showCorrection = true
+                                )
+                            }
+                            ex.sketch?.let { drawing ->
+                                StudySketchCanvas(
+                                    sketch = drawing,
+                                    modifier = Modifier.fillMaxWidth().height(220.dp),
+                                    markers = ex.solutions.flatMap { it.points },
+                                    markerStatuses = statuses, showMarkers = true
+                                )
+                            }
+                            val numbered = ex.solutions.any { it.points.isNotEmpty() }
+                            response.writtenAnswers.forEachIndexed { index, entry ->
+                                if (entry.isNotBlank()) {
+                                    val accepted = StudyExerciseRules.findAcceptedSolution(ex, entry)
+                                    val correct = accepted != null && (!numbered ||
+                                        ex.solutions.getOrNull(index)?.id == accepted.id)
+                                    Text(
+                                        (if (numbered) "${index + 1}. " else "") + entry +
+                                            if (correct) " ✓" else " ✗",
+                                        color = if (correct) TestarioGreen else TestarioRed
+                                    )
+                                }
+                            }
+                            val missing = ex.solutions.filterNot { it.id in grade.correctIds }
+                            if (missing.isNotEmpty()) Text("Faltaban: " +
+                                missing.joinToString(" · ") { it.text }, color = TestarioRed)
+                            Text("Soluciones: " + ex.solutions.joinToString(" · ") { it.text },
+                                color = TestarioText)
                         }
                         MixedItemType.ANKI -> {
                             val card = requireNotNull(item.exercise?.flashcard)
                             Text(card.front, color = TestarioText)
+                            card.frontImageUri?.let { image ->
+                                StudyVisualImage(
+                                    imageUri = image, annotations = card.frontAnnotations,
+                                    modifier = Modifier.fillMaxWidth().height(210.dp),
+                                    showCorrection = true
+                                )
+                            }
                             Text("Respuesta: " + card.back, color = TestarioGreen)
+                            card.backImageUri?.let { image ->
+                                StudyVisualImage(
+                                    imageUri = image, annotations = card.backAnnotations,
+                                    modifier = Modifier.fillMaxWidth().height(210.dp),
+                                    showCorrection = true
+                                )
+                            }
                             
                         }
                     }
