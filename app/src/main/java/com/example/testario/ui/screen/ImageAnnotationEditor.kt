@@ -69,15 +69,28 @@ internal fun EditableAnnotationImage(
     var pendingReplace by remember(imageUri) { mutableStateOf(false) }
     var pendingDelete by remember(imageUri) { mutableStateOf(false) }
 
-    StudyVisualImage(
-        imageUri = imageUri,
-        annotations = annotations,
-        markers = markers, masks = masks, showCorrection = showCorrection,
-        modifier = modifier,
-        onTapImage = if (onMarkerTap != null) onMarkerTap else { _, _ -> showActions = true }
-    )
-    if (onMarkerTap != null) {
-        TextButton(onClick = { showActions = true }) { Text("Imagen · Ver / Anotar / Cambiar") }
+    Box(modifier) {
+        StudyVisualImage(
+            imageUri = imageUri,
+            annotations = annotations,
+            markers = markers, masks = masks, showCorrection = showCorrection,
+            modifier = Modifier.matchParentSize(),
+            onTapImage = if (onMarkerTap != null) onMarkerTap else { _, _ -> viewing = true }
+        )
+        // Separate edit affordance: tapping the image should not unexpectedly
+        // open destructive actions or interfere with solution placement.
+        Surface(
+            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                .size(42.dp).clickable { showActions = true }
+                .semantics { contentDescription = "Editar imagen" },
+            color = TestarioSurface.copy(alpha = 1f),
+            shape = CircleShape,
+            shadowElevation = 4.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text("✎", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+            }
+        }
     }
     if (showActions) {
         AlertDialog(
@@ -105,7 +118,7 @@ internal fun EditableAnnotationImage(
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Column(
-                Modifier.fillMaxSize().background(TestarioBackground).padding(16.dp),
+                Modifier.fillMaxSize().background(TestarioBackground.copy(alpha = 1f)).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 TextButton(onClick = { viewing = false }) { Text("Volver") }
@@ -196,7 +209,7 @@ internal fun ImageAnnotationEditorDialog(
 
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            Modifier.fillMaxSize().background(TestarioBackground).padding(12.dp),
+            Modifier.fillMaxSize().background(TestarioBackground.copy(alpha = 1f)).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
