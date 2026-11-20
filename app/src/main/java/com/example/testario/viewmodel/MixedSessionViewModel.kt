@@ -138,6 +138,19 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
         return true
     }
 
+    /** Edits displayed metadata only; never alters answer IDs or grading. */
+    fun updateTestQuestion(questionId: String, flagged: Boolean? = null,
+        difficulty: Int? = null, updateDifficulty: Boolean = false): Boolean = edit { state ->
+        state.copy(items = state.items.map { item ->
+            if (item.type == MixedItemType.TEST && item.question?.id == questionId) {
+                item.copy(question = item.question.copy(
+                    flagged = flagged ?: item.question.flagged,
+                    difficulty = if (updateDifficulty) difficulty else item.question.difficulty
+                ))
+            } else item
+        })
+    }
+
     fun selectTestAnswer(answerId: String?) = edit { state ->
         val item = state.items[state.currentIndex]
         require(item.type == MixedItemType.TEST)
