@@ -122,6 +122,8 @@ fun StudyExerciseEditorScreen(
         sketchRedo = emptyList()
     }
     fun placeOrSelectMarker(x: Double, y: Double) {
+        // Each marker represents exactly one written solution; its displayed
+        // number is the current solution index, not an independent counter.
         val nearby = solutions.flatMap { it.points }.minByOrNull { point ->
             (point.x - x) * (point.x - x) + (point.y - y) * (point.y - y)
         }
@@ -131,19 +133,28 @@ fun StudyExerciseEditorScreen(
             return
         }
         val id = selectedSolutionId ?: return
-        val nextNumber = (solutions.flatMap { it.points }.maxOfOrNull { it.order } ?: 0) + 1
-        solutions = solutions.map { item ->
-            if (item.id == id) item.copy(points = item.points +
-                ImagePoint(x = x, y = y, order = nextNumber)) else item
+        val index = solutions.indexOfFirst { it.id == id }
+        if (index < 0) return
+        val chosen = solutions[index]
+        if (chosen.text.isBlank()) {
+            error = "Escribe primero la solución ${index + 1} para colocarla."
+            return
         }
+        if (chosen.points.isNotEmpty()) {
+            error = "La solución ${index + 1} ya está colocada. Elimina su marcador para cambiarlo."
+            return
+        }
+        solutions = solutions.mapIndexed { i, item ->
+            if (item.id == id) item.copy(points = listOf(
+                ImagePoint(x = x, y = y, order = i + 1)
+            )) else item
+        }
+        error = null
     }
     fun removeMarker(markerId: String) {
-        val remaining = solutions.flatMap { it.points }
-            .filterNot { it.id == markerId }.sortedBy { it.order }
-        val orders = remaining.mapIndexed { index, p -> p.id to (index + 1) }.toMap()
-        solutions = solutions.map { item ->
+        solutions = solutions.mapIndexed { index, item ->
             item.copy(points = item.points.filterNot { it.id == markerId }
-                .map { it.copy(order = orders[it.id] ?: it.order) })
+                .map { it.copy(order = index + 1) })
         }
         pendingMarkerId = null
     }
@@ -412,7 +423,7 @@ fun StudyExerciseEditorScreen(
                         sketch = SketchDrawing(strokes = sketchStrokes),
                         modifier = Modifier.fillMaxWidth().height(240.dp),
                         markers = solutions.flatMap { it.points },
-                        showMarkers = sketchMode == SketchMode.MARK,
+                        showMarkers = true,
                         mode = sketchMode,
                         zoomFactor = sketchZoom,
                         penArgb = sketchColor,
@@ -486,6 +497,11 @@ fun StudyExerciseEditorScreen(
                             Text("Solución ${index + 1}", color = TestarioText, modifier = Modifier.weight(1f))
                             TextButton(onClick = {
                                 solutions = solutions.filterNot { it.id == solution.id }
+                                    .mapIndexed { i, remaining ->
+                                        remaining.copy(points = remaining.points.map {
+                                            it.copy(order = i + 1)
+                                        })
+                                    }
                                 if (selectedSolutionId == solution.id)
                                     selectedSolutionId = solutions.firstOrNull()?.id
                             }) { Text("Eliminar") }
