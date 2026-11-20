@@ -388,13 +388,6 @@ fun StudyExercisePracticeScreen(
                         }
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = database.ankiReviewEnabled, onCheckedChange = {
-                        libraryViewModel.setAnkiReviewEnabled(it)
-                        if (!it) scheduledReview = false
-                    })
-                    Text("Activar repetición espaciada", color = TestarioText)
-                }
                 if (database.ankiReviewEnabled) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = scheduledReview, onCheckedChange = {
