@@ -138,6 +138,58 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
         return true
     }
 
+    /** Persist Testario flags/difficulty in the bank and refresh this session snapshot. */
+    fun toggleTestFlag(): Boolean {
+        val state = _snapshot.value ?: return false
+        val item = state.items.getOrNull(state.currentIndex) ?: return false
+        val question = item.question ?: return false
+        if (item.type != MixedItemType.TEST) return false
+        val db = TestarioLocalStore.get(getApplication<Application>()).database.value
+        val current = db.topics.asSequence().flatMap { it.questions.asSequence() }
+            .firstOrNull { it.id == question.id } ?: return false
+        val newValue = !current.flagged
+        val saved = runCatching {
+            TestarioLocalStore.get(getApplication<Application>()).saveDatabase(
+                db.copy(topics = db.topics.map { topic ->
+                    topic.copy(questions = topic.questions.map {
+                        if (it.id == question.id) it.copy(flagged = newValue) else it
+                    })
+                })
+            )
+        }.isSuccess
+        if (!saved) return false
+        return edit { original ->
+            original.copy(items = original.items.map {
+                if (it.type == MixedItemType.TEST && it.question?.id == question.id)
+                    it.copy(question = it.question?.copy(flagged = newValue))
+                else it
+            })
+        }
+    }
+
+    fun updateTestDifficulty(newValue: Int?): Boolean {
+        if (newValue != null && newValue !in 1..3) return false
+        val state = _snapshot.value ?: return false
+        val item = state.items.getOrNull(state.currentIndex) ?: return false
+        val question = item.question ?: return false
+        if (item.type != MixedItemType.TEST) return false
+        val store = TestarioLocalStore.get(getApplication<Application>())
+        val db = store.database.value
+        if (db.topics.none { t -> t.questions.any { it.id == question.id } }) return false
+        if (runCatching {
+            store.saveDatabase(db.copy(topics = db.topics.map { t ->
+                t.copy(questions = t.questions.map {
+                    if (it.id == question.id) it.copy(difficulty = newValue) else it
+                })
+            }))
+        }.isFailure) return false
+        return edit { old -> old.copy(items = old.items.map {
+            if (it.type == MixedItemType.TEST && it.question?.id == question.id)
+                it.copy(question = it.question?.copy(difficulty = newValue))
+            else it
+        }) }
+    }
+
     fun selectTestAnswer(answerId: String?) = edit { state ->
         val item = state.items[state.currentIndex]
         require(item.type == MixedItemType.TEST)
