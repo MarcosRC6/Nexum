@@ -217,11 +217,9 @@ fun StudyExercisePracticeScreen(
                     }
                 }
                 if (!completed) {
-                    OutlinedTextField(value = points, onValueChange = { points = it },
-                        label = { Text("Puntos por acierto") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = penalty, onValueChange = { penalty = it },
-                        label = { Text("Penalización por fallo (negativa o cero)") },
-                        modifier = Modifier.fillMaxWidth())
+                    Text("La puntuación se configura al crear el examen o entrenamiento.",
+                        color = TestarioMutedText,
+                        style = MaterialTheme.typography.bodySmall)
                     Button(onClick = {
                         val a = points.replace(",", ".").toDoubleOrNull()
                         val b = penalty.replace(",", ".").toDoubleOrNull()
