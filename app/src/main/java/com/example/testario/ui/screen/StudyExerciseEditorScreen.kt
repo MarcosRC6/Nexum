@@ -819,6 +819,32 @@ fun StudyExerciseEditorScreen(
                         )
                     }
                     masks.forEach { mask ->
+                        Text("Zona oculta ${masks.indexOf(mask) + 1} · ajustar tamaño",
+                            color = TestarioMutedText)
+                        Text("Anchura", color = TestarioMutedText)
+                        Slider(
+                            value = mask.width.toFloat(),
+                            onValueChange = { newWidth ->
+                                masks = masks.map {
+                                    if (it.id == mask.id)
+                                        it.copy(width = newWidth.toDouble()) else it
+                                }
+                            },
+                            valueRange = .05f..(1.0 - mask.x).toFloat().coerceAtLeast(.06f),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text("Altura", color = TestarioMutedText)
+                        Slider(
+                            value = mask.height.toFloat(),
+                            onValueChange = { newHeight ->
+                                masks = masks.map {
+                                    if (it.id == mask.id)
+                                        it.copy(height = newHeight.toDouble()) else it
+                                }
+                            },
+                            valueRange = .05f..(1.0 - mask.y).toFloat().coerceAtLeast(.06f),
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         OutlinedTextField(
                             value = mask.answer,
                             onValueChange = { newText -> masks = masks.map {
