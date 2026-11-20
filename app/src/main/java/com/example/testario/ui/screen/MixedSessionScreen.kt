@@ -132,6 +132,14 @@ fun MixedSessionScreen(
                 return@Column
             }
 
+            if (current.completed) {
+                Text("El examen terminó, pero aún debe confirmarse el guardado de los resultados.",
+                    color = TestarioRed)
+                Button(onClick = { scope.launch { session.finish() } },
+                    modifier = Modifier.fillMaxWidth()) { Text("Reintentar guardar resultados") }
+                return@Column
+            }
+
             val item = current.items[current.currentIndex]
             val response = current.responses[current.currentIndex]
             val showAnswer = response.revealed
