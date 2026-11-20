@@ -151,8 +151,17 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun submitWritten(text: String, reveal: Boolean = true) = edit { state ->
-        require(state.items[state.currentIndex].type == MixedItemType.WRITTEN)
-        val answers = text.lines().map(String::trim).filter(String::isNotBlank)
+        val item = state.items[state.currentIndex]
+        require(item.type == MixedItemType.WRITTEN)
+        val exercise = requireNotNull(item.exercise)
+        val numbered = exercise.solutions.any { it.points.isNotEmpty() }
+        // Preserve blank numbered boxes; dropping them shifts all following
+        // answers to the wrong photo marker after saving/resuming.
+        val answers = if (numbered) text.lines().map(String::trim)
+            .take(exercise.solutions.size).let { entries ->
+                entries + List((exercise.solutions.size - entries.size).coerceAtLeast(0)) { "" }
+            }
+        else text.lines().map(String::trim).filter(String::isNotBlank)
         state.copy(responses = state.responses.mapIndexed { idx, response ->
             if (idx == state.currentIndex) response.copy(
                 writtenAnswers = answers,
