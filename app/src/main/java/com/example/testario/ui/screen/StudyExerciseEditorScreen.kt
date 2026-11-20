@@ -1,5 +1,7 @@
 package com.example.testario.ui.screen
 
+import androidx.compose.ui.platform.LocalContext
+import com.example.testario.domain.ImageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -40,6 +42,8 @@ fun StudyExerciseEditorScreen(
     onBack: () -> Unit,
     embedded: Boolean = false
 ) {
+    val appContext = LocalContext.current
+    val imageManager = remember(appContext) { ImageManager(appContext.applicationContext) }
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
     val original = topic?.exercises?.firstOrNull { it.id == exerciseId }
@@ -88,6 +92,9 @@ fun StudyExerciseEditorScreen(
     var showClozeMarkerDialog by remember(exerciseId) { mutableStateOf(false) }
     var clozeAlways by remember(exerciseId) { mutableStateOf(true) }
     var showAnkiImageOptions by remember(exerciseId) { mutableStateOf(false) }
+    var showAnkiImageSourceOptions by remember(exerciseId) { mutableStateOf(false) }
+    var ankiImageSlot by remember(exerciseId) { mutableStateOf("front") }
+
     var clozeTurnInput by remember(exerciseId) { mutableStateOf("1") }
     var previewRevealed by remember(exerciseId) { mutableStateOf(false) }
     var masks by remember(exerciseId) { mutableStateOf(original?.flashcard?.masks.orEmpty()) }
@@ -549,11 +556,36 @@ fun StudyExerciseEditorScreen(
                             onDismissRequest = { showAnkiImageOptions = false }) {
                             DropdownMenuItem(text = { Text("Imagen de pregunta") }, onClick = {
                                 showAnkiImageOptions = false
-                                chooseImage("front")
+                                ankiImageSlot = "front"
+                                showAnkiImageSourceOptions = true
                             })
                             DropdownMenuItem(text = { Text("Imagen de respuesta") }, onClick = {
                                 showAnkiImageOptions = false
-                                chooseImage("back")
+                                ankiImageSlot = "back"
+                                showAnkiImageSourceOptions = true
+                            })
+                        }
+                        DropdownMenu(expanded = showAnkiImageSourceOptions,
+                            onDismissRequest = { showAnkiImageSourceOptions = false }) {
+                            DropdownMenuItem(text = { Text("Crear imagen") }, onClick = {
+                                showAnkiImageSourceOptions = false
+                                if (ankiImageSlot == "front" && masks.isNotEmpty()) {
+                                    error = "Elimina las máscaras actuales antes de cambiar la imagen."
+                                } else runCatching {
+                                    imageManager.createBlankImage()
+                                }.onSuccess { path ->
+                                    if (ankiImageSlot == "front") {
+                                        frontImageUri = path
+                                        frontAnnotations = ImageAnnotations()
+                                    } else {
+                                        backImageUri = path
+                                        backAnnotations = ImageAnnotations()
+                                    }
+                                }.onFailure { error = it.message }
+                            })
+                            DropdownMenuItem(text = { Text("Importar imagen") }, onClick = {
+                                showAnkiImageSourceOptions = false
+                                chooseImage(ankiImageSlot)
                             })
                         }
                     }
