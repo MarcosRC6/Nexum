@@ -629,15 +629,36 @@ fun StudyExerciseEditorScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+                if (frontImageUri != null &&
+                    (flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE, FlashcardKind.IMAGE_OCCLUSION))) {
+                    FilterChip(
+                        selected = flashKind == FlashcardKind.IMAGE_OCCLUSION,
+                        onClick = {
+                            if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
+                                if (masks.isNotEmpty()) error =
+                                    "Elimina primero las zonas ocultas para desactivar este modo."
+                                else flashKind = FlashcardKind.BASIC
+                            } else if (runCatching {
+                                    ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty()
+                                }.getOrDefault(false)) {
+                                error = "Para ocultar zonas en la imagen, elimina primero los huecos de texto. Puedes conservar esta tarjeta y crear otra para la imagen."
+                            } else {
+                                flashKind = FlashcardKind.IMAGE_OCCLUSION
+                                occlusionMarkMode = true
+                            }
+                        },
+                        label = { Text("Ocultar partes de la imagen") }
+                    )
+                }
                 if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
-                    Text("Importa una imagen y pulsa las zonas que quieras ocultar.",
+                    Text("Toca las zonas de la imagen que quieras tapar. Al revelar la tarjeta los bloques desaparecen.",
                         color = TestarioMutedText)
                     frontImageUri?.let { image ->
                         FilterChip(
                             selected = occlusionMarkMode,
                             onClick = { occlusionMarkMode = !occlusionMarkMode },
-                            label = { Text(if (occlusionMarkMode) "Poner máscaras · activo"
-                                else "Poner máscaras") }
+                            label = { Text(if (occlusionMarkMode) "Ocultar zonas · activo"
+                                else "Ocultar zonas") }
                         )
                         EditableAnnotationImage(
                             imageUri = image,
@@ -663,6 +684,31 @@ fun StudyExerciseEditorScreen(
                         )
                     }
                     masks.forEach { mask ->
+                        Text("Zona oculta ${masks.indexOf(mask) + 1}", color = TestarioMutedText)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Ancho", color = TestarioMutedText)
+                            Slider(
+                                value = mask.width.toFloat().coerceIn(.04f,.7f),
+                                onValueChange = { v ->
+                                    masks = masks.map { if (it.id == mask.id)
+                                        it.copy(width = v.toDouble(), x = it.x.coerceAtMost(1.0 - v))
+                                        else it }
+                                },
+                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Alto", color = TestarioMutedText)
+                            Slider(
+                                value = mask.height.toFloat().coerceIn(.04f,.7f),
+                                onValueChange = { v ->
+                                    masks = masks.map { if (it.id == mask.id)
+                                        it.copy(height = v.toDouble(), y = it.y.coerceAtMost(1.0 - v))
+                                        else it }
+                                },
+                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
+                            )
+                        }
                         OutlinedTextField(
                             value = mask.answer,
                             onValueChange = { newText -> masks = masks.map {
