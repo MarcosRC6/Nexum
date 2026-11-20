@@ -41,6 +41,7 @@ import com.example.testario.ui.screen.HomeScreen
 import com.example.testario.ui.screen.NexumBackgroundWatermark
 import com.example.testario.ui.screen.LibraryTopicsScreen
 import com.example.testario.ui.screen.QuestionEditorScreen
+import com.example.testario.ui.screen.NewQuestionType
 import com.example.testario.ui.screen.SettingsScreen
 import com.example.testario.ui.screen.StatsScreen
 import com.example.testario.ui.screen.TestConfigScreen
@@ -298,15 +299,57 @@ fun TestarioApp(
                 )
             }
 
-            composable(Routes.QUESTION_EDITOR) { b ->
-                val tId = b.arguments?.getString("topicId") ?: return@composable
-                val qId = b.arguments?.getString("questionId")
-                QuestionEditorScreen(
-                    topicId = tId,
-                    questionId = qId,
-                    libraryViewModel = libraryViewModel,
-                    onBack = { goBack() }
-                )
+            composable(Routes.QUESTION_EDITOR) { entry ->
+                val topicId = entry.arguments?.getString("topicId") ?: return@composable
+                val questionId = entry.arguments?.getString("questionId")
+                var selectedType by remember(entry) { mutableStateOf(NewQuestionType.TEST) }
+                var pendingType by remember(entry) { mutableStateOf<NewQuestionType?>(null) }
+                val selectType: (NewQuestionType) -> Unit = { requested ->
+                    if (requested != selectedType) pendingType = requested
+                }
+                if (questionId != null || selectedType == NewQuestionType.TEST) {
+                    QuestionEditorScreen(
+                        topicId = topicId,
+                        questionId = questionId,
+                        libraryViewModel = libraryViewModel,
+                        onBack = { goBack() },
+                        creationType = if (questionId == null) selectedType else null,
+                        onCreationTypeChange = selectType
+                    )
+                } else {
+                    StudyExerciseEditorScreen(
+                        topicId = topicId,
+                        exerciseId = null,
+                        initialKind = if (selectedType == NewQuestionType.WRITTEN)
+                            com.example.testario.data.model.StudyExerciseKind.WRITTEN_MULTI
+                        else com.example.testario.data.model.StudyExerciseKind.ANKI_CARD,
+                        libraryViewModel = libraryViewModel,
+                        onBack = { goBack() },
+                        creationType = selectedType,
+                        onCreationTypeChange = selectType
+                    )
+                }
+                pendingType?.let { target ->
+                    AlertDialog(
+                        onDismissRequest = { pendingType = null },
+                        title = { Text("Cambiar tipo de pregunta") },
+                        text = { Text(
+                            "Al cambiar de tipo se descartarán los cambios que aún no hayas guardado. " +
+                                "Las preguntas ya guardadas no se modificarán."
+                        ) },
+                        confirmButton = {
+                            com.example.testario.ui.theme.NeonButton(onClick = {
+                                selectedType = target
+                                pendingType = null
+                            }) { Text("Cambiar") }
+                        },
+                        dismissButton = {
+                            com.example.testario.ui.theme.NeonOutlinedButton(
+                                onClick = { pendingType = null }
+                            ) { Text("Seguir editando") }
+                        }
+                    )
+                }
             }
 
             composable(Routes.STUDY_EXERCISE_EDITOR) { entry ->
