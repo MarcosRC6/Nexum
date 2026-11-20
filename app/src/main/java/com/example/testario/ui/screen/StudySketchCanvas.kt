@@ -49,6 +49,7 @@ internal fun StudySketchCanvas(
     val latestDraw by rememberUpdatedState(onDrawStroke)
     val latestErase by rememberUpdatedState(onEraseStroke)
     val latestMark by rememberUpdatedState(onMarkTap)
+    val liveStrokes by rememberUpdatedState(sketch.strokes)
     val liveZoom by rememberUpdatedState(zoomFactor)
     val latestZoomChange by rememberUpdatedState(onZoomChange)
     val livePenColor by rememberUpdatedState(penArgb)
@@ -67,7 +68,7 @@ internal fun StudySketchCanvas(
     }
     // Detect the full gesture before drawing: two fingers must NEVER leave paint.
     // Eraser behaves like a continuous brush while dragging over existing strokes.
-    val gestures = if (mode == SketchMode.PREVIEW) Modifier else Modifier.pointerInput(mode, sketch.strokes) {
+    val gestures = if (mode == SketchMode.PREVIEW) Modifier else Modifier.pointerInput(mode) {
         awaitEachGesture {
             val first = awaitFirstDown(requireUnconsumed = false)
             val pointStart = coordinates(first.position.x, first.position.y, size.width, size.height)
@@ -78,7 +79,7 @@ internal fun StudySketchCanvas(
             var moved = false
 
             fun eraseAt(p: SketchPoint) {
-                val nearest = sketch.strokes.filterNot { it.id in alreadyErased }.mapNotNull { stroke ->
+                val nearest = liveStrokes.filterNot { it.id in alreadyErased }.mapNotNull { stroke ->
                     stroke.points.minOfOrNull { candidate ->
                         val dx = (candidate.x - p.x) * size.width
                         val dy = (candidate.y - p.y) * size.height
