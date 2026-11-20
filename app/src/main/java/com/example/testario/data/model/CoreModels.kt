@@ -104,6 +104,9 @@ data class Question(
     val explanationImageUri: String? = null,
     // Imagen independiente que solo se muestra al corregir/revisar la pregunta.
     val correctionImageUri: String? = null,
+    /** Separate editable overlays; source image bytes are never modified. */
+    val statementAnnotations: ImageAnnotations = ImageAnnotations(),
+    val correctionAnnotations: ImageAnnotations = ImageAnnotations(),
     // Tema original opcional cuando una pregunta se reorganiza mediante búsqueda/movimiento.
     val originTopicName: String? = null,
     val favorite: Boolean = false,
