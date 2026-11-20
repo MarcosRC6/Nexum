@@ -2,6 +2,7 @@ package com.example.testario.ui.screen
 
 import androidx.compose.ui.platform.LocalContext
 import com.example.testario.domain.ImageManager
+import com.example.testario.domain.WrittenMarkerRules
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -131,22 +132,13 @@ fun StudyExerciseEditorScreen(
             return
         }
         val id = selectedSolutionId ?: return
-        val index = solutions.indexOfFirst { it.id == id }
-        if (index < 0 || solutions[index].text.isBlank()) {
-            error = "Escribe primero el texto de esta solución."
-            return
-        }
-        solutions = solutions.mapIndexed { position, item ->
-            if (item.id == id) item.copy(points = listOf(
-                ImagePoint(x = x, y = y, order = position + 1)
-            )) else item
-        }
+        runCatching { WrittenMarkerRules.place(solutions, id, x, y) }
+            .onSuccess { solutions = it; error = null }
+            .onFailure { error = it.message }
+
     }
     fun removeMarker(markerId: String) {
-        solutions = solutions.mapIndexed { position, item ->
-            item.copy(points = item.points.filterNot { it.id == markerId }
-                .map { it.copy(order = position + 1) })
-        }
+        solutions = WrittenMarkerRules.withoutMarker(solutions, markerId)
         pendingMarkerId = null
     }
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -489,10 +481,7 @@ fun StudyExerciseEditorScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Solución ${index + 1}", color = TestarioText, modifier = Modifier.weight(1f))
                             TextButton(onClick = {
-                                solutions = solutions.filterNot { it.id == solution.id }
-                                    .mapIndexed { position, entry ->
-                                        entry.copy(points = entry.points.map { it.copy(order = position + 1) })
-                                    }
+                                solutions = WrittenMarkerRules.withoutSolution(solutions, solution.id)
                                 if (selectedSolutionId == solution.id)
                                     selectedSolutionId = solutions.firstOrNull()?.id
                             }) { Text("Eliminar") }
