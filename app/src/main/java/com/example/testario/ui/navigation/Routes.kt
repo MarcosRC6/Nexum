@@ -5,6 +5,7 @@ object Routes {
     const val LIBRARY = "library"
     const val TOPIC_DETAIL = "topic/{topicId}"
     const val QUESTION_EDITOR = "question/{topicId}?questionId={questionId}"
+    const val UNIFIED_QUESTION_EDITOR = "newQuestion/{topicId}"
     const val STUDY_EXERCISE_EDITOR = "studyExercise/{topicId}?exerciseId={exerciseId}&initialKind={initialKind}"
     const val STUDY_EXERCISE_PRACTICE = "studyPractice/{topicId}?exerciseId={exerciseId}"
     const val TEST_CONFIG = "testConfig?preselectedTopicId={preselectedTopicId}&templateId={templateId}"
@@ -18,6 +19,7 @@ object Routes {
     const val SETTINGS_HOME = "settingsHome"
 
     fun topicDetail(topicId: String) = "topic/$topicId"
+    fun unifiedQuestionEditor(topicId: String) = "newQuestion/$topicId"
 
     fun questionEditor(topicId: String, questionId: String? = null): String {
         return if (questionId == null) {
