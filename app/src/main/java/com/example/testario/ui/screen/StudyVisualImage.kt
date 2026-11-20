@@ -164,28 +164,9 @@ internal fun StudyVisualImage(
                                 val dy = current.second - originY
                                 if (kotlin.math.abs(dx) > .002 || kotlin.math.abs(dy) > .002) {
                                     dragged = true
-                                    var x = mask.x
-                                    var y = mask.y
-                                    var w = mask.width
-                                    var h = mask.height
-                                    if (handle == "MOVE") {
-                                        x = (mask.x + dx).coerceIn(0.0, 1.0 - w)
-                                        y = (mask.y + dy).coerceIn(0.0, 1.0 - h)
-                                    } else {
-                                        if (handle.contains("L")) {
-                                            x = (mask.x + dx).coerceIn(0.0, mask.x + mask.width - .04)
-                                            w = mask.width + mask.x - x
-                                        }
-                                        if (handle.contains("R"))
-                                            w = (mask.width + dx).coerceIn(.04, 1.0 - x)
-                                        if (handle.contains("T")) {
-                                            y = (mask.y + dy).coerceIn(0.0, mask.y + mask.height - .04)
-                                            h = mask.height + mask.y - y
-                                        }
-                                        if (handle.contains("B"))
-                                            h = (mask.height + dy).coerceIn(.04, 1.0 - y)
-                                    }
-                                    latestMaskUpdate?.invoke(mask.copy(x = x, y = y, width = w, height = h))
+                                    latestMaskUpdate?.invoke(
+                                        moveOrResizeMask(mask, handle, dx, dy)
+                                    )
                                 }
                             }
                         } else if (pressed.size >= 2) {
