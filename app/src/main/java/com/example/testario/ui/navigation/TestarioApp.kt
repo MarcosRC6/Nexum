@@ -368,6 +368,10 @@ fun TestarioApp(
             composable(Routes.MIXED_SESSION) {
                 MixedSessionScreen(
                     session = mixedSessionViewModel,
+                    libraryViewModel = libraryViewModel,
+                    onEditQuestion = { topicId, questionId ->
+                        navController.navigate(Routes.questionEditor(topicId, questionId))
+                    },
                     onLeave = { goTest() }
                 )
             }
