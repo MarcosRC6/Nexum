@@ -42,9 +42,10 @@ object StudyExerciseMerge {
      */
     private fun sketchSignature(drawing: SketchDrawing?): String =
         drawing?.strokes?.joinToString("|") { stroke ->
-            stroke.brush + ":" + stroke.points.joinToString(";") { point ->
-                "${point.x},${point.y}"
-            }
+            "${stroke.brush}:${stroke.colorArgb}:${stroke.opacity}:${stroke.widthFraction}:" +
+                stroke.points.joinToString(";") { point ->
+                    "${point.x},${point.y}"
+                }
         }.orEmpty()
 
     fun unique(incoming: List<StudyExercise>, existing: List<StudyExercise>): List<StudyExercise> {
