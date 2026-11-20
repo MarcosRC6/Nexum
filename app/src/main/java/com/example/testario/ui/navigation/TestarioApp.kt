@@ -368,6 +368,7 @@ fun TestarioApp(
             composable(Routes.MIXED_SESSION) {
                 MixedSessionScreen(
                     session = mixedSessionViewModel,
+                    libraryViewModel = libraryViewModel,
                     onLeave = { goTest() }
                 )
             }
