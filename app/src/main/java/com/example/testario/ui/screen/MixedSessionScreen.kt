@@ -151,6 +151,7 @@ fun MixedSessionScreen(
                     Text(question.text, color = TestarioText, style = MaterialTheme.typography.titleLarge)
                     question.explanationImageUri?.let { path ->
                         StudyVisualImage(imageUri = path,
+                            annotations = question.statementAnnotations,
                             modifier = Modifier.fillMaxWidth().height(220.dp))
                     }
                     question.answers.forEach { answer ->
@@ -172,7 +173,7 @@ fun MixedSessionScreen(
                         }.text, color = TestarioGreen)
                         question.explanation.takeIf(String::isNotBlank)?.let { Text(it, color = TestarioText) }
                         question.correctionImageUri?.let { path ->
-                            StudyVisualImage(imageUri = path,
+                            StudyVisualImage(imageUri = path, annotations = question.correctionAnnotations,
                                 modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true)
                         }
                     }
@@ -189,6 +190,7 @@ fun MixedSessionScreen(
                             }.toMap()
                         } else emptyMap()
                         StudyVisualImage(imageUri = path, modifier = Modifier.fillMaxWidth().height(230.dp),
+                            annotations = exercise.baseAnnotations,
                             markers = exercise.solutions.flatMap { it.points },
                             markerStatuses = statuses, showCorrection = showAnswer)
                     }
@@ -240,6 +242,7 @@ fun MixedSessionScreen(
                         color = TestarioText, style = MaterialTheme.typography.titleLarge)
                     (if (reverse) card.backImageUri else card.frontImageUri)?.let { path ->
                         StudyVisualImage(imageUri = path,
+                            annotations = if (reverse) card.backAnnotations else card.frontAnnotations,
                             modifier = Modifier.fillMaxWidth().height(220.dp),
                             masks = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
                                 card.masks.filter { it.id == item.variant } else emptyList(),
@@ -254,6 +257,7 @@ fun MixedSessionScreen(
                         Text(solutionText.ifBlank { questionText }, color = TestarioGreen)
                         (if (reverse) card.frontImageUri else card.backImageUri)?.let { path ->
                             StudyVisualImage(imageUri = path,
+                                annotations = if (reverse) card.frontAnnotations else card.backAnnotations,
                                 modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true)
                         }
                         Text("Repaso manual: esta tarjeta no cuenta para la nota ni altera Anki.",
