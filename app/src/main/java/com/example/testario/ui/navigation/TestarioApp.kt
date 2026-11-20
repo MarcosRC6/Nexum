@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -307,8 +308,11 @@ fun TestarioApp(
                 val selectType: (NewQuestionType) -> Unit = { requested ->
                     if (requested != selectedType) pendingType = requested
                 }
-                if (questionId != null || selectedType == NewQuestionType.TEST) {
-                    QuestionEditorScreen(
+                // Each selection owns a distinct editing subtree. Changing between
+                // two exercise kinds must NOT inherit hidden inputs from the old kind.
+                key(selectedType) {
+                    if (questionId != null || selectedType == NewQuestionType.TEST) {
+                        QuestionEditorScreen(
                         topicId = topicId,
                         questionId = questionId,
                         libraryViewModel = libraryViewModel,
@@ -327,7 +331,8 @@ fun TestarioApp(
                         onBack = { goBack() },
                         creationType = selectedType,
                         onCreationTypeChange = selectType
-                    )
+                        )
+                    }
                 }
                 pendingType?.let { target ->
                     AlertDialog(
