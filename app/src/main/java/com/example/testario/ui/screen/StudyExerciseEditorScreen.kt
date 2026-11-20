@@ -389,6 +389,7 @@ fun StudyExerciseEditorScreen(
                         TextButton(onClick = { confirmClearSketch = true },
                             enabled = sketchStrokes.isNotEmpty()) { Text("Limpiar dibujo") }
                     }
+                }
                 if (imageUri != null && !sketchEnabled) {
                     EditableAnnotationImage(
                         imageUri = requireNotNull(imageUri),
