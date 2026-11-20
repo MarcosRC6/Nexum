@@ -78,7 +78,7 @@ internal fun DrawScope.drawImageAnnotations(
             }
             drawPath(shape, color, style = Stroke(width = brush,
                 cap = androidx.compose.ui.graphics.StrokeCap.Round,
-                join = androidx.compose.ui.graphics.PathJoin.Round))
+                join = androidx.compose.ui.graphics.StrokeJoin.Round))
         }
     }
 }
