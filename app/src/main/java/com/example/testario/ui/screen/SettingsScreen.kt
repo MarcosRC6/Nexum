@@ -606,8 +606,8 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("Comportamiento de los tests", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                                Text("Prioridad de Fallos y reglas de salida del repaso.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                Text("Comportamiento de los ejercicios", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                Text("Preferencias de Test, respuestas escritas y tarjetas Anki.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
                             Text(if (showBehaviorSettings) "▲" else "▼", color = TestarioPrimary)
                         }
@@ -637,6 +637,29 @@ fun SettingsScreen(
                                     }
                                     Spacer(Modifier.width(10.dp))
                                     Checkbox(checked = behaviorSettingsViewModel.prioritizeFailuresInNormalTests, onCheckedChange = null)
+                                }
+
+                                Row(
+                                    Modifier.fillMaxWidth().clickable {
+                                        libraryViewModel.setAnkiReviewEnabled(!database.ankiReviewEnabled)
+                                    }.padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("Repetición espaciada (Anki)",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = TestarioText)
+                                        Text(
+                                            "Programa los repasos según tu dificultad: Otra vez, Difícil, Bien o Fácil. " +
+                                                "En entrenamientos y exámenes no altera la nota ni el calendario. " +
+                                                "Solo se actualizan fechas cuando eliges expresamente una sesión de repaso programado.",
+                                            color = TestarioMutedText,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                    Spacer(Modifier.width(10.dp))
+                                    Checkbox(checked = database.ankiReviewEnabled,
+                                        onCheckedChange = null)
                                 }
 
                                 Text("Salir de Fallos", style = MaterialTheme.typography.titleMedium, color = TestarioText)
