@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -96,6 +97,7 @@ internal fun StudyVisualImage(
     markers: List<ImagePoint> = emptyList(),
     annotations: ImageAnnotations = ImageAnnotations(),
     showCorrection: Boolean = false,
+    showMarkersBeforeCorrection: Boolean = false,
     markerStatuses: Map<String, Boolean> = emptyMap(),
     onTapImage: ((Double, Double) -> Unit)? = null
 ) {
@@ -138,7 +140,8 @@ internal fun StudyVisualImage(
                                     (fit.height*m.height).toFloat())
                             )
                         }
-                    } else {
+                    }
+                    if (showCorrection || showMarkersBeforeCorrection) {
                         markers.forEach { p ->
                             drawCircle(color = when (markerStatuses[p.id]) {
                                 true -> Color(0xFF51D79D)
@@ -148,10 +151,11 @@ internal fun StudyVisualImage(
                         }
                     }
                 }
-                if (showCorrection) markers.forEach { p ->
+                if (showCorrection || showMarkersBeforeCorrection) markers.forEach { p ->
                     val at = fit.locate(p.x, p.y)
                     Text(
                         text = p.order.toString(),
+                        style = MaterialTheme.typography.titleMedium,
                         color = when (markerStatuses[p.id]) {
                             true -> Color(0xFF51D79D)
                             false -> Color(0xFFEA6877)
