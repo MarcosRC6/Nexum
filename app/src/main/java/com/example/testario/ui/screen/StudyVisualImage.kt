@@ -146,7 +146,7 @@ internal fun StudyVisualImage(
                                 true -> Color(0xFF51D79D)
                                 false -> Color(0xFFEA6877)
                                 null -> Color(0xFFA85AFF)
-                            }, radius = 11.dp.toPx(), center = fit.locate(p.x,p.y))
+                            }, radius = 14.dp.toPx(), center = fit.locate(p.x,p.y))
                         }
                     }
                 }
@@ -157,8 +157,8 @@ internal fun StudyVisualImage(
                         // Label must contrast with the green/red/purple filled pin.
                         color = Color.White,
                         modifier = Modifier.offset(
-                            x = with(density) { at.x.toDp() } - 6.dp,
-                            y = with(density) { at.y.toDp() } - 12.dp
+                            x = with(density) { at.x.toDp() } - 8.dp,
+                            y = with(density) { at.y.toDp() } - 13.dp
                         )
                     )
                 }
