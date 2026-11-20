@@ -212,16 +212,7 @@ internal fun ImageAnnotationEditorDialog(
 
     LaunchedEffect(imageUri) {
         intrinsic = withContext(Dispatchers.IO) {
-            runCatching {
-                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                if (imageUri.startsWith("/")) BitmapFactory.decodeFile(imageUri, options)
-                else context.contentResolver.openInputStream(Uri.parse(imageUri))?.use {
-                    BitmapFactory.decodeStream(it, null, options)
-                }
-                if (options.outWidth > 0 && options.outHeight > 0 &&
-                    options.outWidth.toLong() * options.outHeight <= 100_000_000L)
-                    options.outWidth to options.outHeight else null
-            }.getOrNull()
+            orientedImageSize(context, imageUri)
         }
     }
 
