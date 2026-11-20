@@ -29,6 +29,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -140,6 +142,8 @@ internal fun EditableAnnotationImage(
                 TextButton(onClick = { viewing = false }) { Text("Volver") }
                 StudyVisualImage(
                     imageUri = imageUri, annotations = annotations,
+                    masks = masks, markers = markers,
+                    showCorrection = showCorrection,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     zoomable = true
                 )
@@ -217,6 +221,7 @@ internal fun ImageAnnotationEditorDialog(
     var colorArgb by remember { mutableLongStateOf(0xFFFFD54FL) }
     var sizeScale by remember { mutableFloatStateOf(1f) }
     var highlighterOpacity by remember { mutableFloatStateOf(.34f) }
+    var viewportSize by remember(imageUri) { mutableStateOf(IntSize.Zero) }
     var zoom by remember(imageUri) { mutableFloatStateOf(1f) }
     var pan by remember(imageUri) { mutableStateOf(Offset.Zero) }
     var moveCanvas by remember(imageUri) { mutableStateOf(false) }
@@ -311,7 +316,9 @@ internal fun ImageAnnotationEditorDialog(
                     value = zoom,
                     onValueChange = { target ->
                         zoom = target
-                        if (zoom <= 1.001f) pan = Offset.Zero
+                        pan = clampImagePan(
+                            pan, zoom, viewportSize.width.toFloat(), viewportSize.height.toFloat()
+                        )
                     },
                     valueRange = 1f..5f,
                     modifier = Modifier.weight(1f)
@@ -327,6 +334,7 @@ internal fun ImageAnnotationEditorDialog(
 
             BoxWithConstraints(
                 Modifier.fillMaxWidth().weight(1f)
+                    .onSizeChanged { viewportSize = it }
                     .clip(RoundedCornerShape(12.dp))
                     .background(TestarioSurface)
             ) {
