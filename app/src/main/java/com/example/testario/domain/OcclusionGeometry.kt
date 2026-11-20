@@ -21,20 +21,20 @@ object OcclusionGeometry {
                 right = left + width; bottom = top + height
             }
             Handle.TOP_LEFT -> {
-                left = (left + dx).coerceIn(0.0, right - MIN_SIDE)
-                top = (top + dy).coerceIn(0.0, bottom - MIN_SIDE)
+                left = (left + dx).coerceIn(0.0, (right - MIN_SIDE).coerceAtLeast(0.0))
+                top = (top + dy).coerceIn(0.0, (bottom - MIN_SIDE).coerceAtLeast(0.0))
             }
             Handle.TOP_RIGHT -> {
-                right = (right + dx).coerceIn(left + MIN_SIDE, 1.0)
-                top = (top + dy).coerceIn(0.0, bottom - MIN_SIDE)
+                right = (right + dx).coerceIn((left + MIN_SIDE).coerceAtMost(1.0), 1.0)
+                top = (top + dy).coerceIn(0.0, (bottom - MIN_SIDE).coerceAtLeast(0.0))
             }
             Handle.BOTTOM_LEFT -> {
-                left = (left + dx).coerceIn(0.0, right - MIN_SIDE)
-                bottom = (bottom + dy).coerceIn(top + MIN_SIDE, 1.0)
+                left = (left + dx).coerceIn(0.0, (right - MIN_SIDE).coerceAtLeast(0.0))
+                bottom = (bottom + dy).coerceIn((top + MIN_SIDE).coerceAtMost(1.0), 1.0)
             }
             Handle.BOTTOM_RIGHT -> {
-                right = (right + dx).coerceIn(left + MIN_SIDE, 1.0)
-                bottom = (bottom + dy).coerceIn(top + MIN_SIDE, 1.0)
+                right = (right + dx).coerceIn((left + MIN_SIDE).coerceAtMost(1.0), 1.0)
+                bottom = (bottom + dy).coerceIn((top + MIN_SIDE).coerceAtMost(1.0), 1.0)
             }
         }
         return mask.copy(x = left, y = top, width = right - left, height = bottom - top)
