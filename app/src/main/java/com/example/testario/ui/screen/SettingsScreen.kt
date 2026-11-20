@@ -1245,7 +1245,7 @@ fun SettingsScreen(
             onDismissRequest = cancelImportWorkflow,
             title = { Text("Previsualizar importación") },
             text = { Text(
-                "Temas encontrados: ${prev?.topicCount}\\nElementos válidos: ${prev?.questionCount}\\n" +
+                "Temas encontrados: ${prev?.topicCount}\nElementos válidos: ${prev?.questionCount}\n" +
                 "Se resolverán los conflictos antes de importar y ningún tema se guardará por separado."
             ) },
             confirmButton = {
@@ -1258,6 +1258,7 @@ fun SettingsScreen(
                             )
                             showPreviewDialog = false
                             pendingImportDecisions = emptyList()
+                            isLoading = false
                             startImportWorkflow(topics)
                         } catch (failure: Exception) {
                             message = "Lote inválido: ${failure.message}"
