@@ -152,7 +152,7 @@ fun StudyExercisePracticeScreen(
                         modifier = Modifier.fillMaxWidth().height(240.dp),
                         markers = exercise.solutions.flatMap { it.points },
                         mode = SketchMode.PREVIEW,
-                        showMarkers = completed,
+                        showMarkers = true,
                         markerStatuses = statusByMarker
                     )
                 }
@@ -163,6 +163,7 @@ fun StudyExercisePracticeScreen(
                         annotations = exercise.baseAnnotations,
                         markers = exercise.solutions.flatMap { it.points },
                         showCorrection = completed,
+                        showMarkersBeforeCorrection = true,
                         markerStatuses = statusByMarker
                     )
                 }
@@ -216,11 +217,6 @@ fun StudyExercisePracticeScreen(
                     }
                 }
                 if (!completed) {
-                    OutlinedTextField(value = points, onValueChange = { points = it },
-                        label = { Text("Puntos por acierto") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = penalty, onValueChange = { penalty = it },
-                        label = { Text("Penalización por fallo (negativa o cero)") },
-                        modifier = Modifier.fillMaxWidth())
                     Button(onClick = {
                         val a = points.replace(",", ".").toDoubleOrNull()
                         val b = penalty.replace(",", ".").toDoubleOrNull()
@@ -387,13 +383,6 @@ fun StudyExercisePracticeScreen(
                             Button(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Terminar") }
                         }
                     }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = database.ankiReviewEnabled, onCheckedChange = {
-                        libraryViewModel.setAnkiReviewEnabled(it)
-                        if (!it) scheduledReview = false
-                    })
-                    Text("Activar repetición espaciada", color = TestarioText)
                 }
                 if (database.ankiReviewEnabled) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
