@@ -21,32 +21,43 @@ object SketchStrokeEraser {
     ): List<SketchStroke> {
         if (trail.isEmpty() || strokes.isEmpty() || width <= 0 || height <= 0 ||
             !radiusPx.isFinite() || radiusPx <= 0.0) return strokes
-        val sampledTrail = if (trail.size <= 512) trail else trail.filterIndexed { index, _ ->
-            index % (trail.size / 512 + 1) == 0
-        } + trail.last()
+        val maxTrailSamples = 256
+        val sampledTrail = if (trail.size <= maxTrailSamples) trail else {
+            val stride = trail.size / maxTrailSamples + 1
+            trail.filterIndexed { index, _ -> index % stride == 0 } + trail.last()
+        }
         val radiusSq = radiusPx * radiusPx
+        data class Segment(val ax: Double, val ay: Double, val dx: Double,
+            val dy: Double, val lengthSq: Double)
+        val segments = sampledTrail.zipWithNext().map { (a, b) ->
+            val ax = a.x * width
+            val ay = a.y * height
+            val dx = (b.x - a.x) * width
+            val dy = (b.y - a.y) * height
+            Segment(ax, ay, dx, dy, dx * dx + dy * dy)
+        }
+        val xs = sampledTrail.map { it.x * width }
+        val ys = sampledTrail.map { it.y * height }
+        val left = xs.min() - radiusPx
+        val right = xs.max() + radiusPx
+        val top = ys.min() - radiusPx
+        val bottom = ys.max() + radiusPx
 
         fun nearEraser(p: SketchPoint): Boolean {
             val px = p.x * width
             val py = p.y * height
-            if (sampledTrail.size == 1) {
-                val t = sampledTrail.first()
-                val dx = px - t.x * width
-                val dy = py - t.y * height
+            if (px !in left..right || py !in top..bottom) return false
+            if (segments.isEmpty()) {
+                val dx = px - xs.first()
+                val dy = py - ys.first()
                 return dx * dx + dy * dy <= radiusSq
             }
-            return sampledTrail.zipWithNext().any { (a, b) ->
-                val ax = a.x * width
-                val ay = a.y * height
-                val bx = b.x * width
-                val by = b.y * height
-                val sx = bx - ax
-                val sy = by - ay
-                val distanceSq = sx * sx + sy * sy
-                val t = if (distanceSq < 1e-12) 0.0 else
-                    (((px - ax) * sx + (py - ay) * sy) / distanceSq).coerceIn(0.0, 1.0)
-                val dx = px - (ax + t * sx)
-                val dy = py - (ay + t * sy)
+            return segments.any { segment ->
+                val dot = (px - segment.ax) * segment.dx + (py - segment.ay) * segment.dy
+                val t = if (segment.lengthSq < 1e-12) 0.0 else
+                    (dot / segment.lengthSq).coerceIn(0.0, 1.0)
+                val dx = px - (segment.ax + t * segment.dx)
+                val dy = py - (segment.ay + t * segment.dy)
                 dx * dx + dy * dy <= radiusSq
             }
         }
