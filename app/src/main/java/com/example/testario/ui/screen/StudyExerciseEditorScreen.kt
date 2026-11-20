@@ -378,11 +378,10 @@ fun StudyExerciseEditorScreen(
                                 valueRange = .1f..1f, modifier = Modifier.weight(1f))
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(
                             SketchMode.DRAW to "Dibujar",
                             SketchMode.ERASE to "Borrar",
-                            SketchMode.MARK to "Colocar soluciones",
                             SketchMode.PAN to "Mover"
                         ).forEach { (mode, title) ->
                             FilterChip(selected = sketchMode == mode,
@@ -390,6 +389,12 @@ fun StudyExerciseEditorScreen(
                                 label = { Text(title) })
                         }
                     }
+                    FilterChip(
+                        selected = sketchMode == SketchMode.MARK,
+                        onClick = { sketchMode = SketchMode.MARK },
+                        label = { Text("●  Colocar soluciones") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Zoom", color = TestarioMutedText)
                         Slider(value = sketchZoom, onValueChange = { sketchZoom = it },
@@ -408,6 +413,7 @@ fun StudyExerciseEditorScreen(
                         showMarkers = true,
                         mode = sketchMode,
                         zoomFactor = sketchZoom,
+                        onZoomChange = { sketchZoom = it },
                         penArgb = sketchColor,
                         penWidthFraction = (if (sketchToolHighlighter) .045 else .005) *
                             sketchWidthMultiplier.toDouble(),
