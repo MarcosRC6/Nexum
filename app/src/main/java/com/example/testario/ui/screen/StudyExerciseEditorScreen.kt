@@ -398,23 +398,38 @@ fun StudyExerciseEditorScreen(
                             enabled = sketchStrokes.isNotEmpty()) { Text("Limpiar dibujo") }
                     }
                 } else if (imageUri != null) {
-                    Text("Toca un punto existente para borrarlo; toca otra zona para añadir un número.",
-                        color = TestarioMutedText)
-                    StudyVisualImage(
+                    Text(
+                        if (photoMarkerMode) "Modo números: toca la fotografía para colocar o editar números."
+                        else "Toca la fotografía para ver, anotar o cambiar. Los números van por separado.",
+                        color = TestarioMutedText
+                    )
+                    FilterChip(
+                        selected = photoMarkerMode,
+                        onClick = { photoMarkerMode = !photoMarkerMode },
+                        label = { Text(if (photoMarkerMode) "Poner números · activo" else "Poner números") }
+                    )
+                    EditableAnnotationImage(
                         imageUri = requireNotNull(imageUri),
+                        annotations = baseAnnotations,
                         modifier = Modifier.fillMaxWidth().height(240.dp),
                         markers = solutions.flatMap { it.points },
                         showCorrection = true,
-                        onTapImage = ::placeOrSelectMarker
+                        onMarkerTap = if (photoMarkerMode) ::placeOrSelectMarker else null,
+                        onAnnotationsChanged = { baseAnnotations = it },
+                        onReplace = { chooseImage("written") },
+                        onDelete = {
+                            if (solutions.any { it.points.isNotEmpty() }) {
+                                error = "Retira primero los números vinculados a esta fotografía."
+                            } else {
+                                imageUri = null
+                                baseAnnotations = ImageAnnotations()
+                            }
+                        }
                     )
-                    TextButton(onClick = {
-                        if (solutions.any { it.points.isNotEmpty() }) error =
-                            "Retira primero los marcadores antes de cambiar de imagen."
-                        else imageUri = null
-                    }) { Text("Quitar imagen base") }
                 }
-                OutlinedButton(onClick = { chooseImage("written") }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Importar imagen base")
+                if (imageUri == null) {
+                    OutlinedButton(onClick = { chooseImage("written") },
+                        modifier = Modifier.fillMaxWidth()) { Text("Importar imagen base") }
                 }
             } else {
                 val simpleAnki = flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)
@@ -513,15 +528,32 @@ fun StudyExerciseEditorScreen(
                     Text("Importa una imagen y pulsa las zonas que quieras ocultar.",
                         color = TestarioMutedText)
                     frontImageUri?.let { image ->
-                        StudyVisualImage(
+                        FilterChip(
+                            selected = occlusionMarkMode,
+                            onClick = { occlusionMarkMode = !occlusionMarkMode },
+                            label = { Text(if (occlusionMarkMode) "Poner máscaras · activo"
+                                else "Poner máscaras") }
+                        )
+                        EditableAnnotationImage(
                             imageUri = image,
+                            annotations = frontAnnotations,
                             modifier = Modifier.fillMaxWidth().height(240.dp),
                             masks = masks,
-                            onTapImage = { x, y ->
+                            onMarkerTap = if (occlusionMarkMode) { x, y ->
                                 masks = masks + ImageOcclusionMask(
                                     x = x.coerceAtMost(0.82), y = y.coerceAtMost(0.82),
                                     width = 0.18, height = 0.18
                                 )
+                            } else null,
+                            onAnnotationsChanged = { frontAnnotations = it },
+                            onReplace = { chooseImage("front") },
+                            onDelete = {
+                                if (masks.isNotEmpty()) error =
+                                    "Elimina primero las máscaras asociadas a esta fotografía."
+                                else {
+                                    frontImageUri = null
+                                    frontAnnotations = ImageAnnotations()
+                                }
                             }
                         )
                     }
@@ -542,8 +574,40 @@ fun StudyExerciseEditorScreen(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { chooseImage("front") }) { Text("Imagen pregunta") }
-                    OutlinedButton(onClick = { chooseImage("back") }) { Text("Imagen respuesta") }
+                    if (frontImageUri == null)
+                        OutlinedButton(onClick = { chooseImage("front") }) { Text("Imagen pregunta") }
+                    if (backImageUri == null)
+                        OutlinedButton(onClick = { chooseImage("back") }) { Text("Imagen respuesta") }
+                }
+                if (flashKind != FlashcardKind.IMAGE_OCCLUSION) {
+                    frontImageUri?.let { image ->
+                        Text("Imagen delantera", color = TestarioMutedText)
+                        EditableAnnotationImage(
+                            imageUri = image,
+                            annotations = frontAnnotations,
+                            modifier = Modifier.fillMaxWidth().height(220.dp),
+                            onAnnotationsChanged = { frontAnnotations = it },
+                            onReplace = { chooseImage("front") },
+                            onDelete = {
+                                frontImageUri = null
+                                frontAnnotations = ImageAnnotations()
+                            }
+                        )
+                    }
+                }
+                backImageUri?.let { image ->
+                    Text("Imagen trasera", color = TestarioMutedText)
+                    EditableAnnotationImage(
+                        imageUri = image,
+                        annotations = backAnnotations,
+                        modifier = Modifier.fillMaxWidth().height(220.dp),
+                        onAnnotationsChanged = { backAnnotations = it },
+                        onReplace = { chooseImage("back") },
+                        onDelete = {
+                            backImageUri = null
+                            backAnnotations = ImageAnnotations()
+                        }
+                    )
                 }
                 if (frontImageUri != null || backImageUri != null)
                     Text("Imágenes asociadas: ${listOfNotNull(frontImageUri, backImageUri).size}",
@@ -572,6 +636,7 @@ fun StudyExerciseEditorScreen(
                             }
                             ex.baseImageUri?.let { image ->
                                 StudyVisualImage(image, modifier = Modifier.fillMaxWidth().height(220.dp),
+                                    annotations = ex.baseAnnotations,
                                     markers = ex.solutions.flatMap { it.points },
                                     showCorrection = previewRevealed)
                             }
@@ -585,7 +650,8 @@ fun StudyExerciseEditorScreen(
                                     ClozeMarkupEngine.mask(card.front, card.gaps, 0),
                                     color = TestarioText)
                                 card.frontImageUri?.let { image ->
-                                    StudyVisualImage(image, modifier = Modifier.fillMaxWidth().height(190.dp))
+                                    StudyVisualImage(image, modifier = Modifier.fillMaxWidth().height(190.dp),
+                                        annotations = card.frontAnnotations)
                                 }
                                 if (previewRevealed) {
                                     Divider()
