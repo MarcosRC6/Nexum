@@ -42,6 +42,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,8 +99,8 @@ fun QuestionEditorScreen(
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
-    var questionText by remember { mutableStateOf(existingQuestion?.text ?: "") }
-    var answers by remember {
+    var questionText by rememberSaveable(questionId) { mutableStateOf(existingQuestion?.text ?: "") }
+    var answers by rememberSaveable(questionId, stateSaver = answersDraftSaver) {
         mutableStateOf(
             existingQuestion?.answers ?: listOf(
                 Answer(id = "a", text = ""),
@@ -109,15 +110,15 @@ fun QuestionEditorScreen(
         )
     }
 
-    var correctAnswerId by remember { mutableStateOf(existingQuestion?.correctAnswerId ?: "") }
-    var difficulty by remember { mutableStateOf(existingQuestion?.difficulty) }
-    var explanation by remember { mutableStateOf(existingQuestion?.explanation ?: "") }
+    var correctAnswerId by rememberSaveable(questionId) { mutableStateOf(existingQuestion?.correctAnswerId ?: "") }
+    var difficulty by rememberSaveable(questionId) { mutableStateOf(existingQuestion?.difficulty) }
+    var explanation by rememberSaveable(questionId) { mutableStateOf(existingQuestion?.explanation ?: "") }
     // El campo histórico explanationImageUri se conserva como imagen del enunciado por compatibilidad.
-    var statementImageUri by remember { mutableStateOf(existingQuestion?.explanationImageUri) }
-    var correctionImageUri by remember { mutableStateOf(existingQuestion?.correctionImageUri) }
-    var statementAnnotations by remember { mutableStateOf(existingQuestion?.statementAnnotations ?: ImageAnnotations()) }
-    var correctionAnnotations by remember { mutableStateOf(existingQuestion?.correctionAnnotations ?: ImageAnnotations()) }
-    var flagged by remember { mutableStateOf(existingQuestion?.flagged ?: false) }
+    var statementImageUri by rememberSaveable(questionId) { mutableStateOf(existingQuestion?.explanationImageUri) }
+    var correctionImageUri by rememberSaveable(questionId) { mutableStateOf(existingQuestion?.correctionImageUri) }
+    var statementAnnotations by rememberSaveable(questionId, stateSaver = annotationsDraftSaver) { mutableStateOf(existingQuestion?.statementAnnotations ?: ImageAnnotations()) }
+    var correctionAnnotations by rememberSaveable(questionId, stateSaver = annotationsDraftSaver) { mutableStateOf(existingQuestion?.correctionAnnotations ?: ImageAnnotations()) }
+    var flagged by rememberSaveable(questionId) { mutableStateOf(existingQuestion?.flagged ?: false) }
     var imageTargetMenuExpanded by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
