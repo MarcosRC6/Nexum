@@ -106,8 +106,14 @@ fun StudyExerciseEditorScreen(
     var showImageAddMenu by remember(exerciseId) { mutableStateOf(false) }
     var justCreatedImage by remember(exerciseId) { mutableStateOf<String?>(null) }
     var showAnkiImageMenu by remember(exerciseId) { mutableStateOf(false) }
+    var pendingAnkiImageTarget by remember(exerciseId) { mutableStateOf<String?>(null) }
+    var showAnkiOcclusions by remember(exerciseId) {
+        mutableStateOf(original?.flashcard?.kind == FlashcardKind.IMAGE_OCCLUSION)
+    }
+
     var showHowItWorks by remember(exerciseId) { mutableStateOf(false) }
     var showSelectionTurnEditor by remember(exerciseId) { mutableStateOf<Int?>(null) }
+    var turnMenuGap by remember(exerciseId) { mutableStateOf<Int?>(null) }
     var customTurnInput by remember(exerciseId) { mutableStateOf("1") }
     var showCustomTurnInput by remember(exerciseId) { mutableStateOf(false) }
 
@@ -240,9 +246,13 @@ fun StudyExerciseEditorScreen(
                 gap.copy(id = matched.id, hint = matched.hint)
             } else gap
         }
-        val effectiveKind = if (flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)) {
-            if (markup.gaps.isEmpty()) FlashcardKind.BASIC else FlashcardKind.CLOZE
-        } else flashKind
+        val effectiveKind = when {
+            flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE) &&
+                masks.isNotEmpty() && markup.gaps.isEmpty() -> FlashcardKind.IMAGE_OCCLUSION
+            flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE) ->
+                if (markup.gaps.isEmpty()) FlashcardKind.BASIC else FlashcardKind.CLOZE
+            else -> flashKind
+        }
         val card = if (exerciseKind == StudyExerciseKind.ANKI_CARD) FlashcardContent(
             kind = effectiveKind, front = markup.text, back = back,
             frontImageUri = frontImageUri, backImageUri = backImageUri,
@@ -261,6 +271,65 @@ fun StudyExerciseEditorScreen(
             sketch = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI && sketchEnabled)
                 SketchDrawing(strokes = sketchStrokes) else null,
             revision = original?.revision ?: 1, draft = draft
+        )
+    }
+
+    pendingAnkiImageTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingAnkiImageTarget = null },
+            title = { Text(if (target == "front") "Imagen de pregunta" else "Imagen de respuesta") },
+            text = { Text("Puedes crear un lienzo con rotulador y subrayador o importar una fotografía.") },
+            confirmButton = {
+                Button(onClick = {
+                    pendingAnkiImageTarget = null
+                    createBlankImage(target)
+                }) { Text("Crear imagen") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { pendingAnkiImageTarget = null }) {
+                        Text("Cancelar")
+                    }
+                    OutlinedButton(onClick = {
+                        pendingAnkiImageTarget = null
+                        chooseImage(target)
+                    }) { Text("Importar imagen") }
+                }
+            }
+        )
+    }
+
+    showSelectionTurnEditor?.let { gapIndex ->
+        AlertDialog(
+            onDismissRequest = { showSelectionTurnEditor = null },
+            title = { Text("Número de turno") },
+            text = {
+                OutlinedTextField(
+                    value = customTurnInput,
+                    onValueChange = { customTurnInput = it.filter(Char::isDigit).take(3) },
+                    label = { Text("Turno (1–999)") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val number = customTurnInput.toIntOrNull()
+                    if (number !in 1..999) error = "Número entre 1 y 999."
+                    else runCatching {
+                        val parsed = ClozeMarkupEngine.parse(front.text)
+                        val updated = parsed.gaps.toMutableList()
+                        updated[gapIndex] = updated[gapIndex].copy(groupNumber = number)
+                        ClozeMarkupEngine.encode(parsed.text, updated)
+                    }.onSuccess {
+                        front = TextFieldValue(it)
+                        showSelectionTurnEditor = null
+                        error = null
+                    }.onFailure { error = it.message }
+                }) { Text("Aplicar") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showSelectionTurnEditor = null }) { Text("Cancelar") }
+            }
         )
     }
 
