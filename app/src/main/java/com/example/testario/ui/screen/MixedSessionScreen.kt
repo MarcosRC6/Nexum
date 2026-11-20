@@ -222,15 +222,20 @@ fun MixedSessionScreen(
                 MixedItemType.ANKI -> {
                     val exercise = requireNotNull(item.exercise)
                     val card = requireNotNull(exercise.flashcard)
-                    val front = if (card.kind == FlashcardKind.CLOZE)
-                        ClozeMarkupEngine.mask(card.front, card.gaps, item.clozeCursor)
-                        else card.front
-                    Text(if (showAnswer) card.front else front,
+                    val reverse = item.variant == "reverse"
+                    val questionText = if (reverse) card.back else card.front
+                    val solutionText = if (reverse) card.front else card.back
+                    val maskedQuestion = if (!reverse && card.kind == FlashcardKind.CLOZE)
+                        ClozeMarkupEngine.mask(questionText, card.gaps, item.clozeCursor)
+                        else questionText
+                    Text(if (showAnswer) questionText else maskedQuestion,
                         color = TestarioText, style = MaterialTheme.typography.titleLarge)
-                    card.frontImageUri?.let { path ->
+                    (if (reverse) card.backImageUri else card.frontImageUri)?.let { path ->
                         StudyVisualImage(imageUri = path,
                             modifier = Modifier.fillMaxWidth().height(220.dp),
-                            masks = card.masks, showCorrection = showAnswer)
+                            masks = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
+                                card.masks.filter { it.id == item.variant } else emptyList(),
+                            showCorrection = showAnswer)
                     }
                     if (!showAnswer) {
                         Button(onClick = { session.revealAnki() },
@@ -238,8 +243,8 @@ fun MixedSessionScreen(
                             Text("Mostrar respuesta")
                         }
                     } else {
-                        Text(card.back.ifBlank { card.front }, color = TestarioGreen)
-                        card.backImageUri?.let { path ->
+                        Text(solutionText.ifBlank { questionText }, color = TestarioGreen)
+                        (if (reverse) card.frontImageUri else card.backImageUri)?.let { path ->
                             StudyVisualImage(imageUri = path,
                                 modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true)
                         }
