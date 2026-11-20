@@ -74,6 +74,56 @@ class StudyExerciseRulesTest {
         assertTrue(errors.any { it.contains("requiere imagen") })
     }
 
+    @Test fun writtenPictureMarkersRequireTheCorrectAnswerInTheMatchingNumberedField() {
+        val ex = written(
+            CanonicalSolution(id = "s1", text = "Uno", points = listOf(
+                ImagePoint(id = "p1", x = .15, y = .25, order = 1)
+            )),
+            CanonicalSolution(id = "s2", text = "Dos", points = listOf(
+                ImagePoint(id = "p2", x = .35, y = .5, order = 2)
+            )),
+            CanonicalSolution(id = "s3", text = "Tres", points = listOf(
+                ImagePoint(id = "p3", x = .75, y = .75, order = 3)
+            ))
+        ).copy(baseImageUri = "/private/photo.png")
+        assertTrue(StudyExerciseRules.errors(ex).isEmpty())
+        val swapped = StudyExerciseRules.gradeWritten(ex, listOf("Dos", "Uno", "Tres"))
+        assertEquals(1, swapped.correct)
+        assertEquals(2, swapped.incorrect)
+        assertEquals(setOf("s3"), swapped.correctIds)
+        val blankMiddle = StudyExerciseRules.gradeWritten(ex, listOf("Uno", "", "Tres"))
+        assertEquals(2, blankMiddle.correct)
+        assertEquals(1, blankMiddle.omitted)
+        assertEquals(0, blankMiddle.incorrect)
+        val full = StudyExerciseRules.gradeWritten(ex, listOf("Uno", "Dos", "Tres"))
+        assertEquals(3, full.correct)
+        assertEquals(10.0, full.scoreOutOfTen, 0.0)
+    }
+
+    @Test fun plainWrittenSolutionsAreStillAcceptedInAnyOrder() {
+        val ex = written(
+            CanonicalSolution(id = "one", text = "Uno"),
+            CanonicalSolution(id = "two", text = "Dos")
+        )
+        assertEquals(2, StudyExerciseRules.gradeWritten(ex, listOf("Dos", "Uno")).correct)
+    }
+
+    @Test fun removingMiddleWrittenSolutionAlsoRemovesItsMarkerAndRenumbersThird() {
+        val before = listOf(
+            CanonicalSolution(id = "one", text = "Uno",
+                points = listOf(ImagePoint(id = "m1", x = .1, y = .2, order = 1))),
+            CanonicalSolution(id = "two", text = "Dos",
+                points = listOf(ImagePoint(id = "m2", x = .2, y = .3, order = 2))),
+            CanonicalSolution(id = "three", text = "Tres",
+                points = listOf(ImagePoint(id = "m3", x = .3, y = .4, order = 3)))
+        )
+        val remaining = StudyExerciseRules.removeSolutionAndRenumber(before, "two")
+        assertEquals(listOf("one", "three"), remaining.map { it.id })
+        assertEquals(listOf(1, 2), remaining.flatMap { it.points }.map { it.order })
+        assertFalse(remaining.flatMap { it.points }.any { it.id == "m2" })
+        assertEquals("m3", remaining.last().points.single().id)
+    }
+
     @Test fun clozeGapsCannotOverlap() {
         val ex = StudyExercise(
             kind = StudyExerciseKind.ANKI_CARD, prompt = "",
