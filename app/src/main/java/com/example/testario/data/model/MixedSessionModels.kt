@@ -15,6 +15,8 @@ data class MixedSessionItem(
     val topicId: String,
     val topicName: String,
     val type: MixedItemType,
+    /** REVERSED notes have direct/reverse; occlusion notes use mask IDs. */
+    val variant: String = "direct",
     val question: Question? = null,
     val exercise: StudyExercise? = null,
     /** Cursor captured at creation so a resumed question cannot change mid-session. */
