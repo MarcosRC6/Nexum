@@ -40,17 +40,21 @@ internal object ImageDisplayGeometry {
                 val h = options.outHeight
                 if (w <= 0 || h <= 0 || w.toLong() * h > 100_000_000L)
                     return@runCatching null
-                val orientation = if (local) {
-                    ExifInterface(file.absolutePath).getAttributeInt(
-                        ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL
-                    )
-                } else {
-                    context.contentResolver.openInputStream(uri)?.use {
-                        ExifInterface(it).getAttributeInt(
+                // PNGs and custom blank canvases may carry no EXIF at all.
+                // Image bounds are valid even when metadata parsing fails.
+                val orientation = runCatching {
+                    if (local) {
+                        ExifInterface(file.absolutePath).getAttributeInt(
                             ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL
                         )
-                    } ?: ExifInterface.ORIENTATION_NORMAL
-                }
+                    } else {
+                        context.contentResolver.openInputStream(uri)?.use {
+                            ExifInterface(it).getAttributeInt(
+                                ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL
+                            )
+                        } ?: ExifInterface.ORIENTATION_NORMAL
+                    }
+                }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
                 orientedDimensions(w, h, orientation)
             }.getOrNull()
         }
