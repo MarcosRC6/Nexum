@@ -334,11 +334,8 @@ fun StudyExerciseEditorScreen(
                         })
                     }
                 }
-                if (sketchEnabled) {
-                    OutlinedButton(onClick = { sketchEnabled = false }, modifier = Modifier.fillMaxWidth()) {
-                        Text("Cerrar creador de imagen")
-                    }
-                }
+                // The canvas must remain active until the exercise is saved or the
+                // user explicitly replaces it. Hiding it previously discarded all strokes.
                 if ((sketchEnabled && sketchMode == SketchMode.MARK) ||
                     (imageUri != null && photoMarkerMode)) {
                     Text("Selecciona la solución y toca la imagen para colocar o mover su número", color = TestarioMutedText)
@@ -695,7 +692,11 @@ fun StudyExerciseEditorScreen(
                             modifier = Modifier.fillMaxWidth().height(310.dp),
                             masks = masks,
                             onAddMask = { x, y ->
-                                masks = masks + ImageOcclusionMask(
+                                // Taps on an existing rectangle must not create overlapping masks.
+                                if (masks.none { m ->
+                                    x >= m.x && x <= m.x + m.width &&
+                                        y >= m.y && y <= m.y + m.height
+                                }) masks = masks + ImageOcclusionMask(
                                     x = x.coerceIn(0.0,.82),
                                     y = y.coerceIn(0.0,.82),
                                     width = .18, height = .18
