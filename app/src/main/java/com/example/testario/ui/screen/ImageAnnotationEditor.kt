@@ -54,6 +54,9 @@ internal fun EditableAnnotationImage(
     imageUri: String,
     annotations: ImageAnnotations,
     modifier: Modifier = Modifier,
+    markers: List<ImagePoint> = emptyList(),
+    masks: List<ImageOcclusionMask> = emptyList(),
+    showCorrection: Boolean = false,
     onAnnotationsChanged: (ImageAnnotations) -> Unit,
     onReplace: () -> Unit,
     onDelete: () -> Unit,
@@ -69,6 +72,7 @@ internal fun EditableAnnotationImage(
     StudyVisualImage(
         imageUri = imageUri,
         annotations = annotations,
+        markers = markers, masks = masks, showCorrection = showCorrection,
         modifier = modifier,
         onTapImage = if (onMarkerTap != null) onMarkerTap else { _, _ -> showActions = true }
     )
