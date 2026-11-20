@@ -189,6 +189,7 @@ fun TestarioApp(
             "calendar" -> goPlan("calendar")
             "settings" -> goSettings()
             "home" -> goHome()
+            "home_today" -> goHome()
             NexumQuickTestWidgetModel.LAUNCH_ROUTE -> {
                 // Reuse the same resolver as linked tests: no duplicated logic,
                 // database migrations, or guessed template defaults.
@@ -247,7 +248,9 @@ fun TestarioApp(
                         } else {
                             Toast.makeText(context, "No se pudo recuperar el test guardado.", Toast.LENGTH_LONG).show()
                         }
-                    }
+                    },
+                    focusTodayRequestId = if (requestedDestinationRoute == "home_today")
+                        navigationRequestId else null
                 )
             }
 
