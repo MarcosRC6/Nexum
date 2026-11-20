@@ -570,7 +570,7 @@ fun StudyExerciseEditorScreen(
                         color = TestarioText, style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f)
                     )
-                    Box {
+                    if (frontImageUri == null || backImageUri == null) Box {
                         TextButton(onClick = { showAnkiImageMenu = true }) {
                             Text("Añadir imagen +", color = TestarioPrimary)
                         }
@@ -580,6 +580,7 @@ fun StudyExerciseEditorScreen(
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Imagen de pregunta") },
+                                enabled = frontImageUri == null,
                                 onClick = {
                                     showAnkiImageMenu = false
                                     pendingAnkiImageTarget = "front"
@@ -587,6 +588,7 @@ fun StudyExerciseEditorScreen(
                             )
                             DropdownMenuItem(
                                 text = { Text("Imagen de respuesta") },
+                                enabled = backImageUri == null,
                                 onClick = {
                                     showAnkiImageMenu = false
                                     pendingAnkiImageTarget = "back"
