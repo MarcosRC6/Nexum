@@ -134,7 +134,7 @@ fun MixedSessionScreen(
                         MixedItemType.WRITTEN -> {
                             val ex = requireNotNull(item.exercise)
                             Text(ex.prompt, color = TestarioText)
-                            val grade = StudyExerciseRules.gradeWritten(
+                            val grade = StudyExerciseRules.gradeWrittenInSession(
                                 ex, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
                             )
                             Text("Nota: ${"%.2f".format(grade.scoreOutOfTen)} / 10 · " +
@@ -298,7 +298,7 @@ fun MixedSessionScreen(
                     Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
                     exercise.baseImageUri?.let { path ->
                         val statuses = if (showAnswer) {
-                            val grade = StudyExerciseRules.gradeWritten(
+                            val grade = StudyExerciseRules.gradeWrittenInSession(
                                 exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong)
                             exercise.solutions.flatMap { solution ->
                                 solution.points.map { point -> point.id to (solution.id in grade.correctIds) }
@@ -317,7 +317,7 @@ fun MixedSessionScreen(
                             mode = SketchMode.PREVIEW, showMarkers = true,
                             markerStatuses = if (showAnswer) exercise.solutions.flatMap { solution ->
                                 solution.points.map { point ->
-                                    point.id to (solution.id in StudyExerciseRules.gradeWritten(
+                                    point.id to (solution.id in StudyExerciseRules.gradeWrittenInSession(
                                         exercise, response.writtenAnswers,
                                         current.pointsCorrect, current.penaltyWrong
                                     ).correctIds)
@@ -349,7 +349,7 @@ fun MixedSessionScreen(
                             Text(if (current.mode == TestMode.EXAM) "Guardar respuestas" else "Comprobar")
                         }
                     } else {
-                        val graded = StudyExerciseRules.gradeWritten(
+                        val graded = StudyExerciseRules.gradeWrittenInSession(
                             exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
                         )
                         Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
