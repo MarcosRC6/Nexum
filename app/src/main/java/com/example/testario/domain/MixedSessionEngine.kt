@@ -35,11 +35,23 @@ object MixedSessionEngine {
                     if (contentFilter == SessionContentFilter.MIXED ||
                         (contentFilter == SessionContentFilter.WRITTEN && type == MixedItemType.WRITTEN) ||
                         (contentFilter == SessionContentFilter.ANKI && type == MixedItemType.ANKI)
-                    ) add(MixedSessionItem(
-                        id = "exercise:${exercise.id}", topicId = topic.id, topicName = topic.name,
-                        type = type, exercise = exercise,
-                        clozeCursor = clozeCursors[exercise.id] ?: 0
-                    ))
+                    ) {
+                        val variants = if (type == MixedItemType.ANKI) when (exercise.flashcard?.kind) {
+                            FlashcardKind.REVERSED -> listOf("direct", "reverse")
+                            FlashcardKind.IMAGE_OCCLUSION ->
+                                exercise.flashcard.masks.map { it.id }
+                            else -> listOf("direct")
+                        } else listOf("direct")
+                        variants.forEach { variant ->
+                            add(MixedSessionItem(
+                                id = if (variant == "direct") "exercise:${exercise.id}"
+                                    else "exercise:${exercise.id}:$variant",
+                                topicId = topic.id, topicName = topic.name,
+                                type = type, variant = variant, exercise = exercise,
+                                clozeCursor = clozeCursors[exercise.id] ?: 0
+                            ))
+                        }
+                    }
                 }
             }
         }
