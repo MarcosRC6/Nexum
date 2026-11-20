@@ -213,7 +213,6 @@ fun MixedSessionScreen(
             val response = current.responses[current.currentIndex]
             val showAnswer = response.revealed
             val locked = current.remainingSeconds == 0
-            Text(item.topicName, color = TestarioMutedText)
             when (item.type) {
                 MixedItemType.TEST -> {
                     val question = requireNotNull(item.question)
@@ -325,6 +324,13 @@ fun MixedSessionScreen(
                     }
                 }
                 MixedItemType.WRITTEN -> {
+                    Card(modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = TestarioSurface)) {
+                        Column(Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(item.topicName.uppercase(), color = TestarioPrimary,
+                                style = MaterialTheme.typography.labelMedium)
                     val exercise = requireNotNull(item.exercise)
                     Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
                     exercise.baseImageUri?.let { path ->
@@ -390,8 +396,17 @@ fun MixedSessionScreen(
                         if (missing.isNotEmpty()) Text("Faltaban: " +
                             missing.joinToString(" · ") { it.text }, color = TestarioRed)
                     }
+                        }
+                    }
                 }
                 MixedItemType.ANKI -> {
+                    Card(modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = TestarioSurface)) {
+                        Column(Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(item.topicName.uppercase(), color = TestarioPrimary,
+                                style = MaterialTheme.typography.labelMedium)
                     val exercise = requireNotNull(item.exercise)
                     val card = requireNotNull(exercise.flashcard)
                     val reverse = item.variant == "reverse"
@@ -421,6 +436,8 @@ fun MixedSessionScreen(
                             StudyVisualImage(imageUri = path,
                                 annotations = if (reverse) card.frontAnnotations else card.backAnnotations,
                                 modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true)
+                        }
+                    }
                         }
                     }
                 }
