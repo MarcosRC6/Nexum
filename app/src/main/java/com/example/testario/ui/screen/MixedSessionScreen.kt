@@ -32,6 +32,18 @@ fun MixedSessionScreen(
     val error by session.error.collectAsState()
     val scope = rememberCoroutineScope()
     var exitConfirm by remember { mutableStateOf(false) }
+    val active = snapshot?.takeUnless { it.completed }?.let { it.items.getOrNull(it.currentIndex) }
+    val currentResponse = snapshot?.takeUnless { it.completed }?.let { it.responses.getOrNull(it.currentIndex) }
+    var writtenInput by rememberSaveable(active?.id) {
+        mutableStateOf(currentResponse?.writtenAnswers?.joinToString("\n").orEmpty())
+    }
+    fun persistDraft(): Boolean {
+        if (active?.type != MixedItemType.WRITTEN || currentResponse?.revealed == true) return true
+        val lines = writtenInput.lines().map(String::trim).filter(String::isNotBlank)
+        return if (currentResponse?.writtenAnswers == lines) true
+            else session.submitWritten(writtenInput, reveal = false)
+    }
+
 
     BackHandler(enabled = snapshot != null && result == null) { exitConfirm = true }
 
@@ -179,9 +191,6 @@ fun MixedSessionScreen(
                             mode = SketchMode.PREVIEW, showMarkers = showAnswer
                         )
                     }
-                    var writtenInput by rememberSaveable(item.id) {
-                        mutableStateOf(response.writtenAnswers.joinToString("\n"))
-                    }
                     OutlinedTextField(
                         value = writtenInput,
                         onValueChange = { writtenInput = it },
@@ -242,15 +251,15 @@ fun MixedSessionScreen(
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    onClick = { session.goTo(current.currentIndex - 1) },
+                    onClick = { if (persistDraft()) session.goTo(current.currentIndex - 1) },
                     modifier = Modifier.weight(1f),
                     enabled = !locked && current.currentIndex > 0
                 ) { Text("Anterior") }
                 if (current.currentIndex < current.items.lastIndex) {
-                    Button(onClick = { session.goTo(current.currentIndex + 1) },
+                    Button(onClick = { if (persistDraft()) session.goTo(current.currentIndex + 1) },
                         modifier = Modifier.weight(1f), enabled = !locked) { Text("Siguiente") }
                 } else {
-                    Button(onClick = { scope.launch { session.finish() } },
+                    Button(onClick = { if (persistDraft()) scope.launch { session.finish() } },
                         modifier = Modifier.weight(1f)) { Text("Finalizar") }
                 }
             }
@@ -267,7 +276,7 @@ fun MixedSessionScreen(
             text = { Text("Se conservarán los elementos, las respuestas y el tiempo para retomarla después.") },
             confirmButton = {
                 Button(onClick = {
-                    if (session.saveAndLeave()) {
+                    if (persistDraft() && session.saveAndLeave()) {
                         exitConfirm = false
                         onLeave()
                     }
