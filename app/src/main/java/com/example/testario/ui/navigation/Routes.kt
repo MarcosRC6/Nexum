@@ -5,9 +5,12 @@ object Routes {
     const val LIBRARY = "library"
     const val TOPIC_DETAIL = "topic/{topicId}"
     const val QUESTION_EDITOR = "question/{topicId}?questionId={questionId}"
+    const val STUDY_EXERCISE_EDITOR = "studyExercise/{topicId}?exerciseId={exerciseId}&initialKind={initialKind}"
+    const val STUDY_EXERCISE_PRACTICE = "studyPractice/{topicId}?exerciseId={exerciseId}"
     const val TEST_CONFIG = "testConfig?preselectedTopicId={preselectedTopicId}&templateId={templateId}"
     const val GROUPS = "groups"
     const val TEST_SCREEN = "testScreen"
+    const val MIXED_SESSION = "mixedSession"
     const val PLAN = "plan/{tab}"
     const val CALENDAR = "calendar"
     const val STATS = "stats"
@@ -23,6 +26,15 @@ object Routes {
             "question/$topicId?questionId=$questionId"
         }
     }
+
+    fun studyExerciseEditor(topicId: String, exerciseId: String? = null, initialKind: String? = null): String =
+        "studyExercise/$topicId" + buildList {
+            if (exerciseId != null) add("exerciseId=$exerciseId")
+            if (initialKind != null) add("initialKind=$initialKind")
+        }.let { if (it.isEmpty()) "" else "?" + it.joinToString("&") }
+
+    fun studyExercisePractice(topicId: String, exerciseId: String? = null): String =
+        "studyPractice/$topicId" + (exerciseId?.let { "?exerciseId=$it" } ?: "")
 
     fun testConfig(preselectedTopicId: String? = null, templateId: String? = null): String {
         val params = buildList {

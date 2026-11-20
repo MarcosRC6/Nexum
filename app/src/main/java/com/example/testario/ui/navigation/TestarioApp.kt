@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
@@ -41,11 +42,15 @@ import com.example.testario.ui.screen.HomeScreen
 import com.example.testario.ui.screen.NexumBackgroundWatermark
 import com.example.testario.ui.screen.LibraryTopicsScreen
 import com.example.testario.ui.screen.QuestionEditorScreen
+import com.example.testario.ui.screen.NewQuestionType
 import com.example.testario.ui.screen.SettingsScreen
 import com.example.testario.ui.screen.StatsScreen
 import com.example.testario.ui.screen.TestConfigScreen
 import com.example.testario.ui.screen.TestScreen
+import com.example.testario.ui.screen.MixedSessionScreen
 import com.example.testario.ui.screen.TopicDetailScreen
+import com.example.testario.ui.screen.StudyExerciseEditorScreen
+import com.example.testario.ui.screen.StudyExercisePracticeScreen
 import com.example.testario.ui.screen.UnifiedPlanScreen
 import com.example.testario.ui.theme.TestarioTheme
 import com.example.testario.viewmodel.BehaviorSettingsViewModel
@@ -54,6 +59,7 @@ import com.example.testario.viewmodel.ImportExportViewModel
 import com.example.testario.viewmodel.LibraryViewModel
 import com.example.testario.viewmodel.StatsViewModel
 import com.example.testario.viewmodel.TestSessionViewModel
+import com.example.testario.viewmodel.MixedSessionViewModel
 import com.example.testario.viewmodel.ThemeViewModel
 
 @Composable
@@ -71,11 +77,14 @@ fun TestarioApp(
     val statsViewModel: StatsViewModel = viewModel()
     val importExportViewModel: ImportExportViewModel = viewModel()
     val sessionViewModel: TestSessionViewModel = viewModel()
+    val mixedSessionViewModel: MixedSessionViewModel = viewModel()
 
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val context = LocalContext.current
     val timerState by PlanarioDependencies.studyTimerController.state.collectAsState()
+    val recoveryError by libraryViewModel.recoveryError.collectAsState()
+    var recoveryNoticeDismissed by remember { mutableStateOf(false) }
     var showTimerExitDialog by remember { mutableStateOf(false) }
     var announcedRelease by remember { mutableStateOf<NexumRelease?>(null) }
     var dismissedUpdateNotice by remember { mutableStateOf(false) }
@@ -182,6 +191,7 @@ fun TestarioApp(
             "calendar" -> goPlan("calendar")
             "settings" -> goSettings()
             "home" -> goHome()
+            "home_today" -> goHome()
             NexumQuickTestWidgetModel.LAUNCH_ROUTE -> {
                 // Reuse the same resolver as linked tests: no duplicated logic,
                 // database migrations, or guessed template defaults.
@@ -240,7 +250,9 @@ fun TestarioApp(
                         } else {
                             Toast.makeText(context, "No se pudo recuperar el test guardado.", Toast.LENGTH_LONG).show()
                         }
-                    }
+                    },
+                    focusTodayRequestId = if (requestedDestinationRoute == "home_today")
+                        navigationRequestId else null
                 )
             }
 
@@ -279,19 +291,88 @@ fun TestarioApp(
                     onBack = { goBack() },
                     onAddQuestion = { navController.navigate(Routes.questionEditor(id)) },
                     onEditQuestion = { qId -> navController.navigate(Routes.questionEditor(id, qId)) },
+                    onAddExercise = { kind -> navController.navigate(Routes.studyExerciseEditor(id, initialKind = kind.name)) },
+                    onEditExercise = { exId -> navController.navigate(Routes.studyExerciseEditor(id, exId)) },
+                    onPracticeExercises = { exerciseId ->
+                        navController.navigate(Routes.studyExercisePractice(id, exerciseId))
+                    },
                     onStartTest = { topicIdParaTest -> navController.navigate(Routes.testConfig(topicIdParaTest)) }
                 )
             }
 
-            composable(Routes.QUESTION_EDITOR) { b ->
-                val tId = b.arguments?.getString("topicId") ?: return@composable
-                val qId = b.arguments?.getString("questionId")
-                QuestionEditorScreen(
-                    topicId = tId,
-                    questionId = qId,
+            composable(Routes.QUESTION_EDITOR) { entry ->
+                val topicId = entry.arguments?.getString("topicId") ?: return@composable
+                val questionId = entry.arguments?.getString("questionId")
+                var selectedType by remember(entry) { mutableStateOf(NewQuestionType.TEST) }
+                var pendingType by remember(entry) { mutableStateOf<NewQuestionType?>(null) }
+                val selectType: (NewQuestionType) -> Unit = { requested ->
+                    if (requested != selectedType) pendingType = requested
+                }
+                // Each selection owns a distinct editing subtree. Changing between
+                // two exercise kinds must NOT inherit hidden inputs from the old kind.
+                key(selectedType) {
+                    if (questionId != null || selectedType == NewQuestionType.TEST) {
+                        QuestionEditorScreen(
+                        topicId = topicId,
+                        questionId = questionId,
+                        libraryViewModel = libraryViewModel,
+                        onBack = { goBack() },
+                        creationType = if (questionId == null) selectedType else null,
+                        onCreationTypeChange = selectType
+                    )
+                } else {
+                    StudyExerciseEditorScreen(
+                        topicId = topicId,
+                        exerciseId = null,
+                        initialKind = if (selectedType == NewQuestionType.WRITTEN)
+                            com.example.testario.data.model.StudyExerciseKind.WRITTEN_MULTI
+                        else com.example.testario.data.model.StudyExerciseKind.ANKI_CARD,
+                        libraryViewModel = libraryViewModel,
+                        onBack = { goBack() },
+                        creationType = selectedType,
+                        onCreationTypeChange = selectType
+                        )
+                    }
+                }
+                pendingType?.let { target ->
+                    AlertDialog(
+                        onDismissRequest = { pendingType = null },
+                        title = { Text("Cambiar tipo de pregunta") },
+                        text = { Text(
+                            "Al cambiar de tipo se descartarán los cambios que aún no hayas guardado. " +
+                                "Las preguntas ya guardadas no se modificarán."
+                        ) },
+                        confirmButton = {
+                            com.example.testario.ui.theme.NeonButton(onClick = {
+                                selectedType = target
+                                pendingType = null
+                            }) { Text("Cambiar") }
+                        },
+                        dismissButton = {
+                            com.example.testario.ui.theme.NeonOutlinedButton(
+                                onClick = { pendingType = null }
+                            ) { Text("Seguir editando") }
+                        }
+                    )
+                }
+            }
+
+            composable(Routes.STUDY_EXERCISE_EDITOR) { entry ->
+                val topicId = entry.arguments?.getString("topicId") ?: return@composable
+                StudyExerciseEditorScreen(
+                    topicId = topicId,
+                    exerciseId = entry.arguments?.getString("exerciseId"),
+                    initialKind = entry.arguments?.getString("initialKind")?.let {
+                        runCatching { com.example.testario.data.model.StudyExerciseKind.valueOf(it) }.getOrNull()
+                    } ?: com.example.testario.data.model.StudyExerciseKind.WRITTEN_MULTI,
                     libraryViewModel = libraryViewModel,
                     onBack = { goBack() }
                 )
+            }
+            composable(Routes.STUDY_EXERCISE_PRACTICE) { entry ->
+                val topicId = entry.arguments?.getString("topicId") ?: return@composable
+                StudyExercisePracticeScreen(topicId, libraryViewModel, onBack = { goBack() },
+                    selectedExerciseId = entry.arguments?.getString("exerciseId"))
             }
 
             composable(Routes.TEST_CONFIG) { backStackEntry ->
@@ -300,6 +381,7 @@ fun TestarioApp(
                 TestConfigScreen(
                     libraryViewModel = libraryViewModel,
                     sessionViewModel = sessionViewModel,
+                    mixedSessionViewModel = mixedSessionViewModel,
                     preselectedTopicId = preselectedTopicId,
                     preselectedTemplateId = preselectedTemplateId,
                     onBack = { goBack() },
@@ -308,7 +390,8 @@ fun TestarioApp(
                     onPlan = { goPlan() },
                     onStats = { goStats() },
                     onSettings = { goSettings() },
-                    onStart = { navController.navigate(Routes.TEST_SCREEN) }
+                    onStart = { navController.navigate(Routes.TEST_SCREEN) },
+                    onStartMixed = { navController.navigate(Routes.MIXED_SESSION) }
                 )
             }
 
@@ -319,6 +402,13 @@ fun TestarioApp(
                     statsViewModel = statsViewModel,
                     onFinish = { goHome() },
                     onEditQuestion = { topicId, questionId -> navController.navigate(Routes.questionEditor(topicId, questionId)) }
+                )
+            }
+
+            composable(Routes.MIXED_SESSION) {
+                MixedSessionScreen(
+                    session = mixedSessionViewModel,
+                    onLeave = { goTest() }
                 )
             }
 
@@ -393,6 +483,24 @@ fun TestarioApp(
                 )
             }
             }
+        }
+
+        if (recoveryError != null && !recoveryNoticeDismissed) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Biblioteca protegida") },
+                text = {
+                    Text(recoveryError.orEmpty() +
+                        "\n\nLa base original se conserva. En Ajustes puedes restaurar una copia global ZIP compatible. " +
+                        "No crees temas ni realices sincronizaciones hasta recuperar los datos.")
+                },
+                confirmButton = {
+                    com.example.testario.ui.theme.NeonButton(onClick = {
+                        recoveryNoticeDismissed = true
+                        goSettings()
+                    }) { Text("Abrir Ajustes") }
+                }
+            )
         }
 
         if (showTimerExitDialog && timerState.studyTimerState == StudyTimerState.RUNNING) {

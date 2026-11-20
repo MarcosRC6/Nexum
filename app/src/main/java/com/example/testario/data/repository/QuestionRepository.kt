@@ -360,7 +360,10 @@ class QuestionRepository(
                 question.explanationImageUri == path || question.correctionImageUri == path
             }
 
-        if (!stillReferenced) {
+        val referencedByExercise = db.topics.asSequence()
+            .flatMap { it.exercises.asSequence() }
+            .any { path in it.referencedImageUris() }
+        if (!stillReferenced && !referencedByExercise) {
             imageManager.deleteImage(path)
         }
     }

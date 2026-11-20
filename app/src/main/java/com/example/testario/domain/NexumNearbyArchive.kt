@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FilterOutputStream
@@ -67,6 +68,51 @@ class NexumNearbyArchive(private val context: Context) {
         } catch (error: Exception) {
             file.delete()
             throw error
+        }
+    }
+
+    /**
+     * Manual global restore uses the same verified, reversible transaction
+     * coordinator as Nearby reception. A failure retains a durable recovery
+     * ZIP in private storage instead of silently leaving mixed data.
+     */
+    /** Legacy Testario-only restore receives the SAME pre-operation rescue
+     * snapshot as manual global restore. Planario is left unchanged on success.
+     * If the legacy reader fails after copying images, replay the full verified
+     * backup to recover the old Library and every image reference.
+     */
+    suspend fun applyUserSelectedTestarioBackup(bytes: ByteArray): String =
+        withContext(Dispatchers.IO + NonCancellable) {
+            require(PlanarioDependencies.studyTimerController.state.value.studyTimerState ==
+                StudyTimerState.STOPPED) {
+                "Guarda el cronómetro antes de restaurar la biblioteca."
+            }
+            val recovery = makeVerifiedRecovery()
+            val applied = runCatching {
+                val ok = unified.restoreTestarioBackup(bytes)
+                if (ok) TestarioLocalStore.get(context).flushCurrentForSync()
+                ok
+            }.getOrDefault(false)
+            if (!applied) {
+                val restored = runCatching {
+                    val ok = unified.restoreGlobalBackup(readLimited(recovery))
+                    if (ok) TestarioLocalStore.get(context).flushCurrentForSync()
+                    ok
+                }.getOrDefault(false)
+                error(if (restored) "La restauración falló; se recuperaron los datos previos."
+                    else "La restauración falló; se conserva la copia preventiva. No elimines datos.")
+            }
+            recoveryFiles().drop(3).forEach { runCatching { it.delete() } }
+            recovery.name
+        }
+
+    suspend fun applyUserSelectedGlobalBackup(bytes: ByteArray): String {
+        val expected = MessageDigest.getInstance("SHA-256").digest(bytes).hex()
+        val prepared = stageReceiver(ByteArrayInputStream(bytes), expected, bytes.size.toLong())
+        return try {
+            applyToReceiver(prepared)
+        } finally {
+            cleanup(prepared)
         }
     }
 
