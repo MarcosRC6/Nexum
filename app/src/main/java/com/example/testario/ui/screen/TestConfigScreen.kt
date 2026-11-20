@@ -61,6 +61,7 @@ import com.example.planario.app.PlanarioDependencies
 import com.example.testario.data.model.GroupQuestionAllocation
 import com.example.testario.data.model.SavedFailureScope
 import com.example.testario.data.model.SavedTestScope
+import com.example.testario.data.model.SessionContentFilter
 import com.example.testario.data.model.TestConfig
 import com.example.testario.data.model.TestGroupAllocation
 import com.example.testario.data.model.TestMode
@@ -68,6 +69,7 @@ import com.example.testario.data.model.TestTemplate
 import com.example.testario.data.model.Topic
 import com.example.testario.data.model.TopicGroup
 import com.example.testario.domain.GroupHierarchy
+import com.example.testario.domain.MixedSessionEngine
 import com.example.testario.domain.SmartSelectionEngine
 import com.example.testario.ui.theme.FourItemDropdown
 import com.example.testario.ui.theme.TestarioNeonSurface
@@ -84,6 +86,7 @@ import com.example.testario.ui.theme.TestarioText
 import com.example.testario.ui.theme.TestarioYellow
 import com.example.testario.viewmodel.LibraryViewModel
 import com.example.testario.viewmodel.TestSessionViewModel
+import com.example.testario.viewmodel.MixedSessionViewModel
 import kotlin.math.roundToInt
 
 enum class TestScope { GLOBAL, TOPIC, GROUPS, FAILURES }
@@ -94,6 +97,7 @@ private enum class FailureScope { GLOBAL, TOPIC }
 fun TestConfigScreen(
     libraryViewModel: LibraryViewModel,
     sessionViewModel: TestSessionViewModel,
+    mixedSessionViewModel: MixedSessionViewModel,
     preselectedTopicId: String? = null,
     preselectedTemplateId: String? = null,
     onBack: () -> Unit,
@@ -102,13 +106,15 @@ fun TestConfigScreen(
     onPlan: () -> Unit,
     onStats: () -> Unit,
     onSettings: () -> Unit,
-    onStart: () -> Unit
+    onStart: () -> Unit,
+    onStartMixed: () -> Unit
 ) {
     val database by libraryViewModel.database.collectAsState()
     val studySettings by PlanarioDependencies.studyRepository.settings.collectAsState()
     val selectionEngine = remember { SmartSelectionEngine() }
 
     var mode by remember { mutableStateOf(TestMode.TRAINING) }
+    var contentFilter by remember { mutableStateOf(SessionContentFilter.TEST) }
     var scope by remember { mutableStateOf(if (preselectedTopicId != null) TestScope.TOPIC else TestScope.GLOBAL) }
     var failureScope by remember { mutableStateOf(FailureScope.GLOBAL) }
 
@@ -136,6 +142,7 @@ fun TestConfigScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var infoMessage by remember { mutableStateOf<String?>(null) }
 
+    val pendingMixed by mixedSessionViewModel.pending.collectAsState()
     val context = LocalContext.current
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -211,6 +218,22 @@ fun TestConfigScreen(
         }
     }
 
+    // Count each modality in the same topic/group selector; do not report only
+    // old multiple-choice Questions when the user selects Enumerar or Anki.
+    val mixedAvailable = MixedSessionEngine.available(
+        selectedTopics, contentFilter,
+        if (scope == TestScope.FAILURES) TestMode.FAILURES else mode,
+        if (difficulty == null) emptySet() else setOf(difficulty),
+        database.ankiClozeCursors
+    )
+    val availableCount = if (contentFilter == SessionContentFilter.TEST)
+        availableQuestions.size else mixedAvailable.size
+    val availableIdsByTopic = if (contentFilter == SessionContentFilter.TEST)
+        availableByTopic.mapValues { (_, questions) -> questions.map { it.id } }
+    else selectedTopics.associate { topic ->
+        topic.id to mixedAvailable.filter { it.topicId == topic.id }.map { it.id }
+    }
+
     val runtimeGroupAllocations = remember(database.groups, groupAllocations) {
         groupAllocations.map { allocation ->
             TestGroupAllocation(
@@ -223,11 +246,25 @@ fun TestConfigScreen(
 
     val assignedGroupQuestions = groupAllocations.sumOf { it.questionCount.coerceAtLeast(0) }
     val requestedCount = questionCountText.toIntOrNull() ?: 0
-    val groupedFeasible = remember(availableByTopic, runtimeGroupAllocations) {
+    val groupedFeasible = if (contentFilter == SessionContentFilter.TEST)
         runtimeGroupAllocations.isNotEmpty() &&
             runtimeGroupAllocations.all { it.questionCount > 0 && it.topicIds.isNotEmpty() } &&
             selectionEngine.canFulfillGroupedSelection(availableByTopic, runtimeGroupAllocations)
-    }
+    else runCatching {
+        // A deterministic dry-run catches overlapping groups and insufficient
+        // content without modifying or persisting anything.
+        MixedSessionEngine.create(
+            selectedTopics,
+            TestConfig(
+                mode = mode, topicIds = selectedTopics.map { it.id },
+                questionCount = requestedCount, difficulties = if (difficulty == null)
+                    emptySet() else setOf(difficulty),
+                groupAllocations = runtimeGroupAllocations
+            ),
+            contentFilter,
+            database.ankiClozeCursors
+        )
+    }.isSuccess
     val difficultyPercentTotal = easyPercent + mediumPercent + hardPercent
 
     fun loadTemplate(template: TestTemplate) {
@@ -235,6 +272,7 @@ fun TestConfigScreen(
         val validGroupIds = database.groups.mapTo(hashSetOf()) { it.id }
 
         mode = template.mode
+        contentFilter = template.contentFilter
         scope = when (template.scope) {
             SavedTestScope.GLOBAL -> TestScope.GLOBAL
             SavedTestScope.TOPIC -> TestScope.TOPIC
@@ -304,7 +342,8 @@ fun TestConfigScreen(
         easyPercent = easyPercent,
         mediumPercent = mediumPercent,
         hardPercent = hardPercent,
-        difficultyFilterEnabled = difficultyFilterEnabled
+        difficultyFilterEnabled = difficultyFilterEnabled,
+        contentFilter = contentFilter
     )
 
     Scaffold(
@@ -394,13 +433,48 @@ fun TestConfigScreen(
                 }
             }
 
+            if (pendingMixed != null) {
+                SettingsLikeCard {
+                    Text("Tienes una sesión mixta guardada.", color = TestarioPrimary)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = {
+                            if (mixedSessionViewModel.resume()) onStartMixed()
+                        }, modifier = Modifier.weight(1f)) { Text("Retomar") }
+                        OutlinedButton(onClick = {
+                            mixedSessionViewModel.discardSaved()
+                        }, modifier = Modifier.weight(1f)) { Text("Descartar") }
+                    }
+                }
+            }
             SectionTitle("Modo")
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 SelectableBigCard("Entrenamiento", "Corrige al momento", mode == TestMode.TRAINING, Modifier.weight(1f)) { mode = TestMode.TRAINING; error = null }
                 SelectableBigCard("Examen", "Corrige al final", mode == TestMode.EXAM, Modifier.weight(1f)) { mode = TestMode.EXAM; error = null }
             }
 
-            SectionTitle("Número de preguntas")
+            SectionTitle("Tipo de contenido")
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                CompactScopeButton("Test", contentFilter == SessionContentFilter.TEST, Modifier.weight(1f)) {
+                    contentFilter = SessionContentFilter.TEST; error = null
+                }
+                CompactScopeButton("Enumerar", contentFilter == SessionContentFilter.WRITTEN, Modifier.weight(1f)) {
+                    contentFilter = SessionContentFilter.WRITTEN; error = null
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                CompactScopeButton("Tarjetas", contentFilter == SessionContentFilter.ANKI, Modifier.weight(1f)) {
+                    contentFilter = SessionContentFilter.ANKI; error = null
+                }
+                CompactScopeButton("Mixto", contentFilter == SessionContentFilter.MIXED, Modifier.weight(1f)) {
+                    contentFilter = SessionContentFilter.MIXED; error = null
+                }
+            }
+            if (scope == TestScope.FAILURES && contentFilter != SessionContentFilter.TEST) {
+                Text("El repaso de fallos está disponible solo para preguntas test. Cambia el origen o el tipo.",
+                    color = TestarioRed)
+            }
+
+            SectionTitle("Número de elementos")
             OutlinedTextField(
                 value = questionCountText,
                 onValueChange = { questionCountText = it.filter(Char::isDigit); error = null },
@@ -447,7 +521,7 @@ fun TestConfigScreen(
                         groups = sortedGroupsForSelect,
                         allGroups = database.groups,
                         allocations = groupAllocations,
-                        availableByTopic = availableByTopic,
+                        availableByTopic = availableIdsByTopic,
                         requestedCount = requestedCount,
                         onAllocationsChanged = { groupAllocations = it; error = null }
                     )
@@ -594,7 +668,7 @@ fun TestConfigScreen(
                 }
             }
 
-            InfoCard("Preguntas disponibles", "${availableQuestions.size}")
+            InfoCard("Elementos disponibles", "$availableCount")
             if (difficultyFilterEnabled) InfoCard("Reparto dificultad", "$difficultyPercentTotal%")
             if (infoMessage != null) Text(infoMessage.orEmpty(), color = TestarioPrimary, modifier = Modifier.padding(horizontal = 4.dp))
             if (error != null) Text(error.orEmpty(), color = TestarioRed, modifier = Modifier.padding(horizontal = 4.dp))
@@ -621,6 +695,9 @@ fun TestConfigScreen(
                         parsedPenalty == null || parsedPenalty > 0 -> "La penalización debe ser 0 o negativa."
                         mode == TestMode.EXAM && scope != TestScope.FAILURES && timerEnabled && parsedTimer <= 0 -> "El temporizador debe ser mayor que 0 minutos."
                         difficultyFilterEnabled && difficultyPercentTotal <= 0 -> "El reparto de dificultad no puede ser 0% en todo."
+                        scope == TestScope.FAILURES && contentFilter != SessionContentFilter.TEST ->
+                            "El repaso de fallos solo permite preguntas test."
+                        availableCount == 0 -> "No hay elementos disponibles de este tipo."
                         groupError != null -> groupError
                         else -> null
                     }
@@ -650,14 +727,16 @@ fun TestConfigScreen(
                         scope == TestScope.GROUPS && runtimeGroupAllocations.any { it.topicIds.isEmpty() } -> error = "Uno de los grupos seleccionados no contiene ningún tema."
                         scope == TestScope.GROUPS && !groupedFeasible -> error = "No se pueden cumplir simultáneamente esas cuotas sin repetir preguntas. Reduce alguna cantidad o revisa los grupos solapados."
                         scope == TestScope.FAILURES && failureScope == FailureScope.TOPIC && selectedFailureTopicIds.isEmpty() -> error = "Selecciona al menos un tema para los fallos."
+                        scope == TestScope.FAILURES && contentFilter != SessionContentFilter.TEST ->
+                            error = "El repaso de fallos solo permite preguntas test."
                         requestedCount <= 0 -> error = "El número de preguntas debe ser mayor que 0."
                         pointsCorrect == null -> error = "Los puntos por acierto no son válidos."
                         pointsCorrect <= 0 -> error = "Los puntos por acierto deben ser mayores que 0."
                         penaltyWrong == null -> error = "La penalización no es válida."
                         penaltyWrong > 0 -> error = "La penalización debe ser 0 o negativa."
                         mode == TestMode.EXAM && scope != TestScope.FAILURES && timerEnabled && timerMinutes <= 0 -> error = "El temporizador debe ser mayor que 0 minutos."
-                        availableQuestions.isEmpty() -> error = "No hay preguntas disponibles para esa selección."
-                        scope != TestScope.GROUPS && requestedCount > availableQuestions.size -> error = "Solo hay ${availableQuestions.size} preguntas disponibles; reduce la cantidad."
+                        availableCount == 0 -> error = "No hay elementos disponibles para esa modalidad."
+                        scope != TestScope.GROUPS && requestedCount > availableCount -> error = "Solo hay $availableCount elementos disponibles; reduce la cantidad."
                         difficultyFilterEnabled && difficultyPercentTotal <= 0 -> error = "El reparto de dificultad no puede ser 0% en todo."
                         else -> {
                             val finalMode = if (scope == TestScope.FAILURES) TestMode.FAILURES else mode
@@ -675,10 +754,20 @@ fun TestConfigScreen(
                                 mediumPercent = if (difficultyFilterEnabled) mediumPercent else 0,
                                 hardPercent = if (difficultyFilterEnabled) hardPercent else 0,
                                 difficultyFilterEnabled = difficultyFilterEnabled,
-                                groupAllocations = if (scope == TestScope.GROUPS) runtimeGroupAllocations else emptyList()
+                                groupAllocations = if (scope == TestScope.GROUPS) runtimeGroupAllocations else emptyList(),
+                                contentFilter = contentFilter
                             )
-                            sessionViewModel.start(selectedTopics, config)
-                            onStart()
+                            if (contentFilter == SessionContentFilter.TEST) {
+                                sessionViewModel.start(selectedTopics, config)
+                                onStart()
+                            } else if (mixedSessionViewModel.start(
+                                selectedTopics, config.copy(contentFilter = contentFilter),
+                                database.ankiClozeCursors
+                            )) {
+                                onStartMixed()
+                            } else {
+                                error = mixedSessionViewModel.error.value
+                            }
                         }
                     }
                 },
@@ -772,7 +861,7 @@ private fun GroupAllocationEditor(
     groups: List<TopicGroup>,
     allGroups: List<TopicGroup>,
     allocations: List<GroupQuestionAllocation>,
-    availableByTopic: Map<String, List<com.example.testario.data.model.Question>>,
+    availableByTopic: Map<String, List<String>>,
     requestedCount: Int,
     onAllocationsChanged: (List<GroupQuestionAllocation>) -> Unit
 ) {
@@ -804,7 +893,7 @@ private fun GroupAllocationEditor(
                 val topicIds = GroupHierarchy.resolveTopicIds(allGroups, allocation.groupId)
                 val availableCount = topicIds.asSequence()
                     .flatMap { availableByTopic[it].orEmpty().asSequence() }
-                    .distinctBy { it.id }
+                    .distinct()
                     .count()
                 GroupAllocationRow(
                     groups = groups,

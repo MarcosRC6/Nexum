@@ -25,7 +25,8 @@ data class TestConfig(
     val mediumPercent: Int = 33,
     val hardPercent: Int = 34,
     val difficultyFilterEnabled: Boolean = true,
-    val groupAllocations: List<TestGroupAllocation> = emptyList()
+    val groupAllocations: List<TestGroupAllocation> = emptyList(),
+    val contentFilter: SessionContentFilter = SessionContentFilter.TEST
 )
 
 data class TestQuestionState(
