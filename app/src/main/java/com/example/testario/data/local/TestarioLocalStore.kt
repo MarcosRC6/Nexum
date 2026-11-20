@@ -57,6 +57,7 @@ class TestarioLocalStore private constructor(context: Context) {
                     val oldVersion = org.json.JSONObject(rawText).optInt("version", 0)
                     if (oldVersion in 0..3) saveOriginalBeforeV4(rawText)
                     if (oldVersion in 0..4) saveOriginalBeforeV5(rawText)
+                    if (oldVersion in 0..5) saveOriginalBeforeV6(rawText)
                     writeDatabaseAtomically(db)
                 }
 
@@ -143,6 +144,21 @@ class TestarioLocalStore private constructor(context: Context) {
             writeDatabaseAtomically(db)
             _database.value = db
             _recoveryError.value = null
+        }
+    }
+
+    /** Preserve exact source bytes before v6 migration, never replace first backup. */
+    private fun saveOriginalBeforeV6(originalJson: String) {
+        val backup = File(file.parentFile, "nexum_before_v6_database.json")
+        if (backup.isFile && backup.length() > 0) return
+        val snapshot = AtomicFile(backup)
+        val output = snapshot.startWrite()
+        try {
+            output.write(originalJson.toByteArray(Charsets.UTF_8))
+            snapshot.finishWrite(output)
+        } catch (error: Exception) {
+            snapshot.failWrite(output)
+            throw error
         }
     }
 
