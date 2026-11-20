@@ -32,6 +32,23 @@ class SketchAnnotationCodecTest {
         assertEquals("highlighter", drawing.strokes.single().brush)
     }
 
+    @Test fun oldAndReeditedSamePurpleSketchHaveSameVisualSignature() {
+        val oldSketch = SketchDrawing(listOf(SketchStroke(
+            id = "random-old", brush = "purple",
+            points = listOf(SketchPoint(.1,.2), SketchPoint(.8,.9))
+        )))
+        val reedited = SketchAnnotationCodec.fromAnnotations(
+            SketchAnnotationCodec.toAnnotations(oldSketch)
+        )
+        val first = StudyExercise(
+            kind = StudyExerciseKind.WRITTEN_MULTI, prompt = "Dibuja",
+            solutions = listOf(CanonicalSolution(text = "A")),
+            sketch = oldSketch
+        )
+        assertEquals(StudyExerciseMerge.signature(first),
+            StudyExerciseMerge.signature(first.copy(sketch = reedited)))
+    }
+
     @Test fun highlighterCreatedImageIsAcceptedByWrittenExerciseValidation() {
         val ink = ImageAnnotations(listOf(
             ImageAnnotationStroke(
