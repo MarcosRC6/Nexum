@@ -44,6 +44,7 @@ fun MixedSessionScreen(
     val scope = rememberCoroutineScope()
     var exitConfirm by remember { mutableStateOf(false) }
     var discardConfirm by remember { mutableStateOf(false) }
+    var reviewingResults by rememberSaveable { mutableStateOf(false) }
     val active = snapshot?.takeUnless { it.completed }?.let { it.items.getOrNull(it.currentIndex) }
     val currentResponse = snapshot?.takeUnless { it.completed }?.let { it.responses.getOrNull(it.currentIndex) }
     var writtenInput by rememberSaveable(active?.id) {
@@ -80,9 +81,11 @@ fun MixedSessionScreen(
             }
 
             Text(
-                "Elemento ${current.currentIndex + 1} de ${current.items.size} · " +
-                    if (current.mode == TestMode.EXAM) "Examen" else "Entrenamiento",
-                color = TestarioMutedText
+                "Pregunta ${current.currentIndex + 1} de ${current.items.size} · " +
+                    "⏱ %02d:%02d".format(current.elapsedSeconds / 60,
+                        current.elapsedSeconds % 60),
+                color = TestarioMutedText,
+                style = MaterialTheme.typography.bodyMedium
             )
             if (current.remainingSeconds != null) {
                 Text(
@@ -92,23 +95,42 @@ fun MixedSessionScreen(
                     style = MaterialTheme.typography.titleMedium
                 )
             }
-            Text("Tiempo registrado: ${current.elapsedSeconds / 60} min ${current.elapsedSeconds % 60} s",
-                color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
             if (error != null) Text(error.orEmpty(), color = TestarioRed)
 
             if (result != null) {
                 val finished = requireNotNull(result)
-                Text("Sesión finalizada", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                if (finished.scoreOutOfTen == null) {
-                    Text("Sin nota objetiva · ${finished.manualReviewItems} tarjetas de repaso manual.",
-                        color = TestarioPrimary)
-                } else {
-                    Text("Nota objetiva: ${"%.2f".format(finished.scoreOutOfTen)} / 10",
-                        color = TestarioGreen, style = MaterialTheme.typography.titleLarge)
-                    Text("${finished.objectiveItems} elementos puntuables · " +
-                        "${finished.manualReviewItems} tarjetas excluidas de la nota.",
-                        color = TestarioMutedText)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = TestarioSurface)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (finished.scoreOutOfTen == null) {
+                            Text("Repaso completado",
+                                style = MaterialTheme.typography.headlineLarge,
+                                color = TestarioPrimary)
+                        } else {
+                            Text("%.2f/10".format(finished.scoreOutOfTen),
+                                style = MaterialTheme.typography.displayLarge,
+                                color = if (finished.scoreOutOfTen >= 5.0)
+                                    TestarioGreen else TestarioRed)
+                            Text(
+                                "${finished.objectiveItems} ejercicios puntuables · " +
+                                    "${finished.correctTest} tests acertados · " +
+                                    "${finished.wrongTest} fallados",
+                                color = TestarioMutedText,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
                 }
+                OutlinedButton(
+                    onClick = { reviewingResults = !reviewingResults },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(if (reviewingResults) "Cerrar revisión" else "Revisar preguntas") }
+                if (reviewingResults) {
                 current.items.zip(current.responses).forEachIndexed { idx, pair ->
                     val (item, response) = pair
                     HorizontalDivider()
@@ -143,7 +165,10 @@ fun MixedSessionScreen(
                         }
                     }
                 }
-                Button(onClick = onLeave, modifier = Modifier.fillMaxWidth()) { Text("Terminar") }
+                }
+                Button(onClick = onLeave, modifier = Modifier.fillMaxWidth()) {
+                    Text("Volver al inicio")
+                }
                 return@Column
             }
 
