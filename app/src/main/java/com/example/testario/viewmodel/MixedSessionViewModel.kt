@@ -177,8 +177,10 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun saveAndLeave(): Boolean {
-        ticker?.cancel()
-        return checkpoint()
+        // A failed checkpoint must never silently stop the clock.
+        val saved = checkpoint()
+        if (saved) ticker?.cancel()
+        return saved
     }
 
     suspend fun finish(): Boolean {
@@ -202,13 +204,23 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun discardSaved(): Boolean {
-        ticker?.cancel()
-        store.clear()
-        _pending.value = null
-        _snapshot.value = null
-        _result.value = null
-        _error.value = null
-        return true
+        // Delete the persisted snapshot before clearing memory. Otherwise a
+        // failed deletion could unexpectedly resurrect a discarded exam.
+        return runCatching {
+            store.clear()
+            check(store.load() == null) {
+                "No se pudo eliminar el examen guardado."
+            }
+            ticker?.cancel()
+            _pending.value = null
+            _snapshot.value = null
+            _result.value = null
+            _error.value = null
+            true
+        }.getOrElse {
+            _error.value = it.message ?: "No se pudo descartar la sesión."
+            false
+        }
     }
 
     override fun onCleared() {
