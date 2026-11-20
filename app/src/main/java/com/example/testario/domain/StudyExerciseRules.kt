@@ -91,6 +91,11 @@ object StudyExerciseRules {
     /** Returns all reasons; draft records may be saved without passing validation. */
     fun errors(exercise: StudyExercise): List<String> {
         val errors = mutableListOf<String>()
+        errors += ImageAnnotationRules.errors(exercise.baseAnnotations)
+        exercise.flashcard?.let { card ->
+            errors += ImageAnnotationRules.errors(card.frontAnnotations)
+            errors += ImageAnnotationRules.errors(card.backAnnotations)
+        }
         if (exercise.id.isBlank()) errors += "ID de ejercicio vacío."
         if (exercise.revision < 1) errors += "Revisión de ejercicio inválida."
         if (exercise.prompt.isBlank() && exercise.kind == StudyExerciseKind.WRITTEN_MULTI)
