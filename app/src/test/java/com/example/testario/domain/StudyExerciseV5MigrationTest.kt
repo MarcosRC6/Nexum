@@ -37,7 +37,7 @@ class StudyExerciseV5MigrationTest {
         )
         val migrated=MigrationManager.migrate(json.encodeToString(old))
         val restored=json.decodeFromString<TestarioDatabase>(migrated)
-        assertEquals(6,restored.version)
+        assertEquals(7,restored.version)
         assertEquals("old-question",restored.topics[0].questions[0].id)
         assertEquals("old-anki",restored.topics[0].exercises[0].id)
         assertEquals("gap1",restored.topics[0].exercises[0].flashcard?.gaps?.first()?.id)
@@ -70,7 +70,7 @@ class StudyExerciseV5MigrationTest {
         val restored = json.decodeFromString<TestarioDatabase>(
             MigrationManager.migrate(json.encodeToString(old))
         )
-        assertEquals(6, restored.version)
+        assertEquals(7, restored.version)
         assertEquals("original", restored.topics.single().id)
         assertEquals(3, restored.ankiClozeCursors["anki"])
         assertTrue(restored.mixedSessionHistory.isEmpty())
@@ -78,7 +78,7 @@ class StudyExerciseV5MigrationTest {
 
     @Test fun neverMigratesFutureVersionIntoEmptyData() {
         assertThrows(IllegalArgumentException::class.java) {
-            MigrationManager.migrate("""{"version":7,"topics":[]}""")
+            MigrationManager.migrate("""{"version":8,"topics":[]}""")
         }
     }
 }
