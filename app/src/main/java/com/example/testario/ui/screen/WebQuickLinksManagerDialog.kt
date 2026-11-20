@@ -65,6 +65,7 @@ internal fun webQuickLinkIcon(icon: String): String = when (icon) {
     "academy" -> "🎓"
     "map" -> "🗺️"
     "document" -> "📄"
+    "other" -> "🔗"
     else -> "🌐"
 }
 
@@ -72,7 +73,8 @@ private val webIconNames = listOf(
     "web" to "Página web",
     "academy" to "Academia",
     "map" to "Mapa",
-    "document" to "Documento"
+    "document" to "Documento",
+    "other" to "Otro"
 )
 
 @Composable
@@ -85,6 +87,7 @@ internal fun WebQuickLinksManagerDialog(
     var title by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var icon by remember { mutableStateOf("web") }
+    var customTypeLabel by remember { mutableStateOf("") }
     var iconMenu by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var toDelete by remember { mutableStateOf<String?>(null) }
@@ -94,6 +97,7 @@ internal fun WebQuickLinksManagerDialog(
         title = ""
         url = ""
         icon = "web"
+        customTypeLabel = ""
         error = null
     }
 
@@ -122,6 +126,15 @@ internal fun WebQuickLinksManagerDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (icon == "other") {
+                    OutlinedTextField(
+                        value = customTypeLabel,
+                        onValueChange = { customTypeLabel = it.take(WebQuickLinkPolicy.MAX_CUSTOM_TYPE_LENGTH) },
+                        label = { Text("Tipo de acceso personalizado") },
+                        placeholder = { Text("Ej.: Normativa, herramientas, simulacros…") },
+                        singleLine = true, modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box {
                         OutlinedButton(onClick = { iconMenu = true }) {
@@ -146,11 +159,12 @@ internal fun WebQuickLinksManagerDialog(
                             title = title,
                             url = url,
                             icon = icon,
-                            hidden = links.firstOrNull { it.id == editingId }?.hidden ?: false
+                            hidden = links.firstOrNull { it.id == editingId }?.hidden ?: false,
+                            customTypeLabel = customTypeLabel.takeIf { icon == "other" }
                         )
                         val checked = WebQuickLinkPolicy.validate(link)
                         when {
-                            checked == null -> error = "Introduce un nombre y una dirección http(s) válida, sin credenciales ni espacios."
+                            checked == null -> error = "Introduce nombre, enlace http(s) válido y, si eliges Otro, un tipo personalizado."
                             !store.save(checked) -> error = "No se pudo guardar. Límite: 40 accesos."
                             else -> resetForm()
                         }
@@ -165,6 +179,7 @@ internal fun WebQuickLinksManagerDialog(
                     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
                         Text(
                             "${webQuickLinkIcon(link.icon)} ${link.title}" +
+                                link.customTypeLabel?.let { " · $it" }.orEmpty() +
                                 if (link.hidden) " (oculto)" else "",
                             color = TestarioText,
                             maxLines = 1,
@@ -186,6 +201,7 @@ internal fun WebQuickLinksManagerDialog(
                                 title = link.title
                                 url = link.url
                                 icon = link.icon
+                                customTypeLabel = link.customTypeLabel.orEmpty()
                                 error = null
                             }) { Text("✎", color = TestarioPrimary) }
                             IconButton(onClick = { store.setHidden(link.id, !link.hidden) }) {
