@@ -71,12 +71,11 @@ internal fun ResizableOcclusionImage(
             onReplace = onReplace, onDelete = onDelete
         )
         if (fit != null) masks.forEach { mask ->
-            val left = with(density) { (fit.left + fit.width * mask.x).toDp() }
-            val top = with(density) { (fit.top + fit.height * mask.y).toDp() }
-            val boxWidth = with(density) { (fit.width * mask.width).toDp() }
-            val boxHeight = with(density) { (fit.height * mask.height).toDp() }
+            val left = with(density) { (fit.left + fit.width * mask.x.toFloat()).toDp() }
+            val top = with(density) { (fit.top + fit.height * mask.y.toFloat()).toDp() }
+            val boxWidth = with(density) { (fit.width * mask.width.toFloat()).toDp() }
+            val boxHeight = with(density) { (fit.height * mask.height.toFloat()).toDp() }
             val chosen = selectedId == mask.id
-            val latestMask by rememberUpdatedState(mask)
             Box(
                 Modifier.offset(x = left, y = top)
                     .size(boxWidth, boxHeight)
