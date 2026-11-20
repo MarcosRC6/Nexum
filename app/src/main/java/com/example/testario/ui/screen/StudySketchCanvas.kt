@@ -4,6 +4,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.foundation.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -31,6 +37,7 @@ internal fun StudySketchCanvas(
     showMarkers: Boolean = false,
     markerStatuses: Map<String, Boolean> = emptyMap(),
     zoomFactor: Float = 1f,
+    onZoomChange: (Float) -> Unit = {},
     penArgb: Long = 0xFFA855F7L,
     penWidthFraction: Double = .007,
     penOpacity: Double = 1.0,
@@ -44,74 +51,99 @@ internal fun StudySketchCanvas(
     val latestDraw by rememberUpdatedState(onDrawStroke)
     val latestErase by rememberUpdatedState(onEraseStroke)
     val latestMark by rememberUpdatedState(onMarkTap)
+    val latestSketch by rememberUpdatedState(sketch)
+    val currentZoom by rememberUpdatedState(zoomFactor)
+    val changeZoom by rememberUpdatedState(onZoomChange)
     val purple = TestarioPrimary
     val green = TestarioGreen
     val red = TestarioRed
     val label = TestarioText
     fun coordinates(px: Float, py: Float, w: Int, h: Int): SketchPoint {
-        val scale = zoomFactor.coerceIn(1f, 5f)
+        val scale = currentZoom.coerceIn(1f, 5f)
         val x = (px - w / 2f - panX) / scale + w / 2f
         val y = (py - h / 2f - panY) / scale + h / 2f
         return SketchPoint((x / w).toDouble().coerceIn(0.0, 1.0),
             (y / h).toDouble().coerceIn(0.0, 1.0))
     }
-    val gestures = when (mode) {
-        SketchMode.DRAW -> Modifier.pointerInput(mode, zoomFactor, penArgb, penWidthFraction, penOpacity) {
-            detectDragGestures(
-                onDragStart = { start ->
-                    inProgress = listOf(coordinates(start.x, start.y, size.width, size.height))
-                },
-                onDrag = { change, _ ->
-                    change.consume()
-                    val next = coordinates(
-                        change.position.x, change.position.y, size.width, size.height)
-                    val previous = inProgress.lastOrNull()
-                    if (inProgress.size < 8000 && (previous == null ||
-                        (next.x - previous.x) * (next.x - previous.x) +
-                            (next.y - previous.y) * (next.y - previous.y) > 0.000003)) {
-                        inProgress = inProgress + next
-                    }
-                },
-                onDragEnd = {
-                    val points = inProgress
-                    if (points.size >= 2) latestDraw(SketchStroke(
-                        points = points, colorArgb = penArgb, widthFraction = penWidthFraction,
-                        opacity = penOpacity
-                    ))
-                    inProgress = emptyList()
-                },
-                onDragCancel = { inProgress = emptyList() }
-            )
-        }
-        SketchMode.ERASE, SketchMode.MARK -> Modifier.pointerInput(mode, sketch, markers, zoomFactor) {
-            detectTapGestures { pos ->
-                val p = coordinates(pos.x, pos.y, size.width, size.height)
-                if (mode == SketchMode.MARK) latestMark(p.x, p.y)
-                else {
-                    val nearest = sketch.strokes.mapNotNull { stroke ->
-                        stroke.points.minOfOrNull { a ->
-                            val dx = (a.x - p.x) * size.width.toDouble()
-                            val dy = (a.y - p.y) * size.height.toDouble()
-                            dx * dx + dy * dy
-                        }?.let { stroke.id to it }
-                    }.minByOrNull { it.second }
-                    if (nearest != null && nearest.second < (32.dp.toPx() * 32.dp.toPx()))
-                        latestErase(nearest.first)
+    // One recognizer handles both drawing/continuous erasing and pinch zoom.
+    // A second finger cancels the in-progress brush so zoom never creates ink.
+    val gestures = Modifier.pointerInput(mode, penArgb, penWidthFraction, penOpacity) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            var pinched = false
+            var moved = false
+            var points = mutableListOf(coordinates(down.position.x, down.position.y, size.width, size.height))
+            val erased = mutableSetOf<String>()
+
+            fun eraseAt(px: Float, py: Float) {
+                val p = coordinates(px, py, size.width, size.height)
+                val radius = 26.dp.toPx() / currentZoom.coerceAtLeast(1f)
+                val radiusSq = radius * radius
+                latestSketch.strokes.forEach { stroke ->
+                    if (stroke.id !in erased && stroke.points.any {
+                        val dx = (it.x - p.x) * size.width
+                        val dy = (it.y - p.y) * size.height
+                        dx * dx + dy * dy < radiusSq
+                    }) erased += stroke.id
                 }
             }
-        }
-        SketchMode.PAN -> Modifier.pointerInput(mode, zoomFactor) {
-            detectDragGestures { change, drag ->
-                change.consume()
-                panX = (panX + drag.x).coerceIn(-size.width * (zoomFactor - 1f) / 2f,
-                    size.width * (zoomFactor - 1f) / 2f)
-                panY = (panY + drag.y).coerceIn(-size.height * (zoomFactor - 1f) / 2f,
-                    size.height * (zoomFactor - 1f) / 2f)
+            if (mode == SketchMode.ERASE) eraseAt(down.position.x, down.position.y)
+
+            while (true) {
+                val event = awaitPointerEvent()
+                val pressed = event.changes.filter { it.pressed }
+                if (pressed.size >= 2) {
+                    pinched = true
+                    points.clear()
+                    erased.clear()
+                    inProgress = emptyList()
+                    val nextZoom = (currentZoom * event.calculateZoom()).coerceIn(1f, 5f)
+                    changeZoom(nextZoom)
+                    val pan = event.calculatePan()
+                    panX += pan.x
+                    panY += pan.y
+                    val limitX = size.width * (nextZoom - 1f) / 2f
+                    val limitY = size.height * (nextZoom - 1f) / 2f
+                    panX = panX.coerceIn(-limitX, limitX)
+                    panY = panY.coerceIn(-limitY, limitY)
+                } else if (!pinched && pressed.size == 1) {
+                    val c = pressed.first()
+                    val delta = c.positionChange()
+                    if (delta.x != 0f || delta.y != 0f) moved = true
+                    when (mode) {
+                        SketchMode.DRAW -> if (moved && points.size < 8000) {
+                            val p = coordinates(c.position.x,c.position.y,size.width,size.height)
+                            if (points.lastOrNull() != p) points.add(p)
+                            inProgress = points.toList()
+                        }
+                        SketchMode.ERASE -> eraseAt(c.position.x,c.position.y)
+                        SketchMode.PAN -> {
+                            panX += delta.x
+                            panY += delta.y
+                            val limitX = size.width * (currentZoom - 1f) / 2f
+                            val limitY = size.height * (currentZoom - 1f) / 2f
+                            panX = panX.coerceIn(-limitX, limitX)
+                            panY = panY.coerceIn(-limitY, limitY)
+                        }
+                        else -> {}
+                    }
+                }
+                event.changes.forEach { if (it.pressed) it.consume() }
+                if (pressed.isEmpty()) break
             }
+            if (!pinched) when (mode) {
+                SketchMode.DRAW -> if (points.size >= 2) latestDraw(SketchStroke(
+                    points = points, colorArgb = penArgb,
+                    widthFraction = penWidthFraction, opacity = penOpacity
+                ))
+                SketchMode.ERASE -> erased.forEach(latestErase)
+                SketchMode.MARK -> if (!moved) latestMark(points.first().x, points.first().y)
+                else -> {}
+            }
+            inProgress = emptyList()
         }
-        SketchMode.PREVIEW -> Modifier
     }
-    BoxWithConstraints(modifier.background(TestarioSurface, RoundedCornerShape(14.dp)).then(gestures)) {
+    BoxWithConstraints(modifier.clip(RoundedCornerShape(14.dp)).background(TestarioSurface).then(gestures)) {
         val drawingWidth = maxWidth
         val drawingHeight = maxHeight
         Box(Modifier.fillMaxSize().graphicsLayer {
