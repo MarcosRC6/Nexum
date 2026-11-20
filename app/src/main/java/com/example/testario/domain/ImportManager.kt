@@ -568,6 +568,10 @@ class ImportManager(private val context: Context, private val localStore: Testar
 
     private fun validateStudyExercises(topics: List<Topic>) {
         topics.forEach { topic ->
+            topic.questions.forEach { question ->
+                ImageAnnotationRules.requireValid(question.statementAnnotations)
+                ImageAnnotationRules.requireValid(question.correctionAnnotations)
+            }
             val ids = hashSetOf<String>()
             topic.exercises.forEach { exercise ->
                 require(ids.add(exercise.id)) { "ID de ejercicio repetido en el tema ${topic.name}." }
