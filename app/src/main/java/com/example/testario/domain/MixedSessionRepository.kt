@@ -77,6 +77,23 @@ class MixedSessionRepository(
             })
         }
 
+        // Cloze turn rotation belongs to note presentation, NOT to Anki
+        // scheduling. Advance once only when the user actually revealed a
+        // numbered gap. Persist it with the same durable DB transaction.
+        val nextClozeCursors = before.ankiClozeCursors.toMutableMap()
+        snapshot.items.zip(snapshot.responses).forEach { (item, response) ->
+            val exercise = item.exercise
+            if (item.type == MixedItemType.ANKI && response.revealed &&
+                exercise?.flashcard?.kind == FlashcardKind.CLOZE
+            ) {
+                val groups = ClozeMarkupEngine.numberedGroups(exercise.flashcard.gaps)
+                if (groups.isNotEmpty()) {
+                    val old = nextClozeCursors[exercise.id] ?: 0
+                    if (old == item.clozeCursor) nextClozeCursors[exercise.id] = (old + 1) % groups.size
+                }
+            }
+        }
+
         val record = MixedSessionHistory(
             id = snapshot.id, timestampMillis = timestamp,
             mode = snapshot.mode, contentFilter = snapshot.contentFilter,
@@ -100,6 +117,7 @@ class MixedSessionRepository(
             )).takeLast(10)
         val upgraded = before.copy(
             topics = topicUpdates,
+            ankiClozeCursors = nextClozeCursors,
             exerciseAttempts = before.exerciseAttempts + exercises,
             mixedSessionHistory = boundedHistory,
             testHistory = extended,
