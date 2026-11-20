@@ -143,8 +143,8 @@ fun QuestionEditorScreen(
 
     Scaffold(
         containerColor = TestarioBackground,
-        topBar = if (embedded) ({}) else {
-            TestarioTopBar(
+        topBar = {
+            if (!embedded) TestarioTopBar(
                 title = if (existingQuestion == null) "Nueva pregunta" else "Editar pregunta",
                 onBack = onBack
             )
