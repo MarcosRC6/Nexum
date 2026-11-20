@@ -5,9 +5,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center_vertical"
+    android:gravity="top"
     android:background="@drawable/widget_today_background_dark"
-    android:padding="13dp">
+    android:padding="9dp">
 
     <TextView
         android:id="@+id/widgetTodayExpandedTopicLabel"
@@ -84,7 +84,7 @@
             android:layout_weight="1"
             android:background="@drawable/widget_today_section_dark"
             android:gravity="center"
-            android:text="Abrir Plan"
+            android:text="Ver Hoy"
             android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="#EADFFF" />
