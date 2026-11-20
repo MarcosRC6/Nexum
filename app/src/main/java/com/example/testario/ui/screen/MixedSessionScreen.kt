@@ -332,6 +332,13 @@ fun MixedSessionScreen(
 
                 MixedItemType.WRITTEN -> {
                     val exercise = requireNotNull(item.exercise)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = TestarioSurface)
+                    ) {
+                        Column(Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
                     val statuses = if (showAnswer) {
                             val grade = StudyExerciseRules.gradeWritten(
@@ -425,9 +432,18 @@ fun MixedSessionScreen(
                         if (missing.isNotEmpty()) Text("Faltaban: " +
                             missing.joinToString(" · ") { it.text }, color = TestarioRed)
                     }
+                        }
+                    }
                 }
                 MixedItemType.ANKI -> {
                     val exercise = requireNotNull(item.exercise)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = TestarioSurface)
+                    ) {
+                        Column(Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     val card = requireNotNull(exercise.flashcard)
                     val reverse = item.variant == "reverse"
                     val questionText = if (reverse) card.back else card.front
@@ -458,6 +474,8 @@ fun MixedSessionScreen(
                                 modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true)
                         }
                         
+                    }
+                        }
                     }
                 }
             }
