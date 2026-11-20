@@ -137,7 +137,7 @@ fun MixedSessionScreen(
                             Text("Resultados", color = TestarioText,
                                 style = MaterialTheme.typography.titleLarge)
                             if (finished.scoreOutOfTen == null) {
-                                Text("Sin calificación objetiva", color = TestarioPrimary,
+                                Text("Sesión de tarjetas completada", color = TestarioPrimary,
                                     style = MaterialTheme.typography.headlineMedium)
                             } else {
                                 Text("${"%.2f".format(finished.scoreOutOfTen)}/10",
