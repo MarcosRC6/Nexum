@@ -506,18 +506,12 @@ fun StudyExerciseEditorScreen(
                     }
                 }
                 Text("Soluciones", color = TestarioText)
-                Text("Todas las soluciones añadidas son correctas. NEXUM reconoce variantes y abreviaturas inequívocas.",
-                    color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { showOptionalAliases = !showOptionalAliases }) {
-                    Text(if (showOptionalAliases) "Ocultar excepciones manuales"
-                        else "Variantes especiales (opcional)")
-                }
                 solutions.forEach { solution ->
                     val index = solutions.indexOfFirst { it.id == solution.id }
                     Column(Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(12.dp)).padding(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Solución ${index + 1}", color = TestarioText, modifier = Modifier.weight(1f))
-                            TextButton(onClick = {
+                            TextButton(enabled = solutions.size > 1, onClick = {
                                 solutions = solutions.filterNot { it.id == solution.id }
                                 if (selectedSolutionId == solution.id)
                                     selectedSolutionId = solutions.firstOrNull()?.id
@@ -567,6 +561,14 @@ fun StudyExerciseEditorScreen(
                     solutions = solutions + s
                     selectedSolutionId = s.id
                 }, modifier = Modifier.fillMaxWidth()) { Text("+ Añadir solución") }
+                TextButton(onClick = { showOptionalAliases = !showOptionalAliases }) {
+                    Text(if (showOptionalAliases) "Ocultar variantes especiales  ▴"
+                        else "Variantes especiales (opcional)  ▾")
+                }
+                if (showOptionalAliases) {
+                    Text("NEXUM reconoce variantes y abreviaturas inequívocas automáticamente. Añade aquí solo excepciones específicas.",
+                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                }
 
             } else {
                 val simpleAnki = flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)
