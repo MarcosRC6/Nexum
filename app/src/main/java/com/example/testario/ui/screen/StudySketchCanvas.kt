@@ -87,12 +87,18 @@ internal fun StudySketchCanvas(
     // becomes pinch zoom and pan. Do not restart the pointer handler while zoom changes.
     val gestures = if (mode == SketchMode.PREVIEW) Modifier else Modifier.pointerInput(mode) {
         awaitEachGesture {
-            awaitFirstDown(requireUnconsumed = false)
-            var path = emptyList<SketchPoint>()
+            val down = awaitFirstDown(requireUnconsumed = false)
+            var path = if (mode == SketchMode.DRAW)
+                listOf(coordinates(down.position.x, down.position.y, size.width, size.height))
+                else emptyList()
+            if (mode == SketchMode.ERASE) eraseAt(
+                coordinates(down.position.x, down.position.y, size.width, size.height),
+                size.width, size.height
+            )
             var multitouch = false
             var moved = false
-            var last = androidx.compose.ui.geometry.Offset.Unspecified
-            var first = androidx.compose.ui.geometry.Offset.Unspecified
+            var last = down.position
+            val first = down.position
             while (true) {
                 val event = awaitPointerEvent()
                 val pressed = event.changes.filter { it.pressed }
