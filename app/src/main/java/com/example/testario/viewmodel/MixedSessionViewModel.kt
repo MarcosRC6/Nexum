@@ -168,6 +168,28 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
         })
     }
 
+    /** Mirror database changes into the durable in-flight snapshot without
+     * resetting recorded answers, timers or test answer order.
+     */
+    fun setTestDifficulty(questionId: String, difficulty: Int?): Boolean {
+        require(difficulty == null || difficulty in 1..3)
+        return edit { state ->
+            state.copy(items = state.items.map { item ->
+                if (item.question?.id == questionId)
+                    item.copy(question = item.question.copy(difficulty = difficulty))
+                else item
+            })
+        }
+    }
+
+    fun toggleTestFlag(questionId: String): Boolean = edit { state ->
+        state.copy(items = state.items.map { item ->
+            if (item.question?.id == questionId) item.copy(
+                question = item.question.copy(flagged = !item.question.flagged)
+            ) else item
+        })
+    }
+
     fun goTo(index: Int) = edit { state ->
         require(index in state.items.indices)
         state.copy(currentIndex = index)
