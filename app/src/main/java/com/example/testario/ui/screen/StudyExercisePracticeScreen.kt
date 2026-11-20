@@ -68,8 +68,9 @@ fun StudyExercisePracticeScreen(
     var completed by rememberSaveable(tab, index, retryCycle) { mutableStateOf(false) }
     var revealed by rememberSaveable(tab, index, retryCycle) { mutableStateOf(false) }
     var scheduledReview by rememberSaveable { mutableStateOf(false) }
-    var points by rememberSaveable { mutableStateOf("1") }
-    var penalty by rememberSaveable { mutableStateOf("-0.25") }
+    // Objective baremos belong to Test configuration, never to individual exercises.
+    val pointsCorrect = 1.0
+    val penaltyWrong = -0.25
     var error by remember { mutableStateOf<String?>(null) }
     val attemptId = rememberSaveable(tab, index, retryCycle) { UUID.randomUUID().toString() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -103,8 +104,7 @@ fun StudyExercisePracticeScreen(
                 val exercise = written[index.coerceIn(0, written.lastIndex)]
                 val graded = if (completed) runCatching {
                     StudyExerciseRules.gradeWritten(exercise, answers,
-                        points.replace(",", ".").toDouble(),
-                        penalty.replace(",", ".").toDouble())
+                        pointsCorrect, penaltyWrong)
                 }.getOrNull() else null
                 val statusByMarker = if (graded != null) {
                     exercise.solutions.flatMap { solution ->
@@ -137,12 +137,15 @@ fun StudyExercisePracticeScreen(
                                     strokeWidth = 5f)
                             }
                         }
-                        if (completed) exercise.solutions.flatMap { it.points }.forEach { point ->
+                        exercise.solutions.flatMap { it.points }.forEach { point ->
                             Text(point.order.toString(), modifier = Modifier.offset(
                                 x = maxWidth * point.x.toFloat() - 8.dp,
                                 y = maxHeight * point.y.toFloat() - 12.dp),
-                                color = if (statusByMarker[point.id] == true)
-                                    TestarioGreen else TestarioRed)
+                                color = when (statusByMarker[point.id]) {
+                                    true -> TestarioGreen
+                                    false -> TestarioRed
+                                    null -> TestarioPrimary
+                                })
                         }
                     }
                 }
@@ -152,7 +155,7 @@ fun StudyExercisePracticeScreen(
                         modifier = Modifier.fillMaxWidth().height(240.dp),
                         markers = exercise.solutions.flatMap { it.points },
                         mode = SketchMode.PREVIEW,
-                        showMarkers = completed,
+                        showMarkers = true,
                         markerStatuses = statusByMarker
                     )
                 }
@@ -216,39 +219,26 @@ fun StudyExercisePracticeScreen(
                     }
                 }
                 if (!completed) {
-                    OutlinedTextField(value = points, onValueChange = { points = it },
-                        label = { Text("Puntos por acierto") }, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(value = penalty, onValueChange = { penalty = it },
-                        label = { Text("Penalización por fallo (negativa o cero)") },
-                        modifier = Modifier.fillMaxWidth())
                     Button(onClick = {
-                        val a = points.replace(",", ".").toDoubleOrNull()
-                        val b = penalty.replace(",", ".").toDoubleOrNull()
-                        if (a == null || !a.isFinite() || a <= 0 ||
-                            b == null || !b.isFinite() || b > 0) {
-                            error = "Baremo inválido. Acierto positivo y penalización negativa o cero."
-                        } else {
-                            runCatching {
-                                libraryViewModel.recordWrittenAttempt(
-                                    topicId, exercise, answers, a, b, attemptId
-                                )
-                            }.onSuccess { completed = true; error = null }
-                                .onFailure { error = it.message }
-                        }
+                        runCatching {
+                            libraryViewModel.recordWrittenAttempt(
+                                topicId, exercise, answers, pointsCorrect, penaltyWrong, attemptId
+                            )
+                        }.onSuccess { completed = true; error = null }
+                            .onFailure { error = it.message }
                     }, modifier = Modifier.fillMaxWidth()) { Text("Comprobar") }
                 } else {
-                    val a = points.replace(",", ".").toDoubleOrNull() ?: 1.0
-                    val b = penalty.replace(",", ".").toDoubleOrNull() ?: -0.25
-                    val result = StudyExerciseRules.gradeWritten(exercise, answers, a, b)
+                    val result = StudyExerciseRules.gradeWritten(exercise, answers, pointsCorrect, penaltyWrong)
                     Text("Nota: ${"%.2f".format(result.scoreOutOfTen)} / 10",
-                        color = TestarioGreen, style = MaterialTheme.typography.titleLarge)
+                        color = if (result.scoreOutOfTen >= 5.0) TestarioGreen else TestarioRed,
+                        style = MaterialTheme.typography.titleLarge)
                     Text("Aciertos: ${result.correct} · Errores: ${result.incorrect} · Omitidas: ${result.omitted}",
                         color = TestarioText)
                     val missing = exercise.solutions.filterNot { it.id in result.correctIds }
                     if (missing.isNotEmpty()) {
                         Text("Faltaban", color = TestarioPrimary)
                         missing.forEach { solution ->
-                            Text("✓ ${solution.text}", color = TestarioGreen)
+                            Text("✗ ${solution.text}", color = TestarioRed)
                         }
                     }
                 }
