@@ -448,7 +448,14 @@ fun MixedSessionScreen(
                     onClick = { if (persistDraft()) session.goTo(current.currentIndex - 1) },
                     modifier = Modifier.weight(1f),
                     enabled = !locked && current.currentIndex > 0
-                ) { Text("Anterior") }
+                ) { Text("Atrás") }
+                if (item.type == MixedItemType.TEST && !showAnswer) {
+                    OutlinedButton(
+                        onClick = { session.selectTestAnswer(null) },
+                        modifier = Modifier.weight(1f),
+                        enabled = !locked && response.selectedAnswerId != null
+                    ) { Text("Limpiar") }
+                }
                 if (current.currentIndex < current.items.lastIndex) {
                     Button(onClick = { if (persistDraft()) session.goTo(current.currentIndex + 1) },
                         modifier = Modifier.weight(1f), enabled = !locked) { Text("Siguiente") }
