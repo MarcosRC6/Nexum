@@ -43,6 +43,7 @@ fun MixedSessionScreen(
     val error by session.error.collectAsState()
     val scope = rememberCoroutineScope()
     var exitConfirm by remember { mutableStateOf(false) }
+    var reviewingResults by remember { mutableStateOf(false) }
     val active = snapshot?.takeUnless { it.completed }?.let { it.items.getOrNull(it.currentIndex) }
     val currentResponse = snapshot?.takeUnless { it.completed }?.let { it.responses.getOrNull(it.currentIndex) }
     var writtenInput by rememberSaveable(active?.id) {
@@ -61,7 +62,8 @@ fun MixedSessionScreen(
     Scaffold(
         containerColor = TestarioBackground,
         topBar = { TestarioTopBar(
-            title = if (snapshot?.mode == TestMode.EXAM) "Modo Examen" else "Entrenamiento",
+            title = if (result != null && !reviewingResults) "Resultados"
+                else if (snapshot?.mode == TestMode.EXAM) "Modo Examen" else "Entrenamiento",
             onBack = { if (result == null) exitConfirm = true else onLeave() }
         ) }
     ) { padding ->
@@ -96,17 +98,34 @@ fun MixedSessionScreen(
 
             if (result != null) {
                 val finished = requireNotNull(result)
-                Text("Sesión finalizada", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                if (finished.scoreOutOfTen == null) {
-                    Text("Sin nota objetiva · ${finished.manualReviewItems} tarjetas de repaso manual.",
-                        color = TestarioPrimary)
-                } else {
-                    Text("Nota objetiva: ${"%.2f".format(finished.scoreOutOfTen)} / 10",
-                        color = TestarioGreen, style = MaterialTheme.typography.titleLarge)
-                    Text("${finished.objectiveItems} elementos puntuables · " +
-                        "${finished.manualReviewItems} tarjetas excluidas de la nota.",
-                        color = TestarioMutedText)
+                if (!reviewingResults) {
+                    Card(modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = CardDefaults.cardColors(containerColor = TestarioSurface)) {
+                        Column(Modifier.fillMaxWidth().padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                if (finished.scoreOutOfTen == null) "Repaso completado"
+                                else "${"%.2f".format(finished.scoreOutOfTen)} / 10",
+                                color = if (finished.scoreOutOfTen == null) TestarioPrimary
+                                    else if (finished.scoreOutOfTen >= 5.0) TestarioGreen
+                                    else TestarioRed,
+                                style = MaterialTheme.typography.headlineLarge
+                            )
+                            Text("${finished.objectiveItems} elementos puntuables · " +
+                                "${finished.manualReviewItems} tarjetas manuales",
+                                color = TestarioMutedText)
+                        }
+                    }
+                    OutlinedButton(onClick = { reviewingResults = true },
+                        modifier = Modifier.fillMaxWidth()) { Text("Revisar preguntas") }
+                    OutlinedButton(onClick = onLeave,
+                        modifier = Modifier.fillMaxWidth()) { Text("Volver al inicio") }
+                    return@Column
                 }
+                Text("Revisión de preguntas", style = MaterialTheme.typography.titleLarge,
+                    color = TestarioText)
                 current.items.zip(current.responses).forEachIndexed { idx, pair ->
                     val (item, response) = pair
                     HorizontalDivider()
@@ -141,6 +160,8 @@ fun MixedSessionScreen(
                         }
                     }
                 }
+                OutlinedButton(onClick = { reviewingResults = false },
+                    modifier = Modifier.fillMaxWidth()) { Text("Volver a resultados") }
                 Button(onClick = onLeave, modifier = Modifier.fillMaxWidth()) { Text("Terminar") }
                 return@Column
             }
