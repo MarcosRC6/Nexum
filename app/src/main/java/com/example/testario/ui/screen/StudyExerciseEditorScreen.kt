@@ -817,7 +817,6 @@ fun StudyExerciseEditorScreen(
                         error = it.message ?: "Hay una ocultación o un campo incompleto."
                     }
                 }, modifier = Modifier.fillMaxWidth()) { Text("Guardar") }
-            }
             Spacer(Modifier.height(18.dp))
         }
     }
