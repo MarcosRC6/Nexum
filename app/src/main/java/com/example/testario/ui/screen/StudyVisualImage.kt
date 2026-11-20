@@ -142,7 +142,7 @@ internal fun StudyVisualImage(
                                 true -> Color(0xFF51D79D)
                                 false -> Color(0xFFEA6877)
                                 null -> Color(0xFFA85AFF)
-                            }, radius = 11.dp.toPx(), center = fit.locate(p.x,p.y))
+                            }, radius = 13.dp.toPx(), center = fit.locate(p.x,p.y))
                         }
                     }
                 }
@@ -155,9 +155,11 @@ internal fun StudyVisualImage(
                             false -> Color(0xFFEA6877)
                             null -> Color.White
                         },
+                        style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                         modifier = Modifier.offset(
-                            x = with(density) { at.x.toDp() } - 6.dp,
-                            y = with(density) { at.y.toDp() } - 12.dp
+                            x = with(density) { at.x.toDp() } - 9.dp,
+                            y = with(density) { at.y.toDp() } - 13.dp
                         )
                     )
                 }
