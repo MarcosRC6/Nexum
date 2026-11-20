@@ -37,7 +37,9 @@ fun StudyExerciseEditorScreen(
     exerciseId: String?,
     initialKind: StudyExerciseKind = StudyExerciseKind.WRITTEN_MULTI,
     libraryViewModel: LibraryViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    creationType: NewQuestionType? = null,
+    onCreationTypeChange: (NewQuestionType) -> Unit = {}
 ) {
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
@@ -240,7 +242,11 @@ fun StudyExerciseEditorScreen(
 
     Scaffold(
         containerColor = TestarioBackground,
-        topBar = { TestarioTopBar("Editor de ejercicios", onBack = onBack) }
+        topBar = { TestarioTopBar(
+            if (original == null) "Nueva pregunta" else
+                if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) "Editar respuesta escrita" else "Editar tarjeta Anki",
+            onBack = onBack
+        ) }
     ) { pad ->
         if (topic == null) {
             Box(Modifier.padding(pad).fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -253,30 +259,16 @@ fun StudyExerciseEditorScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Tema: ${topic.name}", color = TestarioMutedText)
-            Text("Tipo de ejercicio", color = TestarioText)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    StudyExerciseKind.WRITTEN_MULTI to "Enumerar",
-                    StudyExerciseKind.ANKI_CARD to "Tarjeta Anki"
-                ).forEach { (kind, name) ->
-                    FilterChip(selected = exerciseKind == kind,
-                        onClick = {
-                            if (original == null) { exerciseKind = kind; error = null }
-                            else if (kind != original.kind)
-                                error = "Para proteger tus datos, no se puede cambiar el tipo de un ejercicio guardado. Duplícalo y crea otro tipo."
-                        },
-                        enabled = original == null || kind == original.kind,
-                        label = { Text(name) })
-                }
-            }
-
+            if (original == null && creationType != null)
+                NewQuestionTypePicker(creationType, onCreationTypeChange)
+            // An existing exercise keeps its immutable saved type.
             if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) {
                 OutlinedTextField(
                     value = prompt, onValueChange = { prompt = it },
                     label = { Text("Enunciado") }, modifier = Modifier.fillMaxWidth(), minLines = 2
                 )
-                Text("Respuestas correctas", color = TestarioText)
-                Text("NEXUM reconoce automáticamente variantes y abreviaturas inequívocas.",
+                Text("Soluciones", color = TestarioText)
+                Text("Todas las soluciones añadidas son correctas. NEXUM reconoce variantes y abreviaturas inequívocas.",
                     color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = { showOptionalAliases = !showOptionalAliases }) {
                     Text(if (showOptionalAliases) "Ocultar excepciones manuales"
@@ -286,9 +278,6 @@ fun StudyExerciseEditorScreen(
                     val index = solutions.indexOfFirst { it.id == solution.id }
                     Column(Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(12.dp)).padding(10.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = selectedSolutionId == solution.id, onClick = {
-                                selectedSolutionId = solution.id
-                            })
                             Text("Solución ${index + 1}", color = TestarioText, modifier = Modifier.weight(1f))
                             TextButton(onClick = {
                                 solutions = solutions.filterNot { it.id == solution.id }
@@ -301,7 +290,7 @@ fun StudyExerciseEditorScreen(
                             onValueChange = { text -> solutions = solutions.map {
                                 if (it.id == solution.id) it.copy(text = text) else it
                             } },
-                            label = { Text("Respuesta") }, modifier = Modifier.fillMaxWidth()
+                            label = { Text("Escribe la solución ${index + 1}") }, modifier = Modifier.fillMaxWidth()
                         )
                         if (showOptionalAliases || solution.aliases.isNotEmpty()) {
                             OutlinedTextField(
