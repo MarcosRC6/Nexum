@@ -19,7 +19,6 @@ fun UnifiedQuestionEditorScreen(
     onBack: () -> Unit
 ) {
     var selected by remember(topicId) { mutableStateOf(AuthoringKind.TEST) }
-    var next by remember { mutableStateOf<AuthoringKind?>(null) }
     Column(Modifier.fillMaxSize()) {
         TestarioTopBar(title = "Añadir pregunta", onBack = onBack)
         Text("Tipo de pregunta", modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 6.dp),
@@ -34,7 +33,7 @@ fun UnifiedQuestionEditorScreen(
                 FilterChip(
                     modifier = Modifier.weight(if (kind == AuthoringKind.WRITTEN) 1.5f else 1f),
                     selected = selected == kind,
-                    onClick = { if (selected != kind) next = kind },
+                    onClick = { selected = kind },
                     label = { Text(label, maxLines = 1) }
                 )
             }
@@ -53,16 +52,5 @@ fun UnifiedQuestionEditorScreen(
                 )
             }
         }
-    }
-    next?.let { requested ->
-        AlertDialog(
-            onDismissRequest = { next = null },
-            title = { Text("Cambiar tipo de pregunta") },
-            text = { Text("Si has escrito algo sin guardar en el editor actual, se perderá al cambiar de tipo. ¿Continuar?") },
-            confirmButton = {
-                TextButton(onClick = { selected = requested; next = null }) { Text("Cambiar") }
-            },
-            dismissButton = { TextButton(onClick = { next = null }) { Text("Cancelar") } }
-        )
     }
 }
