@@ -94,6 +94,17 @@ class Beta3QaRegressionTest {
         assertTrue(tiny.height >= .035-1e-8)
     }
 
+    @Test fun legacyTinyOcclusionHandlesNeverThrowOrEscapeCanvas() {
+        val tiny = ImageOcclusionMask(id="tiny",x=.0,y=.0,width=.01,height=.01)
+        OcclusionGeometry.Handle.entries.forEach { handle ->
+            val resized = OcclusionGeometry.transform(tiny,handle,-.8,-.8)
+            assertTrue(resized.x >= 0.0 && resized.y >= 0.0)
+            assertTrue(resized.width > 0 && resized.height > 0)
+            assertTrue(resized.x + resized.width <= 1.0)
+            assertTrue(resized.y + resized.height <= 1.0)
+        }
+    }
+
     @Test fun customOtherWebLinkRoundTripsInCompatibleGlobalBackup() {
         val link = WebQuickLink(id="other-1",title="Herramientas",url="https://example.org",
             icon="other",customTypeLabel="Material auxiliar")
