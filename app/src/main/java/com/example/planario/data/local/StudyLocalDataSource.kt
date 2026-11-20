@@ -47,7 +47,7 @@ class StudyLocalDataSource(
         }
     }
 
-    fun save(data: StoredStudyData) {
+    fun save(data: StoredStudyData): Boolean {
         val root = storedStudyDataToJsonObject(data)
 
         val saved = preferences.edit()
@@ -57,6 +57,7 @@ class StudyLocalDataSource(
         if (saved) {
             PlanarioWidgetUpdater.updateTodayWidget(appContext)
         }
+        return saved
     }
 
     fun exportToJson(data: StoredStudyData): String {

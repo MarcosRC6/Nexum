@@ -13,6 +13,7 @@ import com.example.testario.data.model.Question
 import com.example.testario.data.model.SimpleTopicJson
 import com.example.testario.data.model.TestarioDatabase
 import com.example.testario.data.model.Topic
+import com.example.testario.data.model.StudyExercise
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -29,7 +30,9 @@ data class ImportTopicOutcome(
     val merged: Boolean,
     val addedQuestions: Int,
     val duplicateQuestions: Int,
-    val destinationName: String
+    val destinationName: String,
+    val addedExercises: Int = 0,
+    val duplicateExercises: Int = 0
 )
 
 class ImportManager(private val context: Context, private val localStore: TestarioLocalStore) {
@@ -146,7 +149,8 @@ class ImportManager(private val context: Context, private val localStore: Testar
                     "El ZIP mezcla una base completa y temas JSON separados: usa un solo formato."
                 }
                 val source = requireNotNull(rawJson)
-                json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(source))
+                val database = json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(source))
+                validateStudyExercises(database.topics)
                 source
             } else {
                 require(individualTopicJson.isNotEmpty()) {
@@ -162,7 +166,22 @@ class ImportManager(private val context: Context, private val localStore: Testar
                     }
                 }
                 require(topics.isNotEmpty()) { "El ZIP no contiene ningún tema válido." }
+                validateStudyExercises(topics)
                 json.encodeToString(TestarioDatabase(topics = topics))
+            }
+            // New exercises must carry every referenced asset in the SAME archive.
+            // Reject broken archives before any image or topic is committed.
+            val validated = json.decodeFromString<TestarioDatabase>(
+                MigrationManager.migrate(validJson)
+            )
+            val missing = validated.topics.asSequence()
+                .flatMap { it.exercises.asSequence() }
+                .flatMap { it.referencedImageUris().asSequence() }
+                .map { File(it).name }
+                .filterNot { it in names }
+                .toList()
+            require(missing.isEmpty()) {
+                "El ZIP no contiene ${missing.size} imágenes necesarias para los ejercicios."
             }
             pendingImageStage = stage
             validJson
@@ -193,9 +212,32 @@ class ImportManager(private val context: Context, private val localStore: Testar
                 require(target.canonicalPath.startsWith(canonicalImages)) {
                     "Ruta de imagen no autorizada."
                 }
-                if (target.exists()) target.copyTo(File(rollback, target.name))
-                changed.add(target)
-                staged.copyTo(target, overwrite = true)
+                if (target.exists()) {
+                    // An imported archive may re-use a name already belonging to a
+                    // different question. Never overwrite that question's image.
+                    val digest = java.security.MessageDigest.getInstance("SHA-256")
+                    fun hash(file: File): ByteArray {
+                        digest.reset()
+                        file.inputStream().use { stream ->
+                            val bytes = ByteArray(8192)
+                            while (true) {
+                                val count = stream.read(bytes)
+                                if (count < 0) break
+                                digest.update(bytes, 0, count)
+                            }
+                        }
+                        return digest.digest()
+                    }
+                    require(target.length() == staged.length() &&
+                        hash(target).contentEquals(hash(staged))) {
+                        "La imagen ${staged.name} ya existe con contenido diferente; " +
+                            "no se sobrescribirá. Renombra los recursos del paquete."
+                    }
+                    // Same image content already present, so preserve it as-is.
+                } else {
+                    changed.add(target)
+                    staged.copyTo(target, overwrite = false)
+                }
             }
             pendingImageStage = null
         } catch (error: Exception) {
@@ -216,21 +258,28 @@ class ImportManager(private val context: Context, private val localStore: Testar
     fun restoreBackup(rawJson: String) {
         val migratedJson = MigrationManager.migrate(rawJson)
         val backup = json.decodeFromString<TestarioDatabase>(migratedJson)
+        validateStudyExercises(backup.topics)
         commitPendingImages()
-        localStore.saveDatabase(
-            backup.copy(
-                version = DatabaseSchema.CURRENT_VERSION,
-                topics = backup.topics.map(::resolveTopicImagePaths)
-            )
+        val restored = backup.copy(
+            version = DatabaseSchema.CURRENT_VERSION,
+            topics = backup.topics.map(::resolveTopicImagePaths)
         )
+        if (localStore.recoveryError.value != null) {
+            localStore.restoreValidatedRecovery(restored)
+        } else {
+            localStore.saveDatabase(restored)
+        }
     }
 
     fun importAllJson(rawJson: String) {
-        val imported = json.decodeFromString<TestarioDatabase>(rawJson)
+        val imported = json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(rawJson))
+        validateStudyExercises(imported.topics)
         commitPendingImages()
         val topicIdMap = imported.topics.associate { it.id to UUID.randomUUID().toString() }
         val regeneratedTopics = imported.topics.map { topic ->
-            regenerateTopicIds(topic, topicIdMap[topic.id] ?: UUID.randomUUID().toString())
+            resolveTopicImagePaths(regenerateTopicIds(
+                topic, topicIdMap[topic.id] ?: UUID.randomUUID().toString()
+            ))
         }
         val remappedGroups = imported.groups.map { group ->
             group.copy(topicIds = group.topicIds.mapNotNull(topicIdMap::get).distinct())
@@ -261,12 +310,13 @@ class ImportManager(private val context: Context, private val localStore: Testar
         return try {
             val fileType = detectImportFileType(rawText, fileName)
             val topics = decodeTopicsFromAnyFormat(rawText, fileType)
+            validateStudyMediaForImport(topics)
 
             ImportPreview(
                 fileType = fileType,
                 topicCount = topics.size,
-                questionCount = topics.sumOf { it.questions.size },
-                validQuestionCount = topics.sumOf { it.questions.size },
+                questionCount = topics.sumOf { it.questions.size + it.exercises.size },
+                validQuestionCount = topics.sumOf { it.questions.size + it.exercises.size },
                 invalidLineCount = if (fileType == ImportFileType.TXT || fileType == ImportFileType.CSV) countInvalidDelimitedLines(rawText) else 0,
                 errors = emptyList()
             )
@@ -281,7 +331,98 @@ class ImportManager(private val context: Context, private val localStore: Testar
 
     fun getTopicsFromRawText(rawText: String, fileName: String? = null): List<Topic> {
         val fileType = detectImportFileType(rawText, fileName)
-        return decodeTopicsFromAnyFormat(rawText, fileType)
+        return decodeTopicsFromAnyFormat(rawText, fileType).also {
+            validateStudyExercises(it)
+            validateStudyMediaForImport(it)
+        }
+    }
+
+    /** Preview and conflict decisions have NO side effects. Only this call commits the full batch. */
+    suspend fun importBatchProcessed(decisions: List<ImportBatchDecision>): ImportBatchPlan {
+        val before = localStore.database.value
+        require(before.version == DatabaseSchema.CURRENT_VERSION) {
+            "Base de datos incompatible: no se puede importar."
+        }
+        decisions.forEach { validateStudyExercises(listOf(it.topic)) }
+        // Ensure every new exercise image is available before writing any user data.
+        validateStudyMediaForImport(decisions.map { it.topic })
+        val plan = ImportBatchPlanner.prepare(before.topics, decisions) { topic ->
+            resolveTopicImagePaths(regenerateTopicIds(topic))
+        }
+        val replacement = before.copy(topics = plan.topics)
+        commitBatchAndImages(before, replacement)
+        return plan
+    }
+
+    /**
+     * Stage and check every image; then commit the DB durably in one operation.
+     * Failed image copies or DB writes remove only files created by this batch.
+     * Existing files are never overwritten, even transiently.
+     */
+    private suspend fun commitBatchAndImages(
+        before: TestarioDatabase,
+        replacement: TestarioDatabase
+    ) {
+        val stage = pendingImageStage
+        val created = mutableListOf<File>()
+        try {
+            val staged = stage?.listFiles()?.filter { it.isFile }.orEmpty()
+            require(imagesDir.isDirectory || imagesDir.mkdirs()) {
+                "No se pudo abrir el almacenamiento de imágenes."
+            }
+            val root = imagesDir.canonicalPath + File.separator
+            fun digest(file: File): ByteArray {
+                val sha = java.security.MessageDigest.getInstance("SHA-256")
+                file.inputStream().use { stream ->
+                    val bytes = ByteArray(8192)
+                    while (true) {
+                        val n = stream.read(bytes)
+                        if (n < 0) break
+                        sha.update(bytes, 0, n)
+                    }
+                }
+                return sha.digest()
+            }
+            // Preflight all collisions before copying the first file.
+            staged.forEach { source ->
+                val target = File(imagesDir, source.name)
+                require(target.canonicalPath.startsWith(root)) { "Ruta de imagen no segura." }
+                if (target.exists()) {
+                    require(target.isFile && source.length() == target.length() &&
+                        digest(source).contentEquals(digest(target))) {
+                        "La imagen ${source.name} ya existe con contenido diferente."
+                    }
+                }
+            }
+            staged.forEach { source ->
+                val target = File(imagesDir, source.name)
+                if (!target.exists()) {
+                    require(target.createNewFile()) {
+                        "La imagen ${source.name} fue creada por otra operación durante la importación."
+                    }
+                    // Track before writing: a mid-stream I/O error must delete its partial file.
+                    created.add(target)
+                    source.inputStream().use { input ->
+                        target.outputStream().use { output -> input.copyTo(output) }
+                    }
+                }
+            }
+            // Only after ALL media is ready, commit the complete library.
+            localStore.saveDatabaseDurably(before, replacement)
+        } catch (failure: Exception) {
+            created.asReversed().forEach { file -> runCatching { file.delete() } }
+            throw failure
+        } finally {
+            stage?.deleteRecursively()
+            pendingImageStage = null
+        }
+    }
+
+    /** Cancelled preview/conflict resolution never installs any staged images. */
+    @Synchronized
+    fun cancelPendingImport() {
+        pendingImageStage?.deleteRecursively()
+        pendingImageStage = null
     }
 
     // NUEVO: Motor de sincronización
@@ -353,18 +494,26 @@ class ImportManager(private val context: Context, private val localStore: Testar
         val targetQuestions = if (existingIndex >= 0 &&
             action == DuplicateTopicAction.MERGE) topics[existingIndex].questions
             else emptyList()
+        validateStudyExercises(listOf(topic))
         val uniqueQuestions = TopicImportMatcher.uniqueQuestions(topic.questions, targetQuestions)
         val duplicates = topic.questions.size - uniqueQuestions.size
+        val targetExercises = if (existingIndex >= 0 && action == DuplicateTopicAction.MERGE) 
+            topics[existingIndex].exercises else emptyList()
+        val uniqueExercises = StudyExerciseMerge.unique(topic.exercises, targetExercises)
+        val duplicateExercises = topic.exercises.size - uniqueExercises.size
         if (existingIndex >= 0 && action == DuplicateTopicAction.MERGE &&
-            uniqueQuestions.isEmpty()) {
+            uniqueQuestions.isEmpty() && uniqueExercises.isEmpty()) {
             return ImportTopicOutcome(
                 created = false, merged = false, addedQuestions = 0,
-                duplicateQuestions = duplicates, destinationName = topics[existingIndex].name
+                duplicateQuestions = duplicates, destinationName = topics[existingIndex].name,
+                addedExercises = 0, duplicateExercises = duplicateExercises
             )
         }
 
         commitPendingImages()
-        val fresh = regenerateTopicIds(topic.copy(questions = uniqueQuestions))
+        val fresh = resolveTopicImagePaths(regenerateTopicIds(
+            topic.copy(questions = uniqueQuestions, exercises = uniqueExercises)
+        ))
         val destination: String
         val created: Boolean
         val merged: Boolean
@@ -373,7 +522,10 @@ class ImportManager(private val context: Context, private val localStore: Testar
             when (action) {
                 DuplicateTopicAction.MERGE -> {
                     val old = topics[existingIndex]
-                    topics[existingIndex] = old.copy(questions = old.questions + fresh.questions)
+                    topics[existingIndex] = old.copy(
+                        questions = old.questions + fresh.questions,
+                        exercises = old.exercises + fresh.exercises
+                    )
                     destination = old.name
                     created = false
                     merged = true
@@ -395,7 +547,37 @@ class ImportManager(private val context: Context, private val localStore: Testar
             merged = false
         }
         localStore.saveDatabase(db.copy(topics = topics))
-        return ImportTopicOutcome(created, merged, fresh.questions.size, duplicates, destination)
+        return ImportTopicOutcome(created, merged, fresh.questions.size, duplicates, destination,
+            fresh.exercises.size, duplicateExercises)
+    }
+
+    private fun validateStudyMediaForImport(topics: List<Topic>) {
+        val stagedNames = pendingImageStage?.listFiles()?.mapTo(hashSetOf()) { it.name }
+            ?: emptySet()
+        val safeRoot = imagesDir.canonicalPath + File.separator
+        topics.asSequence().flatMap { it.exercises.asSequence() }
+            .flatMap { it.referencedImageUris().asSequence() }.forEach { reference ->
+                val image = File(reference)
+                val isStaged = image.name in stagedNames
+                val isOwnFile = image.isFile && image.canonicalPath.startsWith(safeRoot)
+                require(isStaged || isOwnFile) {
+                    "El ejercicio necesita una imagen no incluida. Importa el ZIP con sus recursos."
+                }
+            }
+    }
+
+    private fun validateStudyExercises(topics: List<Topic>) {
+        topics.forEach { topic ->
+            topic.questions.forEach { question ->
+                ImageAnnotationRules.requireValid(question.statementAnnotations)
+                ImageAnnotationRules.requireValid(question.correctionAnnotations)
+            }
+            val ids = hashSetOf<String>()
+            topic.exercises.forEach { exercise ->
+                require(ids.add(exercise.id)) { "ID de ejercicio repetido en el tema ${topic.name}." }
+                if (!exercise.draft) StudyExerciseRules.requireValid(exercise)
+            }
+        }
     }
 
     private fun createQuestionFingerprint(question: Question): String =
@@ -570,6 +752,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
     private fun regenerateTopicIds(topic: Topic, newTopicId: String = UUID.randomUUID().toString()): Topic {
         return topic.copy(
             id = newTopicId,
+            exercises = topic.exercises.map(StudyExerciseMerge::duplicate),
             questions = topic.questions.map { question ->
                 val answerIdMap = question.answers.associate { it.id to UUID.randomUUID().toString() }
                 val newAnswers = question.answers.map {
@@ -592,6 +775,15 @@ class ImportManager(private val context: Context, private val localStore: Testar
 
     private fun resolveTopicImagePaths(topic: Topic): Topic {
         return topic.copy(
+            exercises = topic.exercises.map { ex ->
+                ex.copy(
+                    baseImageUri = resolveImportedImagePath(ex.baseImageUri),
+                    flashcard = ex.flashcard?.copy(
+                        frontImageUri = resolveImportedImagePath(ex.flashcard.frontImageUri),
+                        backImageUri = resolveImportedImagePath(ex.flashcard.backImageUri)
+                    )
+                )
+            },
             questions = topic.questions.map { question ->
                 question.copy(
                     explanationImageUri = resolveImportedImagePath(question.explanationImageUri),
@@ -606,7 +798,9 @@ class ImportManager(private val context: Context, private val localStore: Testar
         val fileName = try { File(path).name } catch (_: Exception) { return path }
         if (fileName.isBlank()) return path
         val localFile = File(imagesDir, fileName)
-        return if (localFile.exists()) localFile.absolutePath else path
+        return if (localFile.exists() ||
+            pendingImageStage?.let { File(it, fileName).isFile } == true
+        ) localFile.absolutePath else path
     }
 
     private fun generateUniqueTopicName(baseName: String, existingTopics: List<Topic>): String {
