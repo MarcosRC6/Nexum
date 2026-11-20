@@ -140,12 +140,9 @@ fun StudyExerciseEditorScreen(
         }
     }
     fun removeMarker(markerId: String) {
-        val remaining = solutions.flatMap { it.points }
-            .filterNot { it.id == markerId }.sortedBy { it.order }
-        val orders = remaining.mapIndexed { index, p -> p.id to (index + 1) }.toMap()
-        solutions = solutions.map { item ->
+        solutions = solutions.mapIndexed { index, item ->
             item.copy(points = item.points.filterNot { it.id == markerId }
-                .map { it.copy(order = orders[it.id] ?: it.order) })
+                .take(1).map { it.copy(order = index + 1) })
         }
         pendingMarkerId = null
     }
