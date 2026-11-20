@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.domain.ClozeMarkupEngine
 import com.example.testario.domain.StudyExerciseRules
+import com.example.testario.domain.ImageOcclusionPolicy
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.MixedSessionViewModel
 import kotlinx.coroutines.launch
@@ -245,8 +246,9 @@ fun MixedSessionScreen(
                             annotations = if (reverse) card.backAnnotations else card.frontAnnotations,
                             modifier = Modifier.fillMaxWidth().height(220.dp),
                             masks = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
-                                card.masks.filter { it.id == item.variant } else emptyList(),
-                            showCorrection = showAnswer)
+                                ImageOcclusionPolicy.covered(card.masks, item.variant, showAnswer)
+                                else emptyList(),
+                            showCorrection = false)
                     }
                     if (!showAnswer) {
                         Button(onClick = { session.revealAnki() },
@@ -254,7 +256,10 @@ fun MixedSessionScreen(
                             Text("Mostrar respuesta")
                         }
                     } else {
-                        Text(solutionText.ifBlank { questionText }, color = TestarioGreen)
+                        val imageAnswer = card.masks
+                            .firstOrNull { it.id == item.variant }?.answer.orEmpty()
+                        Text(imageAnswer.ifBlank { solutionText.ifBlank { questionText } },
+                            color = TestarioGreen)
                         (if (reverse) card.frontImageUri else card.backImageUri)?.let { path ->
                             StudyVisualImage(imageUri = path,
                                 annotations = if (reverse) card.frontAnnotations else card.backAnnotations,
