@@ -21,6 +21,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AlertDialog
 import com.example.testario.ui.theme.NeonButton as Button
 import androidx.compose.material3.ButtonDefaults
@@ -64,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.testario.data.model.Answer
+import com.example.testario.data.model.ImageAnnotations
 import com.example.testario.data.model.Question
 import com.example.testario.data.model.QuestionStats
 import com.example.testario.ui.theme.TestarioBackground
@@ -87,7 +90,8 @@ fun QuestionEditorScreen(
     topicId: String,
     questionId: String?,
     libraryViewModel: LibraryViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    embedded: Boolean = false
 ) {
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
@@ -113,7 +117,10 @@ fun QuestionEditorScreen(
     // El campo histórico explanationImageUri se conserva como imagen del enunciado por compatibilidad.
     var statementImageUri by remember { mutableStateOf(existingQuestion?.explanationImageUri) }
     var correctionImageUri by remember { mutableStateOf(existingQuestion?.correctionImageUri) }
+    var statementAnnotations by remember { mutableStateOf(existingQuestion?.statementAnnotations ?: ImageAnnotations()) }
+    var correctionAnnotations by remember { mutableStateOf(existingQuestion?.correctionAnnotations ?: ImageAnnotations()) }
     var flagged by remember { mutableStateOf(existingQuestion?.flagged ?: false) }
+    var showImageTargetMenu by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     // NUEVO: Estado para el diálogo de confirmación de borrado
@@ -122,19 +129,25 @@ fun QuestionEditorScreen(
     val statementImagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        if (uri != null) statementImageUri = uri.toString()
+        if (uri != null) {
+            if (uri.toString() != statementImageUri) statementAnnotations = ImageAnnotations()
+            statementImageUri = uri.toString()
+        }
     }
 
     val correctionImagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        if (uri != null) correctionImageUri = uri.toString()
+        if (uri != null) {
+            if (uri.toString() != correctionImageUri) correctionAnnotations = ImageAnnotations()
+            correctionImageUri = uri.toString()
+        }
     }
 
     Scaffold(
         containerColor = TestarioBackground,
         topBar = {
-            TestarioTopBar(
+            if (!embedded) TestarioTopBar(
                 title = if (existingQuestion == null) "Nueva pregunta" else "Editar pregunta",
                 onBack = onBack
             )
@@ -195,72 +208,6 @@ fun QuestionEditorScreen(
                 ) { Text("+ Añadir respuesta") }
             }
 
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = TestarioSurface)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Marcar pregunta (🚩)", color = TestarioText, style = MaterialTheme.typography.titleMedium)
-                        Switch(checked = flagged, onCheckedChange = { flagged = it }, colors = SwitchDefaults.colors(checkedThumbColor = TestarioPrimary))
-                    }
-                }
-            }
-
-            item {
-                EditorSectionCard {
-                    Text(text = "Dificultad", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        DifficultyButton(text = "Nada", selected = difficulty == null, color = TestarioMutedText, modifier = Modifier.weight(1f)) { difficulty = null }
-                        DifficultyButton(text = "Fácil", selected = difficulty == 1, color = TestarioGreen, modifier = Modifier.weight(1f)) { difficulty = 1 }
-                        DifficultyButton(text = "Medio", selected = difficulty == 2, color = TestarioYellow, modifier = Modifier.weight(1f)) { difficulty = 2 }
-                        DifficultyButton(text = "Difícil", selected = difficulty == 3, color = TestarioRed, modifier = Modifier.weight(1f)) { difficulty = 3 }
-                    }
-                }
-            }
-
-            item {
-                EditorSectionCard {
-                    Text(text = "Imagen del enunciado", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Se muestra mientras respondes la pregunta.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TestarioMutedText
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = { statementImagePicker.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, TestarioPrimary)
-                    ) {
-                        Text(if (statementImageUri == null) "Adjuntar imagen del enunciado" else "Cambiar imagen del enunciado")
-                    }
-                    if (statementImageUri != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(if (statementImageUri!!.startsWith("content://")) Uri.parse(statementImageUri) else File(statementImageUri!!))
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Imagen del enunciado",
-                            modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(12.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "✓ Imagen lista", color = TestarioGreen)
-                            TextButton(onClick = { statementImageUri = null }) { Text("Eliminar", color = TestarioRed) }
-                        }
-                    }
-                }
-            }
 
             item {
                 EditorSectionCard {
@@ -274,38 +221,80 @@ fun QuestionEditorScreen(
                         minLines = 3,
                         shape = RoundedCornerShape(18.dp)
                     )
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(text = "Imagen de la explicación", style = MaterialTheme.typography.titleSmall, color = TestarioText)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Solo aparece al corregir: al responder en Entrenamiento y en la revisión del Examen.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TestarioMutedText
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = { correctionImagePicker.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, TestarioPrimary)
-                    ) {
-                        Text(if (correctionImageUri == null) "Adjuntar imagen de explicación" else "Cambiar imagen de explicación")
+                }
+            }
+
+            item {
+                EditorSectionCard {
+                    Text("Añadir imagen", color = TestarioText,
+                        style = MaterialTheme.typography.titleMedium)
+                    Box {
+                        OutlinedButton(
+                            onClick = { showImageTargetMenu = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("+ Añadir imagen") }
+                        DropdownMenu(expanded = showImageTargetMenu,
+                            onDismissRequest = { showImageTargetMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Imagen del enunciado") },
+                                onClick = {
+                                    showImageTargetMenu = false
+                                    statementImagePicker.launch("image/*")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Imagen de la explicación") },
+                                onClick = {
+                                    showImageTargetMenu = false
+                                    correctionImagePicker.launch("image/*")
+                                }
+                            )
+                        }
+                    }
+                    if (statementImageUri != null) {
+                        Text("Imagen del enunciado", color = TestarioMutedText)
+                        Text("Toca la imagen para verla o editar sus anotaciones.",
+                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                        EditableAnnotationImage(
+                            imageUri = requireNotNull(statementImageUri),
+                            annotations = statementAnnotations,
+                            modifier = Modifier.fillMaxWidth().height(210.dp),
+                            onAnnotationsChanged = { statementAnnotations = it },
+                            onReplace = { statementImagePicker.launch("image/*") },
+                            onDelete = {
+                                statementImageUri = null
+                                statementAnnotations = ImageAnnotations()
+                            }
+                        )
                     }
                     if (correctionImageUri != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(if (correctionImageUri!!.startsWith("content://")) Uri.parse(correctionImageUri) else File(correctionImageUri!!))
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Imagen de la explicación",
-                            modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(12.dp)),
-                            contentScale = ContentScale.Crop
+                        Text("Imagen de explicación", color = TestarioMutedText)
+                        Text("Toca la imagen para verla o editar sus anotaciones.",
+                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                        EditableAnnotationImage(
+                            imageUri = requireNotNull(correctionImageUri),
+                            annotations = correctionAnnotations,
+                            modifier = Modifier.fillMaxWidth().height(210.dp),
+                            onAnnotationsChanged = { correctionAnnotations = it },
+                            onReplace = { correctionImagePicker.launch("image/*") },
+                            onDelete = {
+                                correctionImageUri = null
+                                correctionAnnotations = ImageAnnotations()
+                            }
                         )
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "✓ Imagen lista", color = TestarioGreen)
-                            TextButton(onClick = { correctionImageUri = null }) { Text("Eliminar", color = TestarioRed) }
-                        }
+                    }
+                }
+            }
+
+            item {
+                EditorSectionCard {
+                    Text(text = "Dificultad", style = MaterialTheme.typography.titleMedium, color = TestarioText)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        DifficultyButton(text = "Nada", selected = difficulty == null, color = TestarioMutedText, modifier = Modifier.weight(1f)) { difficulty = null }
+                        DifficultyButton(text = "Fácil", selected = difficulty == 1, color = TestarioGreen, modifier = Modifier.weight(1f)) { difficulty = 1 }
+                        DifficultyButton(text = "Medio", selected = difficulty == 2, color = TestarioYellow, modifier = Modifier.weight(1f)) { difficulty = 2 }
+                        DifficultyButton(text = "Difícil", selected = difficulty == 3, color = TestarioRed, modifier = Modifier.weight(1f)) { difficulty = 3 }
                     }
                 }
             }
@@ -333,6 +322,8 @@ fun QuestionEditorScreen(
                             explanation = explanation.trim(),
                             explanationImageUri = statementImageUri,
                             correctionImageUri = correctionImageUri,
+                            statementAnnotations = statementAnnotations,
+                            correctionAnnotations = correctionAnnotations,
                             originTopicName = existingQuestion?.originTopicName,
                             favorite = existingQuestion?.favorite ?: false,
                             flagged = flagged,
