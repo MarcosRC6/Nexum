@@ -18,6 +18,9 @@ import com.example.testario.ui.theme.NeonButton as Button
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
@@ -46,6 +49,20 @@ fun MixedSessionScreen(
     var exitConfirm by remember { mutableStateOf(false) }
     var discardConfirm by remember { mutableStateOf(false) }
     var reviewingResults by rememberSaveable { mutableStateOf(false) }
+    var visitingQuestionEditor by rememberSaveable { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val latestVisiting by rememberUpdatedState(visitingQuestionEditor)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && latestVisiting) {
+                session.resume()
+                visitingQuestionEditor = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     val active = snapshot?.takeUnless { it.completed }?.let { it.items.getOrNull(it.currentIndex) }
     val currentResponse = snapshot?.takeUnless { it.completed }?.let { it.responses.getOrNull(it.currentIndex) }
     var writtenInput by rememberSaveable(active?.id) {
@@ -249,8 +266,10 @@ fun MixedSessionScreen(
                             }
                         }
                         IconButton(onClick = {
-                            if (persistDraft() && session.saveAndLeave())
+                            if (persistDraft() && session.saveAndLeave()) {
+                                visitingQuestionEditor = true
                                 onEditQuestion(item.topicId, question.id)
+                            }
                         }) {
                             Text("✎", color = TestarioPrimary,
                                 style = MaterialTheme.typography.titleLarge)
