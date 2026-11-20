@@ -65,6 +65,7 @@ internal fun webQuickLinkIcon(icon: String): String = when (icon) {
     "academy" -> "🎓"
     "map" -> "🗺️"
     "document" -> "📄"
+    "other" -> "◈"
     else -> "🌐"
 }
 
@@ -72,7 +73,8 @@ private val webIconNames = listOf(
     "web" to "Página web",
     "academy" to "Academia",
     "map" to "Mapa",
-    "document" to "Documento"
+    "document" to "Documento",
+    "other" to "Otro"
 )
 
 @Composable
@@ -85,6 +87,7 @@ internal fun WebQuickLinksManagerDialog(
     var title by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var icon by remember { mutableStateOf("web") }
+    var customIconLabel by remember { mutableStateOf("") }
     var iconMenu by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var toDelete by remember { mutableStateOf<String?>(null) }
@@ -94,6 +97,7 @@ internal fun WebQuickLinksManagerDialog(
         title = ""
         url = ""
         icon = "web"
+        customIconLabel = ""
         error = null
     }
 
@@ -138,6 +142,16 @@ internal fun WebQuickLinksManagerDialog(
                     }
                     OutlinedButton(onClick = { resetForm() }) { Text("Limpiar") }
                 }
+                if (icon == "other") {
+                    OutlinedTextField(
+                        value = customIconLabel,
+                        onValueChange = { customIconLabel = it.take(28) },
+                        label = { Text("Nombre personalizado de la categoría") },
+                        placeholder = { Text("Ejemplo: Simulacros") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
                 error?.let { Text(it, color = Color(0xFFFF8080)) }
                 NeonButton(
                     onClick = {
@@ -146,7 +160,8 @@ internal fun WebQuickLinksManagerDialog(
                             title = title,
                             url = url,
                             icon = icon,
-                            hidden = links.firstOrNull { it.id == editingId }?.hidden ?: false
+                            hidden = links.firstOrNull { it.id == editingId }?.hidden ?: false,
+                            customIconLabel = if (icon == "other") customIconLabel else null
                         )
                         val checked = WebQuickLinkPolicy.validate(link)
                         when {
@@ -170,6 +185,10 @@ internal fun WebQuickLinksManagerDialog(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        if (link.icon == "other") Text(
+                            link.customIconLabel.orEmpty(), color = TestarioPrimary,
+                            maxLines = 1
+                        )
                         Text(link.url, color = TestarioMutedText,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -186,6 +205,7 @@ internal fun WebQuickLinksManagerDialog(
                                 title = link.title
                                 url = link.url
                                 icon = link.icon
+                                customIconLabel = link.customIconLabel.orEmpty()
                                 error = null
                             }) { Text("✎", color = TestarioPrimary) }
                             IconButton(onClick = { store.setHidden(link.id, !link.hidden) }) {
