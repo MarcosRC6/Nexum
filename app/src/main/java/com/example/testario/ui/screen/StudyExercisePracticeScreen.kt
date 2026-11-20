@@ -152,7 +152,7 @@ fun StudyExercisePracticeScreen(
                         modifier = Modifier.fillMaxWidth().height(240.dp),
                         markers = exercise.solutions.flatMap { it.points },
                         mode = SketchMode.PREVIEW,
-                        showMarkers = completed,
+                        showMarkers = true,
                         markerStatuses = statusByMarker
                     )
                 }
@@ -163,6 +163,7 @@ fun StudyExercisePracticeScreen(
                         annotations = exercise.baseAnnotations,
                         markers = exercise.solutions.flatMap { it.points },
                         showCorrection = completed,
+                        showAnswerMarkers = true,
                         markerStatuses = statusByMarker
                     )
                 }
@@ -241,14 +242,16 @@ fun StudyExercisePracticeScreen(
                     val b = penalty.replace(",", ".").toDoubleOrNull() ?: -0.25
                     val result = StudyExerciseRules.gradeWritten(exercise, answers, a, b)
                     Text("Nota: ${"%.2f".format(result.scoreOutOfTen)} / 10",
-                        color = TestarioGreen, style = MaterialTheme.typography.titleLarge)
+                        color = if (result.incorrect > 0 || result.omitted > 0) TestarioRed
+                            else TestarioGreen,
+                        style = MaterialTheme.typography.titleLarge)
                     Text("Aciertos: ${result.correct} · Errores: ${result.incorrect} · Omitidas: ${result.omitted}",
                         color = TestarioText)
                     val missing = exercise.solutions.filterNot { it.id in result.correctIds }
                     if (missing.isNotEmpty()) {
                         Text("Faltaban", color = TestarioPrimary)
                         missing.forEach { solution ->
-                            Text("✓ ${solution.text}", color = TestarioGreen)
+                            Text("✗ ${solution.text}", color = TestarioRed)
                         }
                     }
                 }
@@ -387,13 +390,6 @@ fun StudyExercisePracticeScreen(
                             Button(onClick = onBack, modifier = Modifier.weight(1f)) { Text("Terminar") }
                         }
                     }
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = database.ankiReviewEnabled, onCheckedChange = {
-                        libraryViewModel.setAnkiReviewEnabled(it)
-                        if (!it) scheduledReview = false
-                    })
-                    Text("Activar repetición espaciada", color = TestarioText)
                 }
                 if (database.ankiReviewEnabled) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
