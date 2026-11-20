@@ -372,7 +372,8 @@ fun TestarioApp(
                     onEditQuestion = { topicId, questionId ->
                         navController.navigate(Routes.questionEditor(topicId, questionId))
                     },
-                    onLeave = { goTest() }
+                    onLeave = { goTest() },
+                    onFinish = { goHome() }
                 )
             }
 
