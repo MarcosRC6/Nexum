@@ -1,6 +1,7 @@
 package com.example.testario.domain
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import java.io.File
@@ -16,6 +17,33 @@ import java.util.UUID
 class StudyImageStore(private val context: Context) {
     private val folder = File(context.filesDir, "question_images")
     private val maxBytes = 32L * 1024L * 1024L
+
+    /**
+     * Create a genuine private PNG so a drawing and an imported photo use the
+     * SAME non-destructive annotation editor. The file is included in NEXUM
+     * image ZIP backups; an unsaved draft never mutates another image.
+     */
+    fun createBlankCanvas(width: Int = 1600, height: Int = 1000): String {
+        require(width in 320..4096 && height in 320..4096)
+        require(folder.isDirectory || folder.mkdirs()) { "No se pudo crear la carpeta de imágenes." }
+        val target = File(folder, "NEXUM_canvas_${UUID.randomUUID()}.png")
+        val temp = File(folder, ".blank-${UUID.randomUUID()}.png")
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        try {
+            bitmap.eraseColor(android.graphics.Color.WHITE)
+            FileOutputStream(temp).use { output ->
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                    "No se pudo generar el lienzo."
+                }
+                output.fd.sync()
+            }
+            require(temp.renameTo(target)) { "No se pudo guardar el lienzo." }
+            return target.absolutePath
+        } finally {
+            bitmap.recycle()
+            temp.delete()
+        }
+    }
 
     fun persist(uriOrPath: String?): String? {
         if (uriOrPath.isNullOrBlank()) return null
