@@ -388,22 +388,22 @@ fun StudyExercisePracticeScreen(
                         }
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = database.ankiReviewEnabled, onCheckedChange = {
-                        libraryViewModel.setAnkiReviewEnabled(it)
-                        if (!it) scheduledReview = false
-                    })
-                    Text("Activar repetición espaciada", color = TestarioText)
-                }
                 if (database.ankiReviewEnabled) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = scheduledReview, onCheckedChange = {
-                            scheduledReview = it
-                        })
-                        Text("Esta sesión sí cuenta como repaso programado", color = TestarioText)
+                    OutlinedButton(
+                        onClick = { scheduledReview = !scheduledReview },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(if (scheduledReview) "✓ Repaso programado activo · Volver a modo libre"
+                            else "Iniciar repaso programado")
                     }
+                    Text(
+                        if (scheduledReview) "Al calificar con Otra vez, Difícil, Bien o Fácil se actualizará el calendario de esta tarjeta."
+                        else "Modo libre: mostrar una respuesta no modifica las fechas. Activa un repaso programado explícitamente cuando quieras calificar.",
+                        color = TestarioMutedText,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 } else {
-                    Text("Modo libre: no se modifican las fechas de repaso.",
+                    Text("Repetición espaciada desactivada en Ajustes → Comportamiento de los ejercicios. Estudio libre.",
                         color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 }
             }
