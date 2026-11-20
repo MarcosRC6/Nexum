@@ -20,7 +20,7 @@ object NexumExportNames {
     fun fullBackup(date: LocalDateTime = LocalDateTime.now()) =
         filename("TODO", "COMPLETO", "zip", date = date)
     fun plan(date: LocalDateTime = LocalDateTime.now()) =
-        filename("PLANIFICACION", "COMPLETO", "json", date = date)
+        filename("PLANIFICACION", "COMPLETO", "zip", date = date)
     fun library(zip: Boolean, partial: Boolean, date: LocalDateTime = LocalDateTime.now()) =
         filename("BIBLIOTECA", if (zip) "COMPLETO" else "SIMPLE", if (zip) "zip" else "json", partial, date)
 }

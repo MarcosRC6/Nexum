@@ -841,9 +841,8 @@ class StudyRepository(
         _timeEntries.value = importedData.timeEntries
         _settings.value = importedData.settings
 
-        persist()
-
-        return true
+        // A parsed backup is not restored until SharedPreferences confirms disk write.
+        return persist()
     }
 
     private fun refreshedDay(
@@ -984,8 +983,8 @@ class StudyRepository(
         return activeTopics + archivedTopics
     }
 
-    private fun persist() {
-        localDataSource.save(
+    private fun persist(): Boolean {
+        return localDataSource.save(
             StoredStudyData(
                 topics = _topics.value,
                 fixedObjectives = _fixedObjectives.value,
