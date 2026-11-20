@@ -47,6 +47,7 @@ internal fun StudySketchCanvas(
     onMarkTap: (Double, Double) -> Unit = { _, _ -> }
 ) {
     var inProgress by remember { mutableStateOf<List<SketchPoint>>(emptyList()) }
+    var eraserPreview by remember { mutableStateOf<List<SketchPoint>>(emptyList()) }
     var panX by remember { mutableFloatStateOf(0f) }
     var panY by remember { mutableFloatStateOf(0f) }
     val latestDraw by rememberUpdatedState(onDrawStroke)
@@ -82,6 +83,7 @@ internal fun StudySketchCanvas(
                             multiTouch = true
                             gesturePoints = emptyList()
                             inProgress = emptyList()
+                            eraserPreview = emptyList()
                             val oldZoom = latestZoom
                             val newZoom = (oldZoom * event.calculateZoom()).coerceIn(1f, 5f)
                             latestZoomChange(newZoom)
@@ -101,6 +103,7 @@ internal fun StudySketchCanvas(
                                 SketchMode.ERASE -> {
                                     if (gesturePoints.lastOrNull() != at && gesturePoints.size < 1200)
                                         gesturePoints = gesturePoints + at
+                                    eraserPreview = gesturePoints
                                 }
                                 SketchMode.PAN -> {
                                     val displacement = change.positionChange()
@@ -131,6 +134,7 @@ internal fun StudySketchCanvas(
                         }
                     }
                     inProgress = emptyList()
+                    eraserPreview = emptyList()
                 }
             }
         SketchMode.MARK -> Modifier.pointerInput(mode, markers, zoomFactor) {
@@ -176,6 +180,26 @@ internal fun StudySketchCanvas(
                     width = thickness, cap = androidx.compose.ui.graphics.StrokeCap.Round,
                     join = androidx.compose.ui.graphics.StrokeJoin.Round
                 ))
+            }
+            if (eraserPreview.isNotEmpty() && mode == SketchMode.ERASE) {
+                val eraser = Path()
+                val first = eraserPreview.first()
+                eraser.moveTo(size.width * first.x.toFloat(),
+                    size.height * first.y.toFloat())
+                eraserPreview.drop(1).forEach { point ->
+                    eraser.lineTo(size.width * point.x.toFloat(),
+                        size.height * point.y.toFloat())
+                }
+                val brush = 30.dp.toPx()
+                if (eraserPreview.size == 1) {
+                    drawCircle(TestarioSurface, radius = brush / 2f,
+                        center = Offset(size.width * first.x.toFloat(),
+                            size.height * first.y.toFloat()))
+                } else {
+                    drawPath(eraser, TestarioSurface, style = Stroke(width = brush,
+                        cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                        join = androidx.compose.ui.graphics.StrokeJoin.Round))
+                }
             }
         }
         if (showMarkers) markers.forEach { marker ->
