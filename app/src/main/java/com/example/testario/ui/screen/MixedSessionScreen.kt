@@ -40,6 +40,8 @@ fun MixedSessionScreen(
     val error by session.error.collectAsState()
     val scope = rememberCoroutineScope()
     var exitConfirm by remember { mutableStateOf(false) }
+    var reviewingResults by rememberSaveable { mutableStateOf(false) }
+    var reviewIndex by rememberSaveable { mutableIntStateOf(0) }
     val active = snapshot?.takeUnless { it.completed }?.let { it.items.getOrNull(it.currentIndex) }
     val currentResponse = snapshot?.takeUnless { it.completed }?.let { it.responses.getOrNull(it.currentIndex) }
     var writtenInput by rememberSaveable(active?.id) {
@@ -106,52 +108,56 @@ fun MixedSessionScreen(
 
             if (result != null) {
                 val finished = requireNotNull(result)
-                Text("Sesión finalizada", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                if (finished.scoreOutOfTen == null) {
-                    Text("Sin nota objetiva · ${finished.manualReviewItems} tarjetas de repaso manual.",
-                        color = TestarioPrimary)
-                } else {
-                    Text("Nota objetiva: ${"%.2f".format(finished.scoreOutOfTen)} / 10",
-                        color = TestarioGreen, style = MaterialTheme.typography.titleLarge)
-                    Text("${finished.objectiveItems} elementos puntuables · " +
-                        "${finished.manualReviewItems} tarjetas excluidas de la nota.",
+                if (reviewingResults) {
+                    Text("Revisión del test", style = MaterialTheme.typography.titleLarge,
+                        color = TestarioText)
+                    Text("Pregunta ${reviewIndex + 1} de ${current.items.size}",
                         color = TestarioMutedText)
-                }
-                current.items.zip(current.responses).forEachIndexed { idx, pair ->
-                    val (item, response) = pair
-                    HorizontalDivider()
-                    Text("${idx + 1}. ${item.topicName} · ${item.type.name}",
-                        color = TestarioMutedText)
-                    when (item.type) {
-                        MixedItemType.TEST -> {
-                            val q = requireNotNull(item.question)
-                            Text(q.text, color = TestarioText)
-                            Text("Tu respuesta: " +
-                                (q.answers.firstOrNull { it.id == response.selectedAnswerId }?.text ?: "En blanco"),
-                                color = if (response.selectedAnswerId == q.correctAnswerId) TestarioGreen else TestarioRed)
-                            Text("Correcta: " + q.answers.first { it.id == q.correctAnswerId }.text,
-                                color = TestarioGreen)
-                        }
-                        MixedItemType.WRITTEN -> {
-                            val ex = requireNotNull(item.exercise)
-                            Text(ex.prompt, color = TestarioText)
-                            val grade = StudyExerciseRules.gradeWrittenInSession(
-                                ex, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
-                            )
-                            Text("Nota: ${"%.2f".format(grade.scoreOutOfTen)} / 10 · " +
-                                "${grade.correct} aciertos, ${grade.incorrect} errores, ${grade.omitted} omitidas",
-                                color = TestarioText)
-                            Text("Soluciones: " + ex.solutions.joinToString(" · ") { it.text }, color = TestarioGreen)
-                        }
-                        MixedItemType.ANKI -> {
-                            val card = requireNotNull(item.exercise?.flashcard)
-                            Text(card.front, color = TestarioText)
-                            Text("Respuesta: " + card.back, color = TestarioGreen)
-                
+                    MixedSessionReviewCard(current, reviewIndex)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { reviewIndex-- }, enabled = reviewIndex > 0,
+                            modifier = Modifier.weight(1f)) { Text("Anterior") }
+                        Button(onClick = {
+                            if (reviewIndex < current.items.lastIndex) reviewIndex++
+                            else reviewingResults = false
+                        }, modifier = Modifier.weight(1f)) {
+                            Text(if (reviewIndex == current.items.lastIndex) "Resultados" else "Siguiente")
                         }
                     }
+                    OutlinedButton(onClick = { reviewingResults = false },
+                        modifier = Modifier.fillMaxWidth()) { Text("Volver a resultados") }
+                } else {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = TestarioSurface),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(22.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("Resultados", color = TestarioText,
+                                style = MaterialTheme.typography.titleLarge)
+                            if (finished.scoreOutOfTen == null) {
+                                Text("Sin calificación objetiva", color = TestarioPrimary,
+                                    style = MaterialTheme.typography.headlineMedium)
+                            } else {
+                                Text("${"%.2f".format(finished.scoreOutOfTen)}/10",
+                                    color = if (finished.scoreOutOfTen >= 5) TestarioGreen else TestarioRed,
+                                    style = MaterialTheme.typography.displayLarge)
+                                Text("${finished.objectiveItems} elementos puntuables",
+                                    color = TestarioMutedText)
+                            }
+                        }
+                    }
+                    OutlinedButton(onClick = {
+                        reviewIndex = 0
+                        reviewingResults = true
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Revisar preguntas")
+                    }
+                    Button(onClick = onLeave, modifier = Modifier.fillMaxWidth()) {
+                        Text("Volver al inicio de Test")
+                    }
                 }
-                Button(onClick = onLeave, modifier = Modifier.fillMaxWidth()) { Text("Terminar") }
                 return@Column
             }
 
