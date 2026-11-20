@@ -193,18 +193,8 @@ internal fun ImageAnnotationEditorDialog(
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(imageUri, blankCanvas) {
-        intrinsic = if (blankCanvas) (1200 to 800) else withContext(Dispatchers.IO) {
-            runCatching {
-                val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                if (imageUri.startsWith("/")) BitmapFactory.decodeFile(imageUri, options)
-                else context.contentResolver.openInputStream(Uri.parse(imageUri))?.use {
-                    BitmapFactory.decodeStream(it, null, options)
-                }
-                if (options.outWidth > 0 && options.outHeight > 0 &&
-                    options.outWidth.toLong() * options.outHeight <= 100_000_000L)
-                    options.outWidth to options.outHeight else null
-            }.getOrNull()
-        }
+        intrinsic = if (blankCanvas) (1200 to 800)
+            else ImageDisplayGeometry.read(context, imageUri)
     }
 
     fun commit(next: List<ImageAnnotationStroke>) {
