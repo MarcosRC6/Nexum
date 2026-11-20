@@ -116,9 +116,9 @@ internal fun EditableOcclusionImage(
                                             onMasksChanged(latestMasks.map {
                                                 if (it.id != mask.id) it else it.copy(
                                                     width = (it.width + drag.x / fit.width)
-                                                        .coerceIn(.04, 1.0 - it.x),
+                                                        .coerceIn(minOf(.04, 1.0 - it.x), 1.0 - it.x),
                                                     height = (it.height + drag.y / fit.height)
-                                                        .coerceIn(.04, 1.0 - it.y)
+                                                        .coerceIn(minOf(.04, 1.0 - it.y), 1.0 - it.y)
                                                 )
                                             })
                                         }
