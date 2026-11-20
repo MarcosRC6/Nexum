@@ -50,12 +50,21 @@ fun MixedSessionScreen(
     var discardConfirm by remember { mutableStateOf(false) }
     var reviewingResults by rememberSaveable { mutableStateOf(false) }
     var visitingQuestionEditor by rememberSaveable { mutableStateOf(false) }
+    var editedQuestionId by rememberSaveable { mutableStateOf<String?>(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val latestVisiting by rememberUpdatedState(visitingQuestionEditor)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME && latestVisiting) {
-                session.resume()
+                if (session.resume()) {
+                    editedQuestionId?.let { id ->
+                        libraryViewModel.database.value.topics.asSequence()
+                            .flatMap { it.questions.asSequence() }
+                            .firstOrNull { it.id == id }
+                            ?.let { session.refreshEditedQuestion(it) }
+                    }
+                }
+                editedQuestionId = null
                 visitingQuestionEditor = false
             }
         }
@@ -268,6 +277,7 @@ fun MixedSessionScreen(
                         IconButton(onClick = {
                             if (persistDraft() && session.saveAndLeave()) {
                                 visitingQuestionEditor = true
+                                editedQuestionId = question.id
                                 onEditQuestion(item.topicId, question.id)
                             }
                         }) {
