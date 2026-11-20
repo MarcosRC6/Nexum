@@ -118,7 +118,12 @@ fun MixedSessionScreen(
                             Text("Nota: ${"%.2f".format(grade.scoreOutOfTen)} / 10 · " +
                                 "${grade.correct} aciertos, ${grade.incorrect} errores, ${grade.omitted} omitidas",
                                 color = TestarioText)
-                            Text("Soluciones: " + ex.solutions.joinToString(" · ") { it.text }, color = TestarioGreen)
+                            ex.solutions.forEachIndexed { index, solution ->
+                                val hit = solution.id in grade.correctIds
+                                Text("${index + 1}. ${solution.text}" + if (hit) " ✓" else " · Sin acertar",
+                                    color = if (hit) TestarioGreen else TestarioRed)
+                            }
+                            grade.incorrectInputs.forEach { Text("$it ✗", color = TestarioRed) }
                         }
                         MixedItemType.ANKI -> {
                             val card = requireNotNull(item.exercise?.flashcard)
@@ -189,26 +194,46 @@ fun MixedSessionScreen(
                                 solution.points.map { point -> point.id to (solution.id in grade.correctIds) }
                             }.toMap()
                         } else emptyMap()
-                        StudyVisualImage(imageUri = path, modifier = Modifier.fillMaxWidth().height(230.dp),
+                        StudyVisualImage(imageUri = path, modifier = Modifier.fillMaxWidth().height(270.dp),
                             annotations = exercise.baseAnnotations,
                             markers = exercise.solutions.flatMap { it.points },
-                            markerStatuses = statuses, showCorrection = showAnswer)
+                            markerStatuses = statuses, showCorrection = true)
                     }
                     exercise.sketch?.let { drawing ->
                         StudySketchCanvas(
                             sketch = drawing, modifier = Modifier.fillMaxWidth().height(220.dp),
                             markers = exercise.solutions.flatMap { it.points },
-                            mode = SketchMode.PREVIEW, showMarkers = showAnswer
+                            mode = SketchMode.PREVIEW, showMarkers = true,
+                            markerStatuses = if (showAnswer) {
+                                val grade = StudyExerciseRules.gradeWritten(
+                                    exercise, response.writtenAnswers,
+                                    current.pointsCorrect, current.penaltyWrong
+                                )
+                                exercise.solutions.flatMap { solution ->
+                                    solution.points.map { it.id to (solution.id in grade.correctIds) }
+                                }.toMap()
+                            } else emptyMap()
                         )
                     }
-                    OutlinedTextField(
-                        value = writtenInput,
-                        onValueChange = { writtenInput = it },
-                        label = { Text("Una respuesta por línea") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                        enabled = !locked && !showAnswer
-                    )
+                    Text("Responde a cada solución numerada de la imagen.",
+                        style = MaterialTheme.typography.bodySmall, color = TestarioMutedText)
+                    val entries = writtenInput.split("\n")
+                    exercise.solutions.forEachIndexed { answerIndex, solution ->
+                        OutlinedTextField(
+                            value = entries.getOrElse(answerIndex) { "" },
+                            onValueChange = { typed ->
+                                val next = MutableList(exercise.solutions.size) { n ->
+                                    entries.getOrElse(n) { "" }
+                                }
+                                next[answerIndex] = typed.replace("\n", " ")
+                                writtenInput = next.joinToString("\n")
+                            },
+                            label = { Text("Solución ${answerIndex + 1}") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !locked && !showAnswer,
+                            singleLine = true
+                        )
+                    }
                     if (!showAnswer) {
                         Button(onClick = { session.submitWritten(writtenInput) },
                             enabled = !locked, modifier = Modifier.fillMaxWidth()) {
@@ -218,15 +243,20 @@ fun MixedSessionScreen(
                         val graded = StudyExerciseRules.gradeWritten(
                             exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
                         )
-                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10", color = if (graded.scoreOutOfTen >= 5.0) TestarioGreen else TestarioRed)
+                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
+                            color = if (graded.scoreOutOfTen >= 5.0) TestarioGreen else TestarioRed)
                         response.writtenAnswers.forEach { entry ->
                             val solution = StudyExerciseRules.findAcceptedSolution(exercise, entry)
-                            Text(entry + (solution?.let { " ✓" } ?: " ✗"),
+                            Text(entry + if (solution != null) " ✓" else " ✗",
                                 color = if (solution == null) TestarioRed else TestarioGreen)
                         }
-                        val missing = exercise.solutions.filterNot { it.id in graded.correctIds }
-                        if (missing.isNotEmpty()) Text("Faltaban: " +
-                            missing.joinToString(" · ") { it.text }, color = TestarioGreen)
+                        exercise.solutions.forEachIndexed { index, solution ->
+                            val correct = solution.id in graded.correctIds
+                            Text(
+                                "${index + 1}. ${solution.text}" + if (correct) " ✓" else " · Sin acertar",
+                                color = if (correct) TestarioGreen else TestarioRed
+                            )
+                        }
                     }
                 }
                 MixedItemType.ANKI -> {
