@@ -954,10 +954,6 @@ private fun StudyExerciseCard(
                         DropdownMenuItem(text = { Text("Duplicar") }, onClick = {
                             expanded = false; onDuplicate()
                         })
-                        if (!exercise.draft) DropdownMenuItem(
-                            text = { Text("Practicar") },
-                            onClick = { expanded = false; onPractice() }
-                        )
                         DropdownMenuItem(text = { Text("Eliminar") }, onClick = {
                             expanded = false; deleteConfirm = true
                         })
