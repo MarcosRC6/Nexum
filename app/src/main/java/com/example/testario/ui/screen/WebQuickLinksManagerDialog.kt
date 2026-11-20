@@ -65,6 +65,7 @@ internal fun webQuickLinkIcon(icon: String): String = when (icon) {
     "academy" -> "🎓"
     "map" -> "🗺️"
     "document" -> "📄"
+    "other" -> "◈"
     else -> "🌐"
 }
 
@@ -72,7 +73,8 @@ private val webIconNames = listOf(
     "web" to "Página web",
     "academy" to "Academia",
     "map" to "Mapa",
-    "document" to "Documento"
+    "document" to "Documento",
+    "other" to "Otro"
 )
 
 @Composable
@@ -85,6 +87,7 @@ internal fun WebQuickLinksManagerDialog(
     var title by remember { mutableStateOf("") }
     var url by remember { mutableStateOf("") }
     var icon by remember { mutableStateOf("web") }
+    var customTypeLabel by remember { mutableStateOf("") }
     var iconMenu by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var toDelete by remember { mutableStateOf<String?>(null) }
@@ -94,6 +97,7 @@ internal fun WebQuickLinksManagerDialog(
         title = ""
         url = ""
         icon = "web"
+        customTypeLabel = ""
         error = null
     }
 
@@ -138,6 +142,15 @@ internal fun WebQuickLinksManagerDialog(
                     }
                     OutlinedButton(onClick = { resetForm() }) { Text("Limpiar") }
                 }
+                if (icon == "other") {
+                    OutlinedTextField(
+                        value = customTypeLabel,
+                        onValueChange = { customTypeLabel = it.take(WebQuickLinkPolicy.MAX_CUSTOM_TYPE_LABEL_LENGTH) },
+                        label = { Text("Nombre de la categoría") },
+                        placeholder = { Text("Ej.: Simuladores, Normativa, Personal…") },
+                        modifier = Modifier.fillMaxWidth(), singleLine = true
+                    )
+                }
                 error?.let { Text(it, color = Color(0xFFFF8080)) }
                 NeonButton(
                     onClick = {
@@ -146,11 +159,12 @@ internal fun WebQuickLinksManagerDialog(
                             title = title,
                             url = url,
                             icon = icon,
+                            customTypeLabel = if (icon == "other") customTypeLabel else null,
                             hidden = links.firstOrNull { it.id == editingId }?.hidden ?: false
                         )
                         val checked = WebQuickLinkPolicy.validate(link)
                         when {
-                            checked == null -> error = "Introduce un nombre y una dirección http(s) válida, sin credenciales ni espacios."
+                            checked == null -> error = "Indica nombre, enlace http(s) válido y, si eliges Otro, un nombre de categoría."
                             !store.save(checked) -> error = "No se pudo guardar. Límite: 40 accesos."
                             else -> resetForm()
                         }
@@ -170,6 +184,10 @@ internal fun WebQuickLinksManagerDialog(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        if (link.icon == "other" && !link.customTypeLabel.isNullOrBlank()) {
+                            Text("Categoría: ${link.customTypeLabel}", color = TestarioPrimary,
+                                style = MaterialTheme.typography.bodySmall)
+                        }
                         Text(link.url, color = TestarioMutedText,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -186,6 +204,7 @@ internal fun WebQuickLinksManagerDialog(
                                 title = link.title
                                 url = link.url
                                 icon = link.icon
+                                customTypeLabel = link.customTypeLabel.orEmpty()
                                 error = null
                             }) { Text("✎", color = TestarioPrimary) }
                             IconButton(onClick = { store.setHidden(link.id, !link.hidden) }) {
