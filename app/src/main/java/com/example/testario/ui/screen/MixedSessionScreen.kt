@@ -124,7 +124,7 @@ fun MixedSessionScreen(
                             val card = requireNotNull(item.exercise?.flashcard)
                             Text(card.front, color = TestarioText)
                             Text("Respuesta: " + card.back, color = TestarioGreen)
-                            Text("Repaso manual · sin calificación", color = TestarioMutedText)
+                
                         }
                     }
                 }
@@ -192,23 +192,42 @@ fun MixedSessionScreen(
                         StudyVisualImage(imageUri = path, modifier = Modifier.fillMaxWidth().height(230.dp),
                             annotations = exercise.baseAnnotations,
                             markers = exercise.solutions.flatMap { it.points },
-                            markerStatuses = statuses, showCorrection = showAnswer)
+                            markerStatuses = statuses, showCorrection = showAnswer,
+                            showMarkerNumbers = true)
                     }
                     exercise.sketch?.let { drawing ->
                         StudySketchCanvas(
                             sketch = drawing, modifier = Modifier.fillMaxWidth().height(220.dp),
                             markers = exercise.solutions.flatMap { it.points },
-                            mode = SketchMode.PREVIEW, showMarkers = showAnswer
+                            mode = SketchMode.PREVIEW, showMarkers = true,
+                            markerStatuses = if (showAnswer) exercise.solutions.flatMap { solution ->
+                                solution.points.map { point ->
+                                    point.id to (solution.id in StudyExerciseRules.gradeWritten(
+                                        exercise, response.writtenAnswers,
+                                        current.pointsCorrect, current.penaltyWrong
+                                    ).correctIds)
+                                }
+                            }.toMap() else emptyMap()
                         )
                     }
-                    OutlinedTextField(
-                        value = writtenInput,
-                        onValueChange = { writtenInput = it },
-                        label = { Text("Una respuesta por línea") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                        enabled = !locked && !showAnswer
-                    )
+                    Text("Responde las soluciones marcadas del 1 al ${exercise.solutions.size}.",
+                        color = TestarioMutedText)
+                    repeat(exercise.solutions.size) { index ->
+                        val inputParts = writtenInput.split("\n")
+                        OutlinedTextField(
+                            value = inputParts.getOrElse(index) { "" },
+                            onValueChange = { newValue ->
+                                val parts = writtenInput.split("\n").toMutableList()
+                                while (parts.size <= index) parts.add("")
+                                parts[index] = newValue.replace("\n", " ")
+                                writtenInput = parts.joinToString("\n")
+                            },
+                            label = { Text("Respuesta ${index + 1}") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            enabled = !locked && !showAnswer
+                        )
+                    }
                     if (!showAnswer) {
                         Button(onClick = { session.submitWritten(writtenInput) },
                             enabled = !locked, modifier = Modifier.fillMaxWidth()) {
@@ -218,7 +237,8 @@ fun MixedSessionScreen(
                         val graded = StudyExerciseRules.gradeWritten(
                             exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
                         )
-                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10", color = TestarioGreen)
+                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
+                            color = if (graded.scoreOutOfTen >= 5) TestarioGreen else TestarioRed)
                         response.writtenAnswers.forEach { entry ->
                             val solution = StudyExerciseRules.findAcceptedSolution(exercise, entry)
                             Text(entry + (solution?.let { " ✓" } ?: " ✗"),
@@ -226,7 +246,7 @@ fun MixedSessionScreen(
                         }
                         val missing = exercise.solutions.filterNot { it.id in graded.correctIds }
                         if (missing.isNotEmpty()) Text("Faltaban: " +
-                            missing.joinToString(" · ") { it.text }, color = TestarioGreen)
+                            missing.joinToString(" · ") { it.text }, color = TestarioRed)
                     }
                 }
                 MixedItemType.ANKI -> {
@@ -260,8 +280,7 @@ fun MixedSessionScreen(
                                 annotations = if (reverse) card.frontAnnotations else card.backAnnotations,
                                 modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true)
                         }
-                        Text("Repaso manual: esta tarjeta no cuenta para la nota ni altera Anki.",
-                            color = TestarioMutedText)
+
                     }
                 }
             }
@@ -289,8 +308,8 @@ fun MixedSessionScreen(
     if (exitConfirm) {
         AlertDialog(
             onDismissRequest = { exitConfirm = false },
-            title = { Text("Guardar sesión") },
-            text = { Text("Se conservarán los elementos, las respuestas y el tiempo para retomarla después.") },
+            title = { Text("Salir de la sesión") },
+            text = { Text("Puedes guardar el progreso para continuar o descartarlo sin conservar una sesión pendiente.") },
             confirmButton = {
                 Button(onClick = {
                     if (persistDraft() && session.saveAndLeave()) {
@@ -299,7 +318,17 @@ fun MixedSessionScreen(
                     }
                 }) { Text("Guardar y salir") }
             },
-            dismissButton = { OutlinedButton(onClick = { exitConfirm = false }) { Text("Continuar") } }
+            dismissButton = {
+                Column {
+                    TextButton(onClick = {
+                        if (session.discardSaved()) {
+                            exitConfirm = false
+                            onLeave()
+                        }
+                    }) { Text("Salir sin guardar", color = TestarioRed) }
+                    TextButton(onClick = { exitConfirm = false }) { Text("Continuar") }
+                }
+            }
         )
     }
 }
