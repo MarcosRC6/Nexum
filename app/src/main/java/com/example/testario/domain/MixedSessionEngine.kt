@@ -39,7 +39,7 @@ object MixedSessionEngine {
                         val variants = if (type == MixedItemType.ANKI) when (exercise.flashcard?.kind) {
                             FlashcardKind.REVERSED -> listOf("direct", "reverse")
                             FlashcardKind.IMAGE_OCCLUSION ->
-                                exercise.flashcard.masks.map { it.id }
+                                exercise.flashcard?.masks.orEmpty().map { it.id }
                             else -> listOf("direct")
                         } else listOf("direct")
                         variants.forEach { variant ->
