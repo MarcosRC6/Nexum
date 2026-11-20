@@ -204,7 +204,11 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
 
     fun submitWritten(text: String, reveal: Boolean = true) = edit { state ->
         require(state.items[state.currentIndex].type == MixedItemType.WRITTEN)
-        val answers = text.lines().map(String::trim).filter(String::isNotBlank)
+        // Preserve the indices of numbered fields across save/resume.
+        // Removing interior blanks would incorrectly shift response 3 into response 2.
+        val expected = state.items[state.currentIndex].exercise?.solutions?.size ?: 0
+        val parsed = text.lines().take(expected).map(String::trim)
+        val answers = if (parsed.all(String::isBlank)) emptyList() else parsed
         state.copy(responses = state.responses.mapIndexed { idx, response ->
             if (idx == state.currentIndex) response.copy(
                 writtenAnswers = answers,
