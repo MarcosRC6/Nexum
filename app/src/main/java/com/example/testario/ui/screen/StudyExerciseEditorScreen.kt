@@ -828,14 +828,17 @@ fun StudyExerciseEditorScreen(
                         .onFailure { error = it.message ?: "No se pudo guardar el borrador." }
                 }, modifier = Modifier.weight(1f)) { Text("Borrador") }
                 Button(onClick = {
-                    val candidate = construct(draft = false)
-                    val errors = StudyExerciseRules.errors(candidate)
-                    if (errors.isNotEmpty()) error = errors.joinToString("\n")
-                    else runCatching {
-                        libraryViewModel.saveStudyExercise(topicId, candidate, original?.revision)
-                    }.onSuccess {
-                        if (it) onBack() else error = "Conflicto de edición; recarga el ejercicio."
-                    }.onFailure { error = it.message ?: "No se pudo guardar." }
+                    runCatching { construct(draft = false) }.onSuccess { candidate ->
+                        val errors = StudyExerciseRules.errors(candidate)
+                        if (errors.isNotEmpty()) error = errors.joinToString("\n")
+                        else runCatching {
+                            libraryViewModel.saveStudyExercise(topicId, candidate, original?.revision)
+                        }.onSuccess {
+                            if (it) onBack() else error = "Conflicto de edición; recarga el ejercicio."
+                        }.onFailure { error = it.message ?: "No se pudo guardar." }
+                    }.onFailure {
+                        error = it.message ?: "Hay una ocultación o un campo incompleto."
+                    }
                 }, modifier = Modifier.weight(1f)) { Text("Guardar") }
             }
             Spacer(Modifier.height(18.dp))
