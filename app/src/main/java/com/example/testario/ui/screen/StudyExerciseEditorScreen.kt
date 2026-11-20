@@ -26,6 +26,8 @@ import com.example.testario.data.model.*
 import com.example.testario.domain.StudyExerciseRules
 import com.example.testario.domain.ClozeMarkupEngine
 import com.example.testario.domain.SketchAnnotationCodec
+import com.example.testario.domain.ImageManager
+import androidx.compose.ui.platform.LocalContext
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.LibraryViewModel
 import java.util.UUID
@@ -44,6 +46,8 @@ fun StudyExerciseEditorScreen(
     showTopBar: Boolean = true,
     showKindSelector: Boolean = true
 ) {
+    val context = LocalContext.current
+    val imageManager = remember { ImageManager(context.applicationContext) }
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
     val original = topic?.exercises?.firstOrNull { it.id == exerciseId }
@@ -102,6 +106,10 @@ fun StudyExerciseEditorScreen(
     var showSketchInkEditor by remember(exerciseId) { mutableStateOf(false) }
     var photoMarkerMode by remember(exerciseId) { mutableStateOf(false) }
     var occlusionMarkMode by remember(exerciseId) { mutableStateOf(true) }
+    var showAnkiImageTargets by remember(exerciseId) { mutableStateOf(false) }
+    var imageTargetToAdd by remember(exerciseId) { mutableStateOf<String?>(null) }
+    var createdImageToEdit by remember(exerciseId) { mutableStateOf<String?>(null) }
+
     var pickerTarget by remember { mutableStateOf("written") }
     LaunchedEffect(exerciseId, solutions.size) {
         if (selectedSolutionId == null || solutions.none { it.id == selectedSolutionId }) {
@@ -221,6 +229,50 @@ fun StudyExerciseEditorScreen(
 
     val schematicLineColor = TestarioPrimary
 
+    if (imageTargetToAdd != null) {
+        val target = requireNotNull(imageTargetToAdd)
+        AlertDialog(
+            onDismissRequest = { imageTargetToAdd = null },
+            title = { Text(if (target == "front") "Imagen de pregunta" else "Imagen de respuesta") },
+            text = { Text("¿Quieres crear un lienzo o importar una fotografía? " +
+                "Los colores y la edición funcionarán igual en ambos.") },
+            confirmButton = {
+                Button(onClick = {
+                    imageTargetToAdd = null
+                    runCatching { imageManager.createBlankCanvas() }
+                        .onSuccess { path ->
+                            if (target == "front") {
+                                frontImageUri = path
+                                frontAnnotations = ImageAnnotations()
+                                masks = emptyList()
+                            } else {
+                                backImageUri = path
+                                backAnnotations = ImageAnnotations()
+                            }
+                            createdImageToEdit = target
+                        }.onFailure { error = it.message }
+                }) { Text("Crear imagen") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    imageTargetToAdd = null
+                    chooseImage(target)
+                }) { Text("Importar fotografía") }
+            }
+        )
+    }
+    createdImageToEdit?.let { target ->
+        val path = if (target == "front") frontImageUri else backImageUri
+        if (path != null) ImageAnnotationEditorDialog(
+            imageUri = path,
+            initial = if (target == "front") frontAnnotations else backAnnotations,
+            onSave = { layer ->
+                if (target == "front") frontAnnotations = layer else backAnnotations = layer
+                createdImageToEdit = null
+            },
+            onCancel = { createdImageToEdit = null }
+        )
+    }
     if (showOtherTurnDialog) {
         AlertDialog(
             onDismissRequest = { showOtherTurnDialog = false },
@@ -504,13 +556,41 @@ fun StudyExerciseEditorScreen(
             } else {
                 val simpleAnki = flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)
                 Text(
-                    if (simpleAnki) "Tarjeta · pregunta y respuestas ocultables"
+                    if (simpleAnki) "Tarjeta Anki · texto y fragmentos"
+                    else if (flashKind == FlashcardKind.IMAGE_OCCLUSION)
+                        "Tarjeta Anki · ocultación de imagen"
                     else "Tarjeta heredada · ${flashKind.name}",
                     color = TestarioText, style = MaterialTheme.typography.titleMedium
                 )
-                if (!simpleAnki) {
+                if (!simpleAnki && flashKind != FlashcardKind.IMAGE_OCCLUSION) {
                     Text("Este formato antiguo se conserva por compatibilidad. Las tarjetas nuevas usan un editor simplificado.",
                         color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("Pregunta o enunciado", color = TestarioText,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f))
+                    Box {
+                        Button(onClick = { showAnkiImageTargets = true }) {
+                            Text("Añadir imagen")
+                        }
+                        DropdownMenu(
+                            expanded = showAnkiImageTargets,
+                            onDismissRequest = { showAnkiImageTargets = false }
+                        ) {
+                            DropdownMenuItem(text = { Text("Imagen de pregunta") }, onClick = {
+                                showAnkiImageTargets = false
+                                imageTargetToAdd = "front"
+                            })
+                            DropdownMenuItem(text = { Text("Imagen de respuesta") }, onClick = {
+                                showAnkiImageTargets = false
+                                imageTargetToAdd = "back"
+                            })
+                        }
+                    }
                 }
                 OutlinedTextField(
                     value = front, onValueChange = { front = it; error = null },
@@ -669,6 +749,20 @@ fun StudyExerciseEditorScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
+                if (frontImageUri != null &&
+                    (flashKind == FlashcardKind.BASIC || flashKind == FlashcardKind.IMAGE_OCCLUSION)
+                ) {
+                    FilterChip(
+                        selected = flashKind == FlashcardKind.IMAGE_OCCLUSION,
+                        onClick = {
+                            if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
+                                flashKind = FlashcardKind.BASIC
+                                masks = emptyList()
+                            } else flashKind = FlashcardKind.IMAGE_OCCLUSION
+                        },
+                        label = { Text("Ocultar zonas de la imagen") }
+                    )
+                }
                 if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
                     Text("Importa una imagen y pulsa las zonas que quieras ocultar.",
                         color = TestarioMutedText)
@@ -718,12 +812,7 @@ fun StudyExerciseEditorScreen(
                         )
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (frontImageUri == null)
-                        OutlinedButton(onClick = { chooseImage("front") }) { Text("Imagen pregunta") }
-                    if (backImageUri == null)
-                        OutlinedButton(onClick = { chooseImage("back") }) { Text("Imagen respuesta") }
-                }
+
                 if (flashKind != FlashcardKind.IMAGE_OCCLUSION) {
                     frontImageUri?.let { image ->
                         Text("Imagen delantera", color = TestarioMutedText)
@@ -796,7 +885,8 @@ fun StudyExerciseEditorScreen(
                                     color = TestarioText)
                                 card.frontImageUri?.let { image ->
                                     StudyVisualImage(image, modifier = Modifier.fillMaxWidth().height(190.dp),
-                                        annotations = card.frontAnnotations)
+                                        annotations = card.frontAnnotations,
+                                        masks = card.masks, showCorrection = previewRevealed)
                                 }
                                 if (previewRevealed) {
                                     Divider()
