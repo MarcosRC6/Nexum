@@ -122,7 +122,7 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
                             annotations = if (reverse) card.backAnnotations else card.frontAnnotations,
                             masks = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
                                 card.masks.filter { mask -> mask.id == item.variant } else emptyList(),
-                            modifier = Modifier.fillMaxWidth().height(220.dp)
+                            modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true
                         )
                     }
                     Text(answer.ifBlank { question }, color = TestarioGreen)
