@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.domain.StudyExerciseRules
+import com.example.testario.domain.WrittenMarkerRules
 import com.example.testario.domain.ClozeMarkupEngine
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.LibraryViewModel
@@ -132,30 +133,15 @@ fun StudyExerciseEditorScreen(
             pendingMarkerId = nearby.id
             return
         }
-        val id = selectedSolutionId ?: return
-        val index = solutions.indexOfFirst { it.id == id }
-        if (index < 0) return
-        val chosen = solutions[index]
-        if (chosen.text.isBlank()) {
-            error = "Escribe primero la solución ${index + 1} para colocarla."
-            return
-        }
-        if (chosen.points.isNotEmpty()) {
-            error = "La solución ${index + 1} ya está colocada. Elimina su marcador para cambiarlo."
-            return
-        }
-        solutions = solutions.mapIndexed { i, item ->
-            if (item.id == id) item.copy(points = listOf(
-                ImagePoint(x = x, y = y, order = i + 1)
-            )) else item
-        }
-        error = null
+        runCatching {
+            WrittenMarkerRules.place(solutions, selectedSolutionId.orEmpty(), x, y)
+        }.onSuccess {
+            solutions = it
+            error = null
+        }.onFailure { error = it.message }
     }
     fun removeMarker(markerId: String) {
-        solutions = solutions.mapIndexed { index, item ->
-            item.copy(points = item.points.filterNot { it.id == markerId }
-                .map { it.copy(order = index + 1) })
-        }
+        solutions = WrittenMarkerRules.withoutMarker(solutions, markerId)
         pendingMarkerId = null
     }
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -497,12 +483,7 @@ fun StudyExerciseEditorScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Solución ${index + 1}", color = TestarioText, modifier = Modifier.weight(1f))
                             TextButton(onClick = {
-                                solutions = solutions.filterNot { it.id == solution.id }
-                                    .mapIndexed { i, remaining ->
-                                        remaining.copy(points = remaining.points.map {
-                                            it.copy(order = i + 1)
-                                        })
-                                    }
+                                solutions = WrittenMarkerRules.withoutSolution(solutions, solution.id)
                                 if (selectedSolutionId == solution.id)
                                     selectedSolutionId = solutions.firstOrNull()?.id
                             }) { Text("Eliminar") }
