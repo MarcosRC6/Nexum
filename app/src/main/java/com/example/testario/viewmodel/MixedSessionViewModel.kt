@@ -103,7 +103,9 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
                     lastCheckpointSeconds = newElapsed
                 }
                 if (remaining == 0) {
-                    finish()
+                    // Do not cancel the running ticker coroutine from inside
+                    // its own suspend finish() transaction.
+                    viewModelScope.launch { finish() }
                     break
                 }
             }
