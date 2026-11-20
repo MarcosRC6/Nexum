@@ -32,6 +32,28 @@ class SketchAnnotationCodecTest {
         assertEquals("highlighter", drawing.strokes.single().brush)
     }
 
+    @Test fun highlighterCreatedImageIsAcceptedByWrittenExerciseValidation() {
+        val ink = ImageAnnotations(listOf(
+            ImageAnnotationStroke(
+                id = "highlighted", tool = ImageAnnotationTool.HIGHLIGHTER,
+                colorArgb = 0xFFFFD54FL, opacity = .6, widthFraction = .06,
+                points = listOf(ImageAnnotationPoint(.1,.2), ImageAnnotationPoint(.4,.5))
+            )
+        ))
+        val exercise = StudyExercise(
+            kind = StudyExerciseKind.WRITTEN_MULTI,
+            prompt = "Indica la respuesta",
+            solutions = listOf(CanonicalSolution(text = "Respuesta")),
+            sketch = SketchAnnotationCodec.fromAnnotations(ink)
+        )
+        assertTrue(StudyExerciseRules.errors(exercise).isEmpty())
+        val changedInk = ink.copy(strokes = ink.strokes.map {
+            it.copy(opacity = .25)
+        })
+        val modified = exercise.copy(sketch = SketchAnnotationCodec.fromAnnotations(changedInk))
+        assertNotEquals(StudyExerciseMerge.signature(exercise), StudyExerciseMerge.signature(modified))
+    }
+
     @Test fun rejectInvalidPointsBeforeCreatingSketch() {
         val bad = ImageAnnotations(listOf(ImageAnnotationStroke(
             points = listOf(ImageAnnotationPoint(-.2, .4))
