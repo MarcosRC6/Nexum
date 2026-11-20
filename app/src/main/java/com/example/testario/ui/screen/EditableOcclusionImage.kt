@@ -41,6 +41,7 @@ internal fun EditableOcclusionImage(
     val context = LocalContext.current
     var intrinsic by remember(imageUri) { mutableStateOf<Pair<Int, Int>?>(null) }
     var selectedId by remember(imageUri) { mutableStateOf<String?>(null) }
+    val latestMasks by rememberUpdatedState(masks)
     LaunchedEffect(imageUri) {
         intrinsic = withContext(Dispatchers.IO) { orientedImageSize(context, imageUri) }
     }
@@ -89,7 +90,7 @@ internal fun EditableOcclusionImage(
                                     onDragStart = { selectedId = mask.id },
                                     onDrag = { change, drag ->
                                         change.consume()
-                                        onMasksChanged(masks.map {
+                                        onMasksChanged(latestMasks.map {
                                             if (it.id != mask.id) it else it.copy(
                                                 x = (it.x + drag.x / fit.width).coerceIn(0.0, 1.0 - it.width),
                                                 y = (it.y + drag.y / fit.height).coerceIn(0.0, 1.0 - it.height)
