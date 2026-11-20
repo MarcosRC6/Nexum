@@ -191,6 +191,36 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    /** Synchronize a question deliberately edited via the pencil while a
+     * mixed session was suspended. Keep the test's randomized answer order and
+     * its already recorded answers wherever the IDs still exist.
+     */
+    fun refreshEditedQuestion(question: Question): Boolean = edit { state ->
+        val changedIds = state.items.mapIndexedNotNull { index, item ->
+            if (item.question?.id == question.id) index else null
+        }.toSet()
+        val updatedItems = state.items.mapIndexed { index, item ->
+            if (index !in changedIds) item else {
+                val previous = requireNotNull(item.question)
+                val byId = question.answers.associateBy { it.id }
+                val ordered = previous.answers.mapNotNull { byId[it.id] }
+                val unseen = question.answers.filter { fresh ->
+                    ordered.none { it.id == fresh.id }
+                }
+                item.copy(question = question.copy(answers = ordered + unseen))
+            }
+        }
+        val updatedResponses = state.responses.mapIndexed { index, response ->
+            if (index !in changedIds) response else {
+                val answerId = response.selectedAnswerId
+                if (answerId == null || updatedItems[index].question?.answers.orEmpty()
+                        .any { it.id == answerId }) response
+                else response.copy(selectedAnswerId = null, revealed = false)
+            }
+        }
+        state.copy(items = updatedItems, responses = updatedResponses)
+    }
+
     fun toggleTestFlag(questionId: String): Boolean = edit { state ->
         state.copy(items = state.items.map { item ->
             if (item.question?.id == questionId) item.copy(
