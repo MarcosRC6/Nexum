@@ -40,6 +40,21 @@ class WebQuickLinkPolicyTest {
             WebQuickLinkPolicy.encodeBackup(items)))
     }
 
+    @Test fun customOtherCategoryRoundTripsAndValidates() {
+        val custom = WebQuickLink(
+            id = "other", title = "Apuntes personales", url = "https://example.com",
+            icon = "other", customIconLabel = "Mis recursos"
+        )
+        val checked = WebQuickLinkPolicy.validate(custom)
+        assertNotNull(checked)
+        assertEquals("Mis recursos", checked!!.customIconLabel)
+        assertEquals(custom, WebQuickLinkPolicy.parseBackup(
+            WebQuickLinkPolicy.encodeBackup(listOf(custom))).single())
+        assertNull(WebQuickLinkPolicy.validate(custom.copy(customIconLabel = "")))
+        assertNull(WebQuickLinkPolicy.validate(custom.copy(customIconLabel = "a".repeat(31))))
+        assertNull(WebQuickLinkPolicy.validate(custom.copy(customIconLabel = "linea\\nroto")))
+    }
+
     @Test fun malformedOrDuplicatedBackupFailsBeforeMutation() {
         val invalid = WebQuickLinkPolicy.encodeBackup(listOf(
             WebQuickLink("same", "A", "https://example.com"),
