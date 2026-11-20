@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
@@ -60,6 +61,8 @@ internal fun EditableAnnotationImage(
     onAnnotationsChanged: (ImageAnnotations) -> Unit,
     onReplace: () -> Unit,
     onDelete: () -> Unit,
+    autoEdit: Boolean = false,
+    onAutoEditConsumed: () -> Unit = {},
     /** When marking numbered answers, image taps must remain marker gestures. */
     onMarkerTap: ((Double, Double) -> Unit)? = null
 ) {
@@ -69,15 +72,34 @@ internal fun EditableAnnotationImage(
     var pendingReplace by remember(imageUri) { mutableStateOf(false) }
     var pendingDelete by remember(imageUri) { mutableStateOf(false) }
 
-    StudyVisualImage(
-        imageUri = imageUri,
-        annotations = annotations,
-        markers = markers, masks = masks, showCorrection = showCorrection,
-        modifier = modifier,
-        onTapImage = if (onMarkerTap != null) onMarkerTap else { _, _ -> showActions = true }
-    )
-    if (onMarkerTap != null) {
-        TextButton(onClick = { showActions = true }) { Text("Imagen · Ver / Anotar / Cambiar") }
+    LaunchedEffect(imageUri, autoEdit) {
+        if (autoEdit) {
+            editing = true
+            onAutoEditConsumed()
+        }
+    }
+
+    // Pencil always stays visible and never steals the tap used to place a
+    // numbered solution or an Anki occlusion. Plain taps open the larger view.
+    Box(modifier = modifier) {
+        StudyVisualImage(
+            imageUri = imageUri,
+            annotations = annotations,
+            markers = markers, masks = masks, showCorrection = showCorrection,
+            modifier = Modifier.fillMaxSize(),
+            onTapImage = onMarkerTap ?: { _, _ -> viewing = true }
+        )
+        Box(
+            Modifier.align(Alignment.TopEnd).padding(8.dp)
+                .background(Color(0xF2131B2B), CircleShape)
+                .border(1.dp, TestarioPrimary, CircleShape)
+                .size(44.dp)
+                .semantics { contentDescription = "Editar imagen" }
+                .clickable { showActions = true },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("✎", color = TestarioPrimary, fontSize = 25.sp)
+        }
     }
     if (showActions) {
         AlertDialog(
@@ -105,7 +127,7 @@ internal fun EditableAnnotationImage(
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Column(
-                Modifier.fillMaxSize().background(TestarioBackground).padding(16.dp),
+                Modifier.fillMaxSize().background(Color(0xFF0A0F1C)).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 TextButton(onClick = { viewing = false }) { Text("Volver") }
@@ -196,7 +218,7 @@ internal fun ImageAnnotationEditorDialog(
 
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
-            Modifier.fillMaxSize().background(TestarioBackground).padding(12.dp),
+            Modifier.fillMaxSize().background(Color(0xFF0A0F1C)).padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
