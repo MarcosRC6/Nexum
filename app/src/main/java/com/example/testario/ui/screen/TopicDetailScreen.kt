@@ -297,29 +297,12 @@ fun TopicDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        Button(
-                            onClick = { addMenuExpanded = true },
-                            modifier = Modifier.fillMaxWidth().height(54.dp),
-                            shape = RoundedCornerShape(18.dp)
-                        ) { Text("Añadir") }
-                        DropdownMenu(expanded = addMenuExpanded, onDismissRequest = {
-                            addMenuExpanded = false
-                        }) {
-                            DropdownMenuItem(
-                                text = { Text("Pregunta test") },
-                                onClick = { addMenuExpanded = false; onAddQuestion() }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Enumerar respuestas") },
-                                onClick = { addMenuExpanded = false; onAddExercise(StudyExerciseKind.WRITTEN_MULTI) }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Tarjeta Anki") },
-                                onClick = { addMenuExpanded = false; onAddExercise(StudyExerciseKind.ANKI_CARD) }
-                            )
-                        }
-                    }
+                    Button(
+                        onClick = onAddQuestion,
+                        modifier = Modifier.weight(1f).height(54.dp),
+                        shape = RoundedCornerShape(18.dp)
+                    ) { Text("Añadir pregunta") }
+
 
                     OutlinedButton(
                         onClick = { onStartTest(topicId) },
