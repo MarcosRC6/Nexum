@@ -237,14 +237,16 @@ fun StudyExercisePracticeScreen(
                     val b = penalty.replace(",", ".").toDoubleOrNull() ?: -0.25
                     val result = StudyExerciseRules.gradeWritten(exercise, answers, a, b)
                     Text("Nota: ${"%.2f".format(result.scoreOutOfTen)} / 10",
-                        color = TestarioGreen, style = MaterialTheme.typography.titleLarge)
+                        color = if (result.correct == exercise.solutions.size &&
+                            result.incorrect == 0) TestarioGreen else TestarioRed,
+                        style = MaterialTheme.typography.titleLarge)
                     Text("Aciertos: ${result.correct} · Errores: ${result.incorrect} · Omitidas: ${result.omitted}",
                         color = TestarioText)
                     val missing = exercise.solutions.filterNot { it.id in result.correctIds }
                     if (missing.isNotEmpty()) {
-                        Text("Faltaban", color = TestarioPrimary)
+                        Text("Respuestas pendientes", color = TestarioRed)
                         missing.forEach { solution ->
-                            Text("✓ ${solution.text}", color = TestarioGreen)
+                            Text("✗ ${solution.text}", color = TestarioRed)
                         }
                     }
                 }
