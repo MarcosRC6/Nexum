@@ -41,6 +41,7 @@ import com.example.testario.ui.screen.HomeScreen
 import com.example.testario.ui.screen.NexumBackgroundWatermark
 import com.example.testario.ui.screen.LibraryTopicsScreen
 import com.example.testario.ui.screen.QuestionEditorScreen
+import com.example.testario.ui.screen.UnifiedQuestionEditorScreen
 import com.example.testario.ui.screen.SettingsScreen
 import com.example.testario.ui.screen.StatsScreen
 import com.example.testario.ui.screen.TestConfigScreen
@@ -287,14 +288,21 @@ fun TestarioApp(
                     libraryViewModel = libraryViewModel,
                     statsViewModel = statsViewModel,
                     onBack = { goBack() },
-                    onAddQuestion = { navController.navigate(Routes.questionEditor(id)) },
+                    onAddQuestion = { navController.navigate(Routes.unifiedQuestionEditor(id)) },
                     onEditQuestion = { qId -> navController.navigate(Routes.questionEditor(id, qId)) },
-                    onAddExercise = { kind -> navController.navigate(Routes.studyExerciseEditor(id, initialKind = kind.name)) },
+                    onAddExercise = { _ -> navController.navigate(Routes.unifiedQuestionEditor(id)) },
                     onEditExercise = { exId -> navController.navigate(Routes.studyExerciseEditor(id, exId)) },
                     onPracticeExercises = { exerciseId ->
                         navController.navigate(Routes.studyExercisePractice(id, exerciseId))
                     },
                     onStartTest = { topicIdParaTest -> navController.navigate(Routes.testConfig(topicIdParaTest)) }
+                )
+            }
+
+            composable(Routes.UNIFIED_QUESTION_EDITOR) { entry ->
+                val id = entry.arguments?.getString("topicId") ?: return@composable
+                UnifiedQuestionEditorScreen(
+                    topicId = id, libraryViewModel = libraryViewModel, onBack = { goBack() }
                 )
             }
 
