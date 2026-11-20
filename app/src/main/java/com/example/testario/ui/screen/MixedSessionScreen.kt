@@ -65,9 +65,10 @@ fun MixedSessionScreen(
             }
 
             Text(
-                "Elemento ${current.currentIndex + 1} de ${current.items.size} · " +
-                    if (current.mode == TestMode.EXAM) "Examen" else "Entrenamiento",
-                color = TestarioMutedText
+                (if (current.mode == TestMode.EXAM) "Modo Examen" else "Entrenamiento") +
+                    " · Pregunta ${current.currentIndex + 1} de ${current.items.size}",
+                color = TestarioText,
+                style = MaterialTheme.typography.titleLarge
             )
             if (current.remainingSeconds != null) {
                 Text(
@@ -192,23 +193,37 @@ fun MixedSessionScreen(
                         StudyVisualImage(imageUri = path, modifier = Modifier.fillMaxWidth().height(230.dp),
                             annotations = exercise.baseAnnotations,
                             markers = exercise.solutions.flatMap { it.points },
-                            markerStatuses = statuses, showCorrection = showAnswer)
+                            markerStatuses = statuses, showCorrection = showAnswer,
+                            showAnswerMarkers = true)
                     }
                     exercise.sketch?.let { drawing ->
                         StudySketchCanvas(
                             sketch = drawing, modifier = Modifier.fillMaxWidth().height(220.dp),
                             markers = exercise.solutions.flatMap { it.points },
-                            mode = SketchMode.PREVIEW, showMarkers = showAnswer
+                            mode = SketchMode.PREVIEW, showMarkers = true,
+                            markerStatuses = if (showAnswer) {
+                                val graded = StudyExerciseRules.gradeWritten(exercise, response.writtenAnswers,
+                                    current.pointsCorrect, current.penaltyWrong)
+                                exercise.solutions.flatMap { sol -> sol.points.map { it.id to
+                                    (sol.id in graded.correctIds) } }.toMap()
+                            } else emptyMap()
                         )
                     }
-                    OutlinedTextField(
-                        value = writtenInput,
-                        onValueChange = { writtenInput = it },
-                        label = { Text("Una respuesta por línea") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                        enabled = !locked && !showAnswer
-                    )
+                    val slots = writtenInput.split("\n").toMutableList()
+                    val expected = exercise.solutions.size
+                    repeat(expected) { idx ->
+                        OutlinedTextField(
+                            value = slots.getOrElse(idx) { "" },
+                            onValueChange = { value ->
+                                while (slots.size <= idx) slots.add("")
+                                slots[idx] = value.replace("\n", " ")
+                                writtenInput = slots.joinToString("\n")
+                            },
+                            label = { Text("Solución ${idx + 1}") },
+                            modifier = Modifier.fillMaxWidth(), singleLine = true,
+                            enabled = !locked && !showAnswer
+                        )
+                    }
                     if (!showAnswer) {
                         Button(onClick = { session.submitWritten(writtenInput) },
                             enabled = !locked, modifier = Modifier.fillMaxWidth()) {
@@ -218,7 +233,9 @@ fun MixedSessionScreen(
                         val graded = StudyExerciseRules.gradeWritten(
                             exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
                         )
-                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10", color = TestarioGreen)
+                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
+                            color = if (graded.incorrect > 0 || graded.omitted > 0)
+                                TestarioRed else TestarioGreen)
                         response.writtenAnswers.forEach { entry ->
                             val solution = StudyExerciseRules.findAcceptedSolution(exercise, entry)
                             Text(entry + (solution?.let { " ✓" } ?: " ✗"),
@@ -226,7 +243,7 @@ fun MixedSessionScreen(
                         }
                         val missing = exercise.solutions.filterNot { it.id in graded.correctIds }
                         if (missing.isNotEmpty()) Text("Faltaban: " +
-                            missing.joinToString(" · ") { it.text }, color = TestarioGreen)
+                            missing.joinToString(" · ") { it.text }, color = TestarioRed)
                     }
                 }
                 MixedItemType.ANKI -> {
@@ -260,8 +277,6 @@ fun MixedSessionScreen(
                                 annotations = if (reverse) card.frontAnnotations else card.backAnnotations,
                                 modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true)
                         }
-                        Text("Repaso manual: esta tarjeta no cuenta para la nota ni altera Anki.",
-                            color = TestarioMutedText)
                     }
                 }
             }
@@ -299,7 +314,17 @@ fun MixedSessionScreen(
                     }
                 }) { Text("Guardar y salir") }
             },
-            dismissButton = { OutlinedButton(onClick = { exitConfirm = false }) { Text("Continuar") } }
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { exitConfirm = false }) { Text("Continuar") }
+                    TextButton(onClick = {
+                        if (session.discardSaved()) {
+                            exitConfirm = false
+                            onLeave()
+                        }
+                    }) { Text("Salir sin guardar", color = TestarioRed) }
+                }
+            }
         )
     }
 }
