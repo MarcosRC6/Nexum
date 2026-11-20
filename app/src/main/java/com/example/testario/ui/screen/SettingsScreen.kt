@@ -606,8 +606,8 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("Comportamiento de los tests", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                                Text("Prioridad de Fallos y reglas de salida del repaso.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                Text("Comportamiento de los ejercicios", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                Text("Preguntas falladas, repaso y tarjetas Anki.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
                             Text(if (showBehaviorSettings) "▲" else "▼", color = TestarioPrimary)
                         }
@@ -637,6 +637,23 @@ fun SettingsScreen(
                                     }
                                     Spacer(Modifier.width(10.dp))
                                     Checkbox(checked = behaviorSettingsViewModel.prioritizeFailuresInNormalTests, onCheckedChange = null)
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable {
+                                            libraryViewModel.setAnkiReviewEnabled(!database.ankiReviewEnabled)
+                                        }.padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("Repetición espaciada Anki",
+                                            style = MaterialTheme.typography.titleMedium, color = TestarioText)
+                                        Text("Opcional. Programa las tarjetas para repasarlas en intervalos crecientes según tu valoración (Otra vez, Difícil, Bien o Fácil). Nunca altera la nota de un examen y el estudio libre no modifica fechas.",
+                                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    Checkbox(checked = database.ankiReviewEnabled, onCheckedChange = null)
                                 }
 
                                 Text("Salir de Fallos", style = MaterialTheme.typography.titleMedium, color = TestarioText)
