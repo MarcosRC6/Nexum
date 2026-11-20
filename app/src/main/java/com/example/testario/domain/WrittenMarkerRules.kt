@@ -17,7 +17,7 @@ object WrittenMarkerRules {
             return solutions
         val id = selectedId ?: return solutions
         val index = solutions.indexOfFirst { it.id == id }
-        if (index < 0) return solutions
+        if (index < 0 || solutions[index].text.isBlank()) return solutions
         val existing = solutions[index].points.firstOrNull()
         val next = if (existing != null) existing.copy(x = x, y = y)
             else {
