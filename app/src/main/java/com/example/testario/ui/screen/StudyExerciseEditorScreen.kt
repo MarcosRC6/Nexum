@@ -79,6 +79,10 @@ fun StudyExerciseEditorScreen(
     var back by remember(exerciseId) { mutableStateOf(original?.flashcard?.back.orEmpty()) }
     var flashKind by remember(exerciseId) { mutableStateOf(original?.flashcard?.kind ?: FlashcardKind.BASIC) }
     var gaps by remember(exerciseId) { mutableStateOf(original?.flashcard?.gaps.orEmpty()) }
+    var ankiHelpExpanded by remember(exerciseId) { mutableStateOf(false) }
+    var showClozeMarkerDialog by remember(exerciseId) { mutableStateOf(false) }
+    var clozeAlways by remember(exerciseId) { mutableStateOf(true) }
+    var showAnkiImageOptions by remember(exerciseId) { mutableStateOf(false) }
     var clozeTurnInput by remember(exerciseId) { mutableStateOf("1") }
     var previewRevealed by remember(exerciseId) { mutableStateOf(false) }
     var masks by remember(exerciseId) { mutableStateOf(original?.flashcard?.masks.orEmpty()) }
@@ -227,6 +231,48 @@ fun StudyExerciseEditorScreen(
             }
         )
     }
+    if (showClozeMarkerDialog) {
+        AlertDialog(
+            onDismissRequest = { showClozeMarkerDialog = false },
+            title = { Text("Ocultar texto seleccionado") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Selecciona cuándo se oculta esta palabra o frase.", color = TestarioMutedText)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(selected = clozeAlways, onClick = { clozeAlways = true },
+                            label = { Text("Siempre") })
+                        FilterChip(selected = !clozeAlways, onClick = { clozeAlways = false },
+                            label = { Text("Por turnos") })
+                    }
+                    if (!clozeAlways) OutlinedTextField(
+                        value = clozeTurnInput,
+                        onValueChange = { clozeTurnInput = it.filter(Char::isDigit).take(3) },
+                        label = { Text("Número de turno") }, singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val n = if (clozeAlways) null else clozeTurnInput.toIntOrNull()
+                    if (!clozeAlways && (n == null || n !in 1..999)) {
+                        error = "Escribe un número de turno entre 1 y 999."
+                    } else runCatching {
+                        ClozeMarkupEngine.markSelection(
+                            front.text, front.selection.min, front.selection.max, n
+                        )
+                    }.onSuccess {
+                        front = TextFieldValue(it)
+                        error = null
+                        showClozeMarkerDialog = false
+                    }.onFailure { error = it.message }
+                }) { Text("Añadir ocultación") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClozeMarkerDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
+
     if (confirmClearSketch) AlertDialog(
         onDismissRequest = { confirmClearSketch = false },
         title = { Text("Limpiar imagen") },
@@ -448,45 +494,54 @@ fun StudyExerciseEditorScreen(
                     Text("Este formato antiguo se conserva por compatibilidad. Las tarjetas nuevas usan un editor simplificado.",
                         color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Box {
+                        TextButton(onClick = { showAnkiImageOptions = true }) {
+                            Text("Añadir imagen", color = TestarioPrimary)
+                        }
+                        DropdownMenu(expanded = showAnkiImageOptions,
+                            onDismissRequest = { showAnkiImageOptions = false }) {
+                            DropdownMenuItem(text = { Text("Imagen de pregunta") }, onClick = {
+                                showAnkiImageOptions = false
+                                chooseImage("front")
+                            })
+                            DropdownMenuItem(text = { Text("Imagen de respuesta") }, onClick = {
+                                showAnkiImageOptions = false
+                                chooseImage("back")
+                            })
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = front, onValueChange = { front = it; error = null },
                     label = { Text("Pregunta o texto de la tarjeta") },
                     modifier = Modifier.fillMaxWidth(), minLines = 3
                 )
                 if (simpleAnki) {
-                    Text("Selecciona una palabra o frase en el texto y márcala. Sin número se ocultará siempre; los turnos 1, 2, 3… se alternan cada vez que reveles la tarjeta.",
-                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
-                    OutlinedButton(onClick = {
-                        runCatching {
-                            ClozeMarkupEngine.markSelection(
-                                front.text, front.selection.min, front.selection.max, null
-                            )
-                        }.onSuccess {
-                            front = TextFieldValue(it)
-                            error = null
-                        }.onFailure { error = it.message }
-                    }, modifier = Modifier.fillMaxWidth()) { Text("Ocultar siempre la selección") }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = clozeTurnInput,
-                            onValueChange = { clozeTurnInput = it.filter(Char::isDigit).take(3) },
-                            label = { Text("Turno nº") },
-                            modifier = Modifier.width(120.dp), singleLine = true
-                        )
-                        OutlinedButton(onClick = {
-                            val number = clozeTurnInput.toIntOrNull()
-                            if (number == null || number !in 1..999) {
-                                error = "Elige un número entre 1 y 999."
-                            } else runCatching {
-                                ClozeMarkupEngine.markSelection(
-                                    front.text, front.selection.min, front.selection.max, number
-                                )
-                            }.onSuccess {
-                                front = TextFieldValue(it)
-                                error = null
-                            }.onFailure { error = it.message }
-                        }, modifier = Modifier.weight(1f)) { Text("Ocultar en este turno") }
+                    TextButton(onClick = { ankiHelpExpanded = !ankiHelpExpanded }) {
+                        Text(if (ankiHelpExpanded) "Cómo funciona  ▴" else "Cómo funciona  ▾")
+                    }
+                    if (ankiHelpExpanded) {
+                        Column(
+                            Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(12.dp))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text("Escribe el enunciado y selecciona una palabra o frase para ocultarla.",
+                                color = TestarioText)
+                            Text("Siempre: {{palabra}} desaparece en todos los repasos.",
+                                color = TestarioMutedText)
+                            Text("Turnos: {{1:palabra}}, {{2:frase}} alternan lo oculto al volver a estudiar. Dos fragmentos con el mismo número se ocultan juntos.",
+                                color = TestarioMutedText)
+                            Text("También se admite [[1:palabra]]. Los fragmentos sin número se ocultan siempre.",
+                                color = TestarioMutedText)
+                            Text("Las imágenes permiten tapar zonas con máscaras que desaparecen al revelar la solución.",
+                                color = TestarioMutedText)
+                        }
+                    }
+                    if (!front.selection.collapsed) {
+                        Button(onClick = { clozeAlways = true; showClozeMarkerDialog = true },
+                            modifier = Modifier.fillMaxWidth()) { Text("Marcar texto seleccionado") }
                     }
                     val candidateMarkup = runCatching { ClozeMarkupEngine.parse(front.text) }
                     candidateMarkup.onSuccess { parsed ->
@@ -511,8 +566,6 @@ fun StudyExerciseEditorScreen(
                         Text(it.message ?: "Marcador incompleto", color = TestarioRed,
                             style = MaterialTheme.typography.bodySmall)
                     }
-                    Text("También puedes escribir {{palabra}}, {{1:palabra}}, {{2:frase}} o [[1:palabra]].",
-                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 }
                 OutlinedTextField(
                     value = back, onValueChange = { back = it },
@@ -578,12 +631,6 @@ fun StudyExerciseEditorScreen(
                             }
                         )
                     }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (frontImageUri == null)
-                        OutlinedButton(onClick = { chooseImage("front") }) { Text("Imagen pregunta") }
-                    if (backImageUri == null)
-                        OutlinedButton(onClick = { chooseImage("back") }) { Text("Imagen respuesta") }
                 }
                 if (flashKind != FlashcardKind.IMAGE_OCCLUSION) {
                     frontImageUri?.let { image ->
