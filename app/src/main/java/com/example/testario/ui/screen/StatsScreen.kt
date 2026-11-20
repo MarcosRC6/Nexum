@@ -203,6 +203,44 @@ fun StatsScreen(
 
             ExamHistoryAndTrends(database)
 
+            // Mixed exams use a distinct history: manual Anki cards are never
+            // silently counted as 0/10 or 10/10 objective answers.
+            if (database.mixedSessionHistory.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = TestarioSurface)
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text("Sesiones mixtas y tarjetas", color = TestarioText,
+                            style = MaterialTheme.typography.titleLarge)
+                        database.mixedSessionHistory.takeLast(5).asReversed().forEach { record ->
+                            HorizontalDivider(color = TestarioSurfaceLight)
+                            Text(
+                                "${record.contentFilter.name} · ${record.totalItems} elementos",
+                                color = TestarioText
+                            )
+                            Text(
+                                (record.scoreOutOfTen?.let {
+                                    "Nota objetiva: ${String.format(Locale("es","ES"),"%.2f",it)} / 10"
+                                } ?: "Sin nota objetiva") +
+                                    " · ${record.manualReviewItems} tarjetas de repaso manual",
+                                color = TestarioMutedText,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                "${record.objectiveItems} puntuables · " +
+                                    "${java.text.SimpleDateFormat("dd/MM/yyyy HH:mm",Locale("es","ES")).format(
+                                        java.util.Date(record.timestampMillis))}",
+                                color = TestarioMutedText,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+
             Column(modifier = Modifier.fillMaxWidth().animateContentSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                 TextButton(onClick = { showExtras = !showExtras }) { Text(text = if (showExtras) "Ocultar detalles ▲" else "Ver más detalles ▼", color = TestarioMutedText) }
                 if (showExtras) {
