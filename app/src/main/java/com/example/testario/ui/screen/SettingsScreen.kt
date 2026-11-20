@@ -606,8 +606,8 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("Comportamiento de los tests", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                                Text("Prioridad de Fallos y reglas de salida del repaso.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                Text("Comportamiento de los ejercicios", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                Text("Tests, preguntas falladas y repaso espaciado de tarjetas.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
                             Text(if (showBehaviorSettings) "▲" else "▼", color = TestarioPrimary)
                         }
@@ -637,6 +637,34 @@ fun SettingsScreen(
                                     }
                                     Spacer(Modifier.width(10.dp))
                                     Checkbox(checked = behaviorSettingsViewModel.prioritizeFailuresInNormalTests, onCheckedChange = null)
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable {
+                                            libraryViewModel.setAnkiReviewEnabled(!database.ankiReviewEnabled)
+                                        }
+                                        .padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("Repetición espaciada (Anki)",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = TestarioText)
+                                        Text(
+                                            "Organiza las tarjetas para repasarlas cuando toca. " +
+                                                "Solo los repasos programados afectan al calendario; " +
+                                                "estudiar libremente o hacer exámenes no cambia sus fechas.",
+                                            color = TestarioMutedText,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                    Spacer(Modifier.width(10.dp))
+                                    Checkbox(
+                                        checked = database.ankiReviewEnabled,
+                                        onCheckedChange = null
+                                    )
                                 }
 
                                 Text("Salir de Fallos", style = MaterialTheme.typography.titleMedium, color = TestarioText)
