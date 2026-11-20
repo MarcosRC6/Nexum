@@ -560,7 +560,8 @@ fun TopicDetailScreen(
                                 },
                                 onRemoveFailure = {
                                     statsViewModel.removeFromFailures(question.id)
-                                }
+                                },
+                                onUnflag = { libraryViewModel.toggleQuestionFlag(question.id) }
                             )
                         }
                     }
@@ -950,10 +951,6 @@ private fun StudyExerciseCard(
                         DropdownMenuItem(text = { Text("Duplicar") }, onClick = {
                             expanded = false; onDuplicate()
                         })
-                        if (!exercise.draft) DropdownMenuItem(
-                            text = { Text("Practicar") },
-                            onClick = { expanded = false; onPractice() }
-                        )
                         DropdownMenuItem(text = { Text("Eliminar") }, onClick = {
                             expanded = false; deleteConfirm = true
                         })
@@ -986,10 +983,12 @@ private fun QuestionCard(
     onEdit: () -> Unit,
     onDeleteConfirmed: () -> Unit,
     onDuplicate: () -> Unit,
-    onRemoveFailure: () -> Unit
+    onRemoveFailure: () -> Unit,
+    onUnflag: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showUnflagConfirm by remember(question.id) { mutableStateOf(false) }
 
     val difficultyText = when (question.difficulty) {
         null -> "Sin dificultad"
@@ -1110,7 +1109,11 @@ private fun QuestionCard(
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 InfoPill(difficultyText, difficultyColor)
-                if (question.flagged) InfoPill("Marcada 🚩", TestarioPrimary)
+                if (question.flagged && !selectionMode) {
+                    TextButton(onClick = { showUnflagConfirm = true }) {
+                        Text("🚩 Marcada · desmarcar", color = TestarioPrimary)
+                    }
+                } else if (question.flagged) InfoPill("Marcada 🚩", TestarioPrimary)
                 if (question.stats.inFailures) InfoPill("En fallos", TestarioRed)
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -1125,6 +1128,20 @@ private fun QuestionCard(
             )
         }
     }
+
+    if (showUnflagConfirm) AlertDialog(
+        onDismissRequest = { showUnflagConfirm = false },
+        title = { Text("Desmarcar pregunta") },
+        text = { Text("¿Quieres desmarcar esta pregunta?") },
+        confirmButton = {
+            TextButton(onClick = { onUnflag(); showUnflagConfirm = false }) {
+                Text("Desmarcar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { showUnflagConfirm = false }) { Text("Cancelar") }
+        }
+    )
 
     if (showDeleteDialog) {
         AlertDialog(
