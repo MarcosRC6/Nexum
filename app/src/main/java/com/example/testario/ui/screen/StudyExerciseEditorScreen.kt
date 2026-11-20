@@ -173,6 +173,10 @@ fun StudyExerciseEditorScreen(
         }
     }
     fun chooseImage(target: String) {
+        if (target == "written" && sketchEnabled && sketchStrokes.isNotEmpty()) {
+            error = "Este dibujo ya contiene trazos. Guarda el ejercicio antes de cambiarlo por una fotografía."
+            return
+        }
         if (target == "written" && solutions.any { it.points.isNotEmpty() }) {
             error = "Antes de reemplazar el esquema, elimina sus marcadores; no se pueden trasladar automáticamente a una fotografía."
             return
@@ -405,9 +409,14 @@ fun StudyExerciseEditorScreen(
                     DropdownMenu(expanded = showImageActions, onDismissRequest = { showImageActions = false }) {
                         DropdownMenuItem(text = { Text("Crear imagen") }, onClick = {
                             showImageActions = false
-                            if (imageUri != null && solutions.any { it.points.isNotEmpty() })
-                                error = "Quita los marcadores de la foto anterior para cambiarla."
-                            else { sketchEnabled = true; imageUri = null; sketchMode = SketchMode.DRAW }
+                            if (imageUri != null &&
+                                (solutions.any { it.points.isNotEmpty() } || !baseAnnotations.isEmpty))
+                                error = "Quita primero los marcadores o anotaciones de la fotografía."
+                            else {
+                                sketchEnabled = true
+                                imageUri = null
+                                sketchMode = SketchMode.PREVIEW
+                            }
                         })
                         DropdownMenuItem(text = { Text("Importar fotografía") }, onClick = {
                             showImageActions = false; chooseImage("written")
@@ -928,6 +937,10 @@ fun StudyExerciseEditorScreen(
                 OutlinedButton(onClick = {
                     runCatching { libraryViewModel.saveStudyExercise(topicId, construct(draft = true), original?.revision) }
                         .onSuccess { if (it) {
+                            createdCanvasPaths.forEach { file ->
+                                if (file != frontImageUri && file != backImageUri && file != imageUri)
+                                    imageManager.deleteImage(file)
+                            }
                             createdCanvasPaths = emptySet()
                             onBack()
                         } else error = "Este ejercicio se ha modificado en otro lugar." }
@@ -947,6 +960,10 @@ fun StudyExerciseEditorScreen(
                                 )
                             }.onSuccess {
                                 if (it) {
+                                    createdCanvasPaths.forEach { file ->
+                                        if (file != frontImageUri && file != backImageUri && file != imageUri)
+                                            imageManager.deleteImage(file)
+                                    }
                                     createdCanvasPaths = emptySet()
                                     onBack()
                                 } else error = "Conflicto de edición; recarga el ejercicio."
