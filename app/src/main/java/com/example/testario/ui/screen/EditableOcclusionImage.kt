@@ -75,8 +75,8 @@ internal fun EditableOcclusionImage(
                 masks.forEach { mask ->
                     val left = (fit.left + fit.width * mask.x).roundToInt()
                     val top = (fit.top + fit.height * mask.y).roundToInt()
-                    val widthPx = (fit.width * mask.width).coerceAtLeast(20f)
-                    val heightPx = (fit.height * mask.height).coerceAtLeast(20f)
+                    val widthPx = (fit.width * mask.width).coerceAtLeast(20.0).toFloat()
+                    val heightPx = (fit.height * mask.height).coerceAtLeast(20.0).toFloat()
                     val selected = mask.id == selectedId
                     Box(
                         Modifier.offset { IntOffset(left, top) }
@@ -111,7 +111,7 @@ internal fun EditableOcclusionImage(
                                         onDragStart = { selectedId = mask.id },
                                         onDrag = { change, drag ->
                                             change.consume()
-                                            onMasksChanged(masks.map {
+                                            onMasksChanged(latestMasks.map {
                                                 if (it.id != mask.id) it else it.copy(
                                                     width = (it.width + drag.x / fit.width)
                                                         .coerceIn(.04, 1.0 - it.x),
