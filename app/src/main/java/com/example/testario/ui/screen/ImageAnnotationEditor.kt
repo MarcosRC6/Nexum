@@ -50,6 +50,30 @@ private val annotationPalette = listOf(
     AnnotationSwatch("Negro", 0xFF171717L)
 )
 
+/** Shared color picker used by imported-photo and freshly created sketches. */
+@Composable
+internal fun AnnotationColorPalette(
+    selected: Long,
+    onSelect: (Long) -> Unit
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
+        annotationPalette.forEach { swatch ->
+            Box(
+                Modifier.weight(1f).height(34.dp)
+                    .padding(1.dp).clip(CircleShape)
+                    .background(Color(swatch.argb.toInt()))
+                    .border(
+                        if (selected == swatch.argb) 3.dp else 1.dp,
+                        if (selected == swatch.argb) TestarioPrimary else TestarioMutedText,
+                        CircleShape
+                    )
+                    .semantics { contentDescription = "Color ${swatch.name}" }
+                    .clickable { onSelect(swatch.argb) }
+            )
+        }
+    }
+}
+
 /**
  * Reusable contextual menu for all authoring-image slots.
  * Image taps edit the current object's overlay, never the physical photo.
@@ -242,22 +266,7 @@ internal fun ImageAnnotationEditorDialog(
                     label = { Text("Subrayador") }
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-                annotationPalette.forEach { swatch ->
-                    Box(
-                        Modifier.weight(1f).height(34.dp)
-                            .padding(1.dp).clip(CircleShape)
-                            .background(Color(swatch.argb.toInt()))
-                            .border(
-                                if (colorArgb == swatch.argb) 3.dp else 1.dp,
-                                if (colorArgb == swatch.argb) TestarioPrimary else TestarioMutedText,
-                                CircleShape
-                            )
-                            .semantics { contentDescription = "Color ${swatch.name}" }
-                            .clickable { colorArgb = swatch.argb }
-                    )
-                }
-            }
+            AnnotationColorPalette(selected = colorArgb, onSelect = { colorArgb = it })
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Grosor", color = TestarioMutedText)
                 Slider(
