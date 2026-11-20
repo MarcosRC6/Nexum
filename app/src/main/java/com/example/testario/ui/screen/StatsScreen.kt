@@ -42,6 +42,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.planario.app.PlanarioDependencies
+import com.example.testario.data.model.MixedSessionHistory
+import com.example.testario.data.model.MixedItemType
+import com.example.testario.domain.StudyExerciseRules
 import com.example.testario.domain.StudyStreakCalculator
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
@@ -96,6 +99,7 @@ fun StatsScreen(
     var selectedTopicId by remember { mutableStateOf(database.topics.firstOrNull()?.id) }
     var showExtras by remember { mutableStateOf(false) }
     var showClearStatsDialog by remember { mutableStateOf(false) }
+    var reviewMixedExam by remember { mutableStateOf<MixedSessionHistory?>(null) }
     val selectedTopic = database.topics.firstOrNull { it.id == selectedTopicId }
 
     Scaffold(
@@ -203,6 +207,50 @@ fun StatsScreen(
 
             ExamHistoryAndTrends(database)
 
+            // Mixed exams use a distinct history: manual Anki cards are never
+            // silently counted as 0/10 or 10/10 objective answers.
+            if (database.mixedSessionHistory.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = TestarioSurface)
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text("Sesiones mixtas y tarjetas", color = TestarioText,
+                            style = MaterialTheme.typography.titleLarge)
+                        database.mixedSessionHistory.takeLast(5).asReversed().forEach { record ->
+                            HorizontalDivider(color = TestarioSurfaceLight)
+                            Text(
+                                "${record.contentFilter.name} · ${record.totalItems} elementos",
+                                color = TestarioText
+                            )
+                            Text(
+                                (record.scoreOutOfTen?.let {
+                                    "Nota objetiva: ${String.format(Locale("es","ES"),"%.2f",it)} / 10"
+                                } ?: "Sin nota objetiva") +
+                                    " · ${record.manualReviewItems} tarjetas de repaso manual",
+                                color = TestarioMutedText,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                "${record.objectiveItems} puntuables · " +
+                                    "${java.text.SimpleDateFormat("dd/MM/yyyy HH:mm",Locale("es","ES")).format(
+                                        java.util.Date(record.timestampMillis))}",
+                                color = TestarioMutedText,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            if (record.snapshot != null) {
+                                OutlinedButton(
+                                    onClick = { reviewMixedExam = record },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("Revisar este examen") }
+                            }
+                        }
+                    }
+                }
+            }
+
+
             Column(modifier = Modifier.fillMaxWidth().animateContentSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                 TextButton(onClick = { showExtras = !showExtras }) { Text(text = if (showExtras) "Ocultar detalles ▲" else "Ver más detalles ▼", color = TestarioMutedText) }
                 if (showExtras) {
@@ -245,6 +293,10 @@ fun StatsScreen(
         }
     }
 
+    reviewMixedExam?.let { record ->
+        MixedExamReviewDialog(record) { reviewMixedExam = null }
+    }
+
     if (showClearStatsDialog) {
         AlertDialog(
             onDismissRequest = { showClearStatsDialog = false },
@@ -260,6 +312,69 @@ fun StatsScreen(
             }
         )
     }
+}
+
+
+@Composable
+private fun MixedExamReviewDialog(
+    record: MixedSessionHistory, onDismiss: () -> Unit
+) {
+    val snapshot = record.snapshot
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Revisión · Examen mixto") },
+        text = {
+            Column(
+                Modifier.fillMaxWidth().height(460.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (snapshot == null) Text("No se conserva una revisión detallada.", color = TestarioMutedText)
+                else {
+                    Text("Se conserva el enunciado y la respuesta en el momento del examen.",
+                        color = TestarioMutedText)
+                    snapshot.items.zip(snapshot.responses).forEachIndexed { idx, pair ->
+                        val (item, response) = pair
+                        HorizontalDivider(color = TestarioSurfaceLight)
+                        Text("${idx + 1}. ${item.topicName}", color = TestarioPrimary)
+                        when (item.type) {
+                            MixedItemType.TEST -> {
+                                val q = requireNotNull(item.question)
+                                Text(q.text, color = TestarioText)
+                                val submitted = q.answers.firstOrNull { it.id == response.selectedAnswerId }?.text
+                                Text("Respondida: ${submitted ?: "En blanco"}",
+                                    color = if (response.selectedAnswerId == q.correctAnswerId)
+                                        TestarioGreen else TestarioRed)
+                                Text("Correcta: " + q.answers.first { it.id == q.correctAnswerId }.text,
+                                    color = TestarioGreen)
+                                q.explanation.takeIf { it.isNotBlank() }?.let { Text(it, color = TestarioMutedText) }
+                            }
+                            MixedItemType.WRITTEN -> {
+                                val ex = requireNotNull(item.exercise)
+                                Text(ex.prompt, color = TestarioText)
+                                val grade = StudyExerciseRules.gradeWritten(
+                                    ex, response.writtenAnswers,
+                                    snapshot.pointsCorrect, snapshot.penaltyWrong
+                                )
+                                Text("Respuestas: " + response.writtenAnswers.joinToString(" · ").ifBlank { "En blanco" },
+                                    color = TestarioText)
+                                Text("Soluciones: " + ex.solutions.joinToString(" · ") { it.text },
+                                    color = TestarioGreen)
+                                Text("Nota: ${String.format(Locale("es","ES"), "%.2f", grade.scoreOutOfTen)} / 10",
+                                    color = TestarioPrimary)
+                            }
+                            MixedItemType.ANKI -> {
+                                val card = requireNotNull(item.exercise?.flashcard)
+                                Text(card.front, color = TestarioText)
+                                Text("Respuesta: " + card.back, color = TestarioGreen)
+                                Text("Repaso manual; no puntuable", color = TestarioMutedText)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { Button(onClick = onDismiss) { Text("Cerrar") } }
+    )
 }
 
 @Composable

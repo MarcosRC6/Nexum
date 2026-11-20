@@ -7,7 +7,10 @@ import com.example.planario.data.local.StudyLocalDataSource
 import com.example.testario.data.model.TestarioDatabase
 import com.example.testario.data.local.MigrationManager
 import com.example.testario.data.local.QuickTestLinkManager
+import com.example.testario.data.local.WebQuickLinkStore
+import com.example.testario.data.local.WebQuickLinkPolicy
 import com.example.testario.data.local.SavedTestSessionStore
+import com.example.testario.data.local.SavedMixedSessionStore
 import com.example.testario.data.local.TestarioLocalStore
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -38,6 +41,9 @@ class UnifiedDataManager(private val context: Context) {
             if (manifest != null) {
                 val format = runCatching { JSONObject(manifest).optString("format") }.getOrDefault("")
                 if (format == GLOBAL_FORMAT) return Detection(ImportKind.GLOBAL_BACKUP)
+                if (format == PLAN_FORMAT) return entries["planario_backup.json"]?.let {
+                    Detection(ImportKind.PLAN_BACKUP, it)
+                } ?: Detection(ImportKind.UNKNOWN)
             }
             val testarioDatabase = entries["testario_database.json"]
             if (testarioDatabase != null) {
@@ -97,12 +103,26 @@ class UnifiedDataManager(private val context: Context) {
         }.getOrDefault(false)
     }
 
+    /** Dedicated plan-only ZIP: never disguise JSON as an Anki or NEXUM library package. */
+    fun exportPlanZip(outputStream: OutputStream) {
+        val plan = PlanarioDependencies.studyRepository.exportBackupJson()
+        ZipOutputStream(outputStream).use { zip ->
+            writeText(zip, "manifest.json", JSONObject().apply {
+                put("format", PLAN_FORMAT)
+                put("version", 1)
+            }.toString())
+            writeText(zip, "planario_backup.json", plan)
+        }
+    }
+
     fun exportGlobalBackup(outputStream: OutputStream, syncDeviceId: String? = null) {
         val databaseJson = json.encodeToString(localStore.database.value)
         val planJson = PlanarioDependencies.studyRepository.exportBackupJson()
         val quickLinksJson = QuickTestLinkManager(context).exportJson()
+        val webQuickLinksJson = WebQuickLinkStore.get(context).exportJson()
         val settingsJson = exportTestarioSettings()
         val pendingTest = SavedTestSessionStore(context).exportJson()
+        val pendingMixed = SavedMixedSessionStore(context).exportJson()
 
         ZipOutputStream(outputStream).use { zos ->
             writeText(zos, "manifest.json", JSONObject().apply {
@@ -114,8 +134,10 @@ class UnifiedDataManager(private val context: Context) {
             writeText(zos, "testario_database.json", databaseJson)
             writeText(zos, "planario_backup.json", planJson)
             writeText(zos, "quick_test_links.json", quickLinksJson)
+            writeText(zos, "quick_web_links.json", webQuickLinksJson)
             writeText(zos, "testario_settings.json", settingsJson)
             if (pendingTest != null) writeText(zos, "pending_test_session.json", pendingTest)
+            if (pendingMixed != null) writeText(zos, "pending_mixed_session.json", pendingMixed)
 
             if (imagesDir.exists()) {
                 imagesDir.listFiles()?.filter { it.isFile }?.forEach { file ->
@@ -137,8 +159,10 @@ class UnifiedDataManager(private val context: Context) {
             "testario_database.json",
             "planario_backup.json",
             "quick_test_links.json",
+            "quick_web_links.json",
             "testario_settings.json",
-            "pending_test_session.json"
+            "pending_test_session.json",
+            "pending_mixed_session.json"
         )
         val textEntries = runCatching { readZipTextEntries(bytes, wanted) }.getOrElse { return false }
 
@@ -163,6 +187,11 @@ class UnifiedDataManager(private val context: Context) {
             return false
         }
 
+        val webQuickLinksRaw = textEntries["quick_web_links.json"]
+        if (webQuickLinksRaw != null &&
+            runCatching { WebQuickLinkPolicy.parseBackup(webQuickLinksRaw) }.isFailure
+        ) return false
+
         val settingsRaw = textEntries["testario_settings.json"]
         if (settingsRaw != null && runCatching { JSONObject(settingsRaw) }.isFailure) {
             return false
@@ -171,6 +200,11 @@ class UnifiedDataManager(private val context: Context) {
         val pendingTestRaw = textEntries["pending_test_session.json"]
         if (pendingTestRaw != null &&
             runCatching { SavedTestSessionStore(context).validate(pendingTestRaw) }.isFailure
+        ) return false
+
+        val pendingMixedRaw = textEntries["pending_mixed_session.json"]
+        if (pendingMixedRaw != null &&
+            runCatching { SavedMixedSessionStore(context).validate(pendingMixedRaw) }.isFailure
         ) return false
 
         // Solo después de validar todos los componentes empezamos a modificar el estado.
@@ -189,10 +223,16 @@ class UnifiedDataManager(private val context: Context) {
         if (quickLinksRaw != null) {
             runCatching { QuickTestLinkManager(context).importJson(quickLinksRaw) }.getOrElse { return false }
         }
+        if (webQuickLinksRaw != null) {
+            if (!runCatching {
+                WebQuickLinkStore.get(context).importJson(webQuickLinksRaw)
+            }.getOrDefault(false)) return false
+        }
         if (settingsRaw != null) {
             runCatching { restoreTestarioSettings(settingsRaw) }.getOrElse { return false }
         }
         runCatching { SavedTestSessionStore(context).importJson(pendingTestRaw) }.getOrElse { return false }
+        runCatching { SavedMixedSessionStore(context).importJson(pendingMixedRaw) }.getOrElse { return false }
         return true
     }
 
@@ -299,7 +339,7 @@ class UnifiedDataManager(private val context: Context) {
                 is String -> editor.putString(key, value)
             }
         }
-        editor.apply()
+        check(editor.commit()) { "No se pudieron guardar los ajustes de Testario." }
     }
 
     private fun looksLikeTestarioBackup(raw: String): Boolean {
@@ -370,6 +410,7 @@ class UnifiedDataManager(private val context: Context) {
 
     companion object {
         const val GLOBAL_FORMAT = "testario_planario_global"
+        const val PLAN_FORMAT = "nexum_plan_bundle"
         private const val MAX_IMPORT_IMAGE_BYTES = 64L * 1024L * 1024L
         private const val MAX_IMPORT_IMAGE_TOTAL_BYTES = 512L * 1024L * 1024L
         private const val MAX_IMPORT_JSON_ENTRY_BYTES = 128L * 1024L * 1024L
