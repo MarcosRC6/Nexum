@@ -12,6 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import com.example.testario.data.model.ImageAnnotations
+import com.example.testario.data.model.ImageAnnotationTool
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -49,6 +54,35 @@ internal fun fitImageToBox(imageW: Int, imageH: Int, boxW: Float, boxH: Float): 
     return FitImageTransform((boxW - w) / 2f, (boxH - h) / 2f, w, h)
 }
 
+
+/** Reused by all image viewers and the annotation editor. */
+internal fun DrawScope.drawImageAnnotations(
+    annotations: ImageAnnotations, fit: FitImageTransform
+) {
+    val shorter = min(fit.width, fit.height)
+    annotations.strokes.take(500).forEach { stroke ->
+        val color = Color(stroke.colorArgb.toInt()).copy(
+            alpha = stroke.opacity.toFloat().coerceIn(0f, 1f)
+        )
+        val brush = (shorter * stroke.widthFraction.toFloat()).coerceAtLeast(1f)
+        val points = stroke.points.take(8000)
+        if (points.size == 1) {
+            drawCircle(color, radius = brush / 2f, center = fit.locate(points[0].x, points[0].y))
+        } else if (points.size >= 2) {
+            val shape = Path()
+            val first = fit.locate(points[0].x, points[0].y)
+            shape.moveTo(first.x, first.y)
+            points.drop(1).forEach { point ->
+                val pos = fit.locate(point.x, point.y)
+                shape.lineTo(pos.x, pos.y)
+            }
+            drawPath(shape, color, style = Stroke(width = brush,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                join = androidx.compose.ui.graphics.PathJoin.Round))
+        }
+    }
+}
+
 /**
  * FIT media renderer for both editor and study. Anki masks are drawn on the
  * original image without baking answers into it. Markers are only visible when
@@ -60,6 +94,7 @@ internal fun StudyVisualImage(
     modifier: Modifier = Modifier,
     masks: List<ImageOcclusionMask> = emptyList(),
     markers: List<ImagePoint> = emptyList(),
+    annotations: ImageAnnotations = ImageAnnotations(),
     showCorrection: Boolean = false,
     markerStatuses: Map<String, Boolean> = emptyMap(),
     onTapImage: ((Double, Double) -> Unit)? = null
@@ -101,6 +136,7 @@ internal fun StudyVisualImage(
             )
             if (fit != null) {
                 Canvas(Modifier.fillMaxSize()) {
+                    drawImageAnnotations(annotations, fit)
                     if (!showCorrection) {
                         masks.forEach { m ->
                             val topLeft = fit.locate(m.x,m.y)
