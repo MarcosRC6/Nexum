@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /** One creation entry in Biblioteca. Existing records cannot silently change kind. */
-internal enum class NewQuestionType { TEST, WRITTEN, ANKI }
+enum class NewQuestionType { TEST, WRITTEN, ANKI }
 
 @Composable
 internal fun NewQuestionTypePicker(
