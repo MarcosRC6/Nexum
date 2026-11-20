@@ -12,13 +12,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.ui.theme.*
 
-internal enum class SketchMode { DRAW, ERASE, MARK, PREVIEW }
+internal enum class SketchMode { DRAW, ERASE, MARK, PAN, PREVIEW }
 
 /** Raw vector strokes and answer markers stay distinct and use normalized coordinates. */
 @Composable
@@ -29,6 +30,7 @@ internal fun StudySketchCanvas(
     mode: SketchMode = SketchMode.PREVIEW,
     showMarkers: Boolean = false,
     markerStatuses: Map<String, Boolean> = emptyMap(),
+    zoomFactor: Float = 1f,
     penArgb: Long = 0xFFA855F7L,
     penWidthFraction: Double = .007,
     penOpacity: Double = 1.0,
@@ -37,6 +39,8 @@ internal fun StudySketchCanvas(
     onMarkTap: (Double, Double) -> Unit = { _, _ -> }
 ) {
     var inProgress by remember { mutableStateOf<List<SketchPoint>>(emptyList()) }
+    var panX by remember { mutableFloatStateOf(0f) }
+    var panY by remember { mutableFloatStateOf(0f) }
     val latestDraw by rememberUpdatedState(onDrawStroke)
     val latestErase by rememberUpdatedState(onEraseStroke)
     val latestMark by rememberUpdatedState(onMarkTap)
@@ -44,9 +48,13 @@ internal fun StudySketchCanvas(
     val green = TestarioGreen
     val red = TestarioRed
     val label = TestarioText
-    fun coordinates(px: Float, py: Float, w: Int, h: Int): SketchPoint =
-        SketchPoint((px / w).toDouble().coerceIn(0.0, 1.0),
-            (py / h).toDouble().coerceIn(0.0, 1.0))
+    fun coordinates(px: Float, py: Float, w: Int, h: Int): SketchPoint {
+        val scale = zoomFactor.coerceIn(1f, 5f)
+        val x = (px - w / 2f - panX) / scale + w / 2f
+        val y = (py - h / 2f - panY) / scale + h / 2f
+        return SketchPoint((x / w).toDouble().coerceIn(0.0, 1.0),
+            (y / h).toDouble().coerceIn(0.0, 1.0))
+    }
     val gestures = when (mode) {
         SketchMode.DRAW -> Modifier.pointerInput(mode) {
             detectDragGestures(
@@ -92,9 +100,24 @@ internal fun StudySketchCanvas(
                 }
             }
         }
+        SketchMode.PAN -> Modifier.pointerInput(mode, zoomFactor) {
+            detectDragGestures { change, drag ->
+                change.consume()
+                panX = (panX + drag.x).coerceIn(-size.width * (zoomFactor - 1f) / 2f,
+                    size.width * (zoomFactor - 1f) / 2f)
+                panY = (panY + drag.y).coerceIn(-size.height * (zoomFactor - 1f) / 2f,
+                    size.height * (zoomFactor - 1f) / 2f)
+            }
+        }
         SketchMode.PREVIEW -> Modifier
     }
     BoxWithConstraints(modifier.background(TestarioSurface, RoundedCornerShape(14.dp)).then(gestures)) {
+        Box(Modifier.fillMaxSize().graphicsLayer {
+            scaleX = zoomFactor
+            scaleY = zoomFactor
+            translationX = panX
+            translationY = panY
+        }) {
         Canvas(Modifier.fillMaxSize()) {
             val allStrokes = sketch.strokes + if (inProgress.size > 1) listOf(
                 SketchStroke(points = inProgress)) else emptyList()
@@ -135,6 +158,7 @@ internal fun StudySketchCanvas(
                     x = maxWidth * marker.x.toFloat() - 8.dp,
                     y = maxHeight * marker.y.toFloat() - 12.dp
                 ))
+        }
         }
     }
 }
