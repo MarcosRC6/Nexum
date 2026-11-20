@@ -55,6 +55,7 @@ internal fun StudySketchCanvas(
     val latestPenArgb by rememberUpdatedState(penArgb)
     val latestPenWidth by rememberUpdatedState(penWidthFraction)
     val latestPenOpacity by rememberUpdatedState(penOpacity)
+    LaunchedEffect(mode) { inProgress = emptyList() }
     val purple = TestarioPrimary
     val green = TestarioGreen
     val red = TestarioRed
@@ -76,6 +77,7 @@ internal fun StudySketchCanvas(
                     val points = mutableListOf<SketchPoint>()
                     val erased = hashSetOf<String>()
                     var multiTouch = false
+                    var gestureZoom = latestZoom
 
                     fun canvasPoint(px: Float, py: Float): SketchPoint {
                         val z = latestZoom.coerceIn(1f, 5f)
@@ -100,8 +102,10 @@ internal fun StudySketchCanvas(
                             latestErase(hit.first)
                         }
                     }
-                    if (mode == SketchMode.DRAW) points += canvasPoint(
-                        down.position.x, down.position.y)
+                    if (mode == SketchMode.DRAW) {
+                        points += canvasPoint(down.position.x, down.position.y)
+                        inProgress = points.toList()
+                    }
                     if (mode == SketchMode.ERASE) eraseAt(canvasPoint(
                         down.position.x, down.position.y))
                     while (true) {
@@ -110,8 +114,10 @@ internal fun StudySketchCanvas(
                         if (pressed.size >= 2) {
                             multiTouch = true
                             points.clear()
-                            val oldZoom = latestZoom
+                            inProgress = emptyList()
+                            val oldZoom = gestureZoom
                             val newZoom = (oldZoom * event.calculateZoom()).coerceIn(1f, 5f)
+                            gestureZoom = newZoom
                             val pan = event.calculatePan()
                             val maxX = size.width * (newZoom - 1f) / 2f
                             val maxY = size.height * (newZoom - 1f) / 2f
@@ -123,8 +129,10 @@ internal fun StudySketchCanvas(
                             val pos = canvasPoint(change.position.x, change.position.y)
                             when (mode) {
                                 SketchMode.DRAW -> {
-                                    if (points.size < 8000 && points.lastOrNull() != pos)
+                                    if (points.size < 8000 && points.lastOrNull() != pos) {
                                         points.add(pos)
+                                        inProgress = points.toList()
+                                    }
                                 }
                                 SketchMode.ERASE -> eraseAt(pos)
                                 SketchMode.PAN -> {
@@ -149,6 +157,7 @@ internal fun StudySketchCanvas(
                             opacity = latestPenOpacity
                         ))
                     }
+                    inProgress = emptyList()
                 }
             }
         SketchMode.MARK -> Modifier.pointerInput(mode, zoomFactor, markers) {
@@ -170,7 +179,8 @@ internal fun StudySketchCanvas(
         }) {
         Canvas(Modifier.fillMaxSize()) {
             val allStrokes = sketch.strokes + if (inProgress.size > 1) listOf(
-                SketchStroke(points = inProgress)) else emptyList()
+                SketchStroke(points = inProgress, colorArgb = penArgb,
+                    widthFraction = penWidthFraction, opacity = penOpacity)) else emptyList()
             for (stroke in allStrokes) {
                 if (stroke.points.size < 2) continue
                 val shape = Path()
