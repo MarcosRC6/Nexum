@@ -210,14 +210,14 @@ fun MixedSessionScreen(
                 MixedItemType.WRITTEN -> {
                     val exercise = requireNotNull(item.exercise)
                     Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
+                    val statuses = if (showAnswer) {
+                        val grade = StudyExerciseRules.gradeWritten(
+                            exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong)
+                        exercise.solutions.flatMap { solution ->
+                            solution.points.map { point -> point.id to (solution.id in grade.correctIds) }
+                        }.toMap()
+                    } else emptyMap()
                     exercise.baseImageUri?.let { path ->
-                        val statuses = if (showAnswer) {
-                            val grade = StudyExerciseRules.gradeWritten(
-                                exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong)
-                            exercise.solutions.flatMap { solution ->
-                                solution.points.map { point -> point.id to (solution.id in grade.correctIds) }
-                            }.toMap()
-                        } else emptyMap()
                         StudyVisualImage(imageUri = path, modifier = Modifier.fillMaxWidth().height(230.dp),
                             annotations = exercise.baseAnnotations,
                             markers = exercise.solutions.flatMap { it.points },
