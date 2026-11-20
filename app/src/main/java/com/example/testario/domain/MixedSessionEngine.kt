@@ -175,7 +175,7 @@ object MixedSessionEngine {
                 MixedItemType.WRITTEN -> {
                     objective++
                     written++
-                    val evaluated = StudyExerciseRules.gradeWritten(
+                    val evaluated = StudyExerciseRules.gradeWrittenInSession(
                         requireNotNull(item.exercise),
                         response.writtenAnswers,
                         snapshot.pointsCorrect,
