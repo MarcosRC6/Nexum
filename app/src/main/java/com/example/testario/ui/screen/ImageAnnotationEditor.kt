@@ -6,7 +6,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -16,8 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
@@ -172,6 +178,24 @@ internal fun EditableAnnotationImage(
     }
 }
 
+
+/** Viewport math shared by pen and touch, keeping normalized strokes stable at any zoom. */
+internal fun inverseImageViewport(
+    point: Offset, zoom: Float, pan: Offset, width: Float, height: Float
+): Offset {
+    val z = zoom.coerceAtLeast(1f)
+    return Offset(
+        (point.x - width / 2f - pan.x) / z + width / 2f,
+        (point.y - height / 2f - pan.y) / z + height / 2f
+    )
+}
+
+internal fun clampImagePan(pan: Offset, zoom: Float, width: Float, height: Float): Offset {
+    val x = ((zoom - 1f) * width / 2f).coerceAtLeast(0f)
+    val y = ((zoom - 1f) * height / 2f).coerceAtLeast(0f)
+    return Offset(pan.x.coerceIn(-x, x), pan.y.coerceIn(-y, y))
+}
+
 /** Full screen draft editor; Cancel cannot mutate original images or parent model. */
 @Composable
 internal fun ImageAnnotationEditorDialog(
@@ -189,6 +213,10 @@ internal fun ImageAnnotationEditorDialog(
     var tool by remember { mutableStateOf(ImageAnnotationTool.PEN) }
     var colorArgb by remember { mutableLongStateOf(0xFFFFD54FL) }
     var sizeScale by remember { mutableFloatStateOf(1f) }
+    var highlighterOpacity by remember { mutableFloatStateOf(.34f) }
+    var zoom by remember(imageUri) { mutableFloatStateOf(1f) }
+    var pan by remember(imageUri) { mutableStateOf(Offset.Zero) }
+    var moveCanvas by remember(imageUri) { mutableStateOf(false) }
     var clearConfirm by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -214,7 +242,7 @@ internal fun ImageAnnotationEditorDialog(
         error = null
     }
     val widthFraction = (if (tool == ImageAnnotationTool.PEN) .005 else .045) * sizeScale
-    val opacity = if (tool == ImageAnnotationTool.PEN) 1.0 else .34
+    val opacity = if (tool == ImageAnnotationTool.PEN) 1.0 else highlighterOpacity.toDouble()
 
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
@@ -271,6 +299,38 @@ internal fun ImageAnnotationEditorDialog(
                 )
             }
 
+            if (tool == ImageAnnotationTool.HIGHLIGHTER) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Opacidad ${(highlighterOpacity * 100).toInt()}%", color = TestarioMutedText)
+                    Slider(
+                        value = highlighterOpacity,
+                        onValueChange = { highlighterOpacity = it },
+                        valueRange = .10f..1.0f,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Zoom ${(zoom * 100).toInt()}%", color = TestarioMutedText)
+                Slider(
+                    value = zoom,
+                    onValueChange = { target ->
+                        zoom = target
+                        pan = clampImagePan(pan, zoom, 1000f, 1000f)
+                    },
+                    valueRange = 1f..5f,
+                    modifier = Modifier.weight(1f)
+                )
+                FilterChip(
+                    selected = moveCanvas,
+                    onClick = { moveCanvas = !moveCanvas },
+                    label = { Text("Mover") }
+                )
+            }
+            Text("Amplía con dos dedos. Para desplazar con uno, pulsa Mover.",
+                style = MaterialTheme.typography.bodySmall, color = TestarioMutedText)
+
             BoxWithConstraints(
                 Modifier.fillMaxWidth().weight(1f)
                     .clip(RoundedCornerShape(12.dp))
@@ -281,50 +341,81 @@ internal fun ImageAnnotationEditorDialog(
                 val heightPx = with(density) { maxHeight.toPx() }
                 val fit = intrinsic?.let { fitImageToBox(it.first, it.second, widthPx, heightPx) }
                 val gestures = if (fit != null) Modifier
-                    .pointerInput(imageUri, fit, tool, colorArgb, widthFraction) {
-                        detectDragGestures(
-                            onDragStart = { start ->
-                                drawing = fit.toImage(start.x, start.y)?.let {
+                    .pointerInput(imageUri, fit, tool, colorArgb, widthFraction, opacity, moveCanvas) {
+                        // A single recognizer handles BOTH drawing and pinch gestures.
+                        // A second finger cancels the unfinished stroke; pinch can
+                        // never accidentally paint or create hidden answer markers.
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            var multipleFingers = false
+                            if (!moveCanvas) {
+                                val raw = inverseImageViewport(
+                                    down.position, zoom, pan, widthPx, heightPx
+                                )
+                                drawing = fit.toImage(raw.x, raw.y)?.let {
                                     listOf(ImageAnnotationPoint(it.first, it.second))
-                                } ?: emptyList()
-                            },
-                            onDrag = { change, _ ->
-                                change.consume()
-                                if (drawing.isNotEmpty() && drawing.size < 8000) {
-                                    fit.toImage(change.position.x, change.position.y)?.let { pair ->
-                                        val p = ImageAnnotationPoint(pair.first, pair.second)
-                                        if (drawing.last() != p) drawing = drawing + p
+                                }.orEmpty()
+                            }
+                            do {
+                                val event = awaitPointerEvent()
+                                val pressed = event.changes.filter { it.pressed }
+                                if (pressed.size > 1) {
+                                    multipleFingers = true
+                                    drawing = emptyList()
+                                    zoom = (zoom * event.calculateZoom()).coerceIn(1f, 5f)
+                                    pan = clampImagePan(
+                                        pan + event.calculatePan(), zoom, widthPx, heightPx
+                                    )
+                                } else if (!multipleFingers && pressed.size == 1) {
+                                    val pointer = pressed.first()
+                                    if (moveCanvas) {
+                                        pan = clampImagePan(
+                                            pan + pointer.positionChange(), zoom, widthPx, heightPx
+                                        )
+                                    } else if (drawing.isNotEmpty() && drawing.size < 8000) {
+                                        val raw = inverseImageViewport(
+                                            pointer.position, zoom, pan, widthPx, heightPx
+                                        )
+                                        fit.toImage(raw.x, raw.y)?.let { (x, y) ->
+                                            val point = ImageAnnotationPoint(x, y)
+                                            if (drawing.lastOrNull() != point) drawing = drawing + point
+                                        }
                                     }
                                 }
-                            },
-                            onDragEnd = {
-                                if (drawing.isNotEmpty()) {
-                                    if (drawing.size >= 2) commit(strokes + ImageAnnotationStroke(
-                                        tool = tool, colorArgb = colorArgb,
-                                        widthFraction = widthFraction.toDouble(),
-                                        opacity = opacity, points = drawing
-                                    ))
-                                }
-                                drawing = emptyList()
-                            },
-                            onDragCancel = { drawing = emptyList() }
-                        )
+                                event.changes.forEach { if (it.pressed) it.consume() }
+                            } while (event.changes.any { it.pressed })
+                            if (!multipleFingers && !moveCanvas && drawing.isNotEmpty()) {
+                                commit(strokes + ImageAnnotationStroke(
+                                    tool = tool, colorArgb = colorArgb,
+                                    widthFraction = widthFraction.toDouble(),
+                                    opacity = opacity, points = drawing
+                                ))
+                            }
+                            drawing = emptyList()
+                        }
                     } else Modifier
                 Box(Modifier.fillMaxSize().then(gestures)) {
-                    AsyncImage(
-                        model = if (imageUri.startsWith("/")) File(imageUri) else imageUri,
-                        contentDescription = "Fotografía original",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit
-                    )
-                    if (fit != null) {
-                        Canvas(Modifier.fillMaxSize()) {
-                            val current = if (drawing.size > 1) listOf(ImageAnnotationStroke(
-                                tool = tool, colorArgb = colorArgb,
-                                widthFraction = widthFraction.toDouble(),
-                                opacity = opacity, points = drawing
-                            )) else emptyList()
-                            drawImageAnnotations(ImageAnnotations(strokes + current), fit)
+                    Box(Modifier.fillMaxSize().graphicsLayer {
+                        scaleX = zoom
+                        scaleY = zoom
+                        translationX = pan.x
+                        translationY = pan.y
+                    }) {
+                        AsyncImage(
+                            model = if (imageUri.startsWith("/")) File(imageUri) else imageUri,
+                            contentDescription = "Imagen original sin modificar",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                        if (fit != null) {
+                            Canvas(Modifier.fillMaxSize()) {
+                                val current = if (drawing.isNotEmpty()) listOf(ImageAnnotationStroke(
+                                    tool = tool, colorArgb = colorArgb,
+                                    widthFraction = widthFraction.toDouble(),
+                                    opacity = opacity, points = drawing
+                                )) else emptyList()
+                                drawImageAnnotations(ImageAnnotations(strokes + current), fit)
+                            }
                         }
                     }
                 }
