@@ -6,7 +6,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -16,6 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -169,7 +174,8 @@ internal fun ImageAnnotationEditorDialog(
     imageUri: String,
     initial: ImageAnnotations,
     onSave: (ImageAnnotations) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    blankCanvas: Boolean = false
 ) {
     val context = LocalContext.current
     var intrinsic by remember(imageUri) { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -180,11 +186,14 @@ internal fun ImageAnnotationEditorDialog(
     var tool by remember { mutableStateOf(ImageAnnotationTool.PEN) }
     var colorArgb by remember { mutableLongStateOf(0xFFFFD54FL) }
     var sizeScale by remember { mutableFloatStateOf(1f) }
+    var highlighterOpacity by remember { mutableFloatStateOf(.34f) }
+    val zoomState = remember(imageUri) { mutableFloatStateOf(1f) }
+    val panState = remember(imageUri) { mutableStateOf(Offset.Zero) }
     var clearConfirm by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(imageUri) {
-        intrinsic = withContext(Dispatchers.IO) {
+    LaunchedEffect(imageUri, blankCanvas) {
+        intrinsic = if (blankCanvas) (1200 to 800) else withContext(Dispatchers.IO) {
             runCatching {
                 val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 if (imageUri.startsWith("/")) BitmapFactory.decodeFile(imageUri, options)
@@ -205,7 +214,13 @@ internal fun ImageAnnotationEditorDialog(
         error = null
     }
     val widthFraction = (if (tool == ImageAnnotationTool.PEN) .005 else .045) * sizeScale
-    val opacity = if (tool == ImageAnnotationTool.PEN) 1.0 else .34
+    val opacity = if (tool == ImageAnnotationTool.PEN) 1.0 else highlighterOpacity.toDouble()
+    val latestStrokes by rememberUpdatedState(strokes)
+    val latestTool by rememberUpdatedState(tool)
+    val latestColor by rememberUpdatedState(colorArgb)
+    val latestWidth by rememberUpdatedState(widthFraction)
+    val latestOpacity by rememberUpdatedState(opacity)
+    val latestCommit by rememberUpdatedState<(List<ImageAnnotationStroke>) -> Unit>({ commit(it) })
 
     Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
@@ -213,7 +228,7 @@ internal fun ImageAnnotationEditorDialog(
             verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Anotar imagen", color = TestarioText,
+                Text(if (blankCanvas) "Crear imagen" else "Anotar imagen", color = TestarioText,
                     style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 TextButton(onClick = onCancel) { Text("Cancelar") }
                 Button(onClick = {
@@ -252,14 +267,24 @@ internal fun ImageAnnotationEditorDialog(
                     )
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Grosor", color = TestarioMutedText)
+            Column {
+                Text("Grosor del trazo", color = TestarioMutedText)
                 Slider(
                     value = sizeScale,
                     onValueChange = { sizeScale = it },
                     valueRange = .5f..2f,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 )
+                if (tool == ImageAnnotationTool.HIGHLIGHTER) {
+                    Text("Opacidad del subrayador · ${(highlighterOpacity * 100).toInt()} %",
+                        color = TestarioMutedText)
+                    Slider(
+                        value = highlighterOpacity,
+                        onValueChange = { highlighterOpacity = it },
+                        valueRange = .12f..1f,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
 
             BoxWithConstraints(
@@ -271,54 +296,111 @@ internal fun ImageAnnotationEditorDialog(
                 val widthPx = with(density) { maxWidth.toPx() }
                 val heightPx = with(density) { maxHeight.toPx() }
                 val fit = intrinsic?.let { fitImageToBox(it.first, it.second, widthPx, heightPx) }
-                val gestures = if (fit != null) Modifier
-                    .pointerInput(imageUri, fit, tool, colorArgb, widthFraction) {
-                        detectDragGestures(
-                            onDragStart = { start ->
-                                drawing = fit.toImage(start.x, start.y)?.let {
-                                    listOf(ImageAnnotationPoint(it.first, it.second))
-                                } ?: emptyList()
-                            },
-                            onDrag = { change, _ ->
-                                change.consume()
-                                if (drawing.isNotEmpty() && drawing.size < 8000) {
-                                    fit.toImage(change.position.x, change.position.y)?.let { pair ->
-                                        val p = ImageAnnotationPoint(pair.first, pair.second)
-                                        if (drawing.last() != p) drawing = drawing + p
+                // A single pointer draws; two pointers zoom/pan. Both use the
+                // inverse viewport transform so strokes stay aligned at all zoom levels.
+                val input = if (fit != null) Modifier.pointerInput(imageUri, fit) {
+                    fun imagePoint(screen: Offset): ImageAnnotationPoint? {
+                        val z = zoomState.floatValue
+                        val pan = panState.value
+                        val unscaledX = (screen.x - size.width / 2f - pan.x) / z + size.width / 2f
+                        val unscaledY = (screen.y - size.height / 2f - pan.y) / z + size.height / 2f
+                        return fit.toImage(unscaledX, unscaledY)?.let {
+                            ImageAnnotationPoint(it.first, it.second)
+                        }
+                    }
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        var path = imagePoint(down.position)?.let { listOf(it) }.orEmpty()
+                        var transformed = false
+                        drawing = path
+                        do {
+                            val event = awaitPointerEvent()
+                            val active = event.changes.filter { it.pressed }
+                            if (active.size >= 2) {
+                                transformed = true
+                                path = emptyList()
+                                drawing = emptyList()
+                                val nextZoom = (zoomState.floatValue *
+                                    event.calculateZoom()).coerceIn(1f, 5f)
+                                val next = panState.value + event.calculatePan()
+                                zoomState.floatValue = nextZoom
+                                val maxX = (size.width * (nextZoom - 1f) / 2f).coerceAtLeast(0f)
+                                val maxY = (size.height * (nextZoom - 1f) / 2f).coerceAtLeast(0f)
+                                panState.value = Offset(
+                                    next.x.coerceIn(-maxX, maxX),
+                                    next.y.coerceIn(-maxY, maxY)
+                                )
+                                event.changes.forEach { it.consume() }
+                            } else if (!transformed && active.size == 1) {
+                                val changed = active.single()
+                                imagePoint(changed.position)?.let { point ->
+                                    if (path.size < 8000 && path.lastOrNull() != point) {
+                                        path = path + point
+                                        drawing = path
                                     }
                                 }
-                            },
-                            onDragEnd = {
-                                if (drawing.isNotEmpty()) {
-                                    if (drawing.size >= 2) commit(strokes + ImageAnnotationStroke(
-                                        tool = tool, colorArgb = colorArgb,
-                                        widthFraction = widthFraction.toDouble(),
-                                        opacity = opacity, points = drawing
-                                    ))
-                                }
-                                drawing = emptyList()
-                            },
-                            onDragCancel = { drawing = emptyList() }
-                        )
-                    } else Modifier
-                Box(Modifier.fillMaxSize().then(gestures)) {
-                    AsyncImage(
-                        model = if (imageUri.startsWith("/")) File(imageUri) else imageUri,
-                        contentDescription = "Fotografía original",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit
-                    )
-                    if (fit != null) {
-                        Canvas(Modifier.fillMaxSize()) {
-                            val current = if (drawing.size > 1) listOf(ImageAnnotationStroke(
-                                tool = tool, colorArgb = colorArgb,
-                                widthFraction = widthFraction.toDouble(),
-                                opacity = opacity, points = drawing
-                            )) else emptyList()
-                            drawImageAnnotations(ImageAnnotations(strokes + current), fit)
+                                if (changed.position != changed.previousPosition) changed.consume()
+                            }
+                        } while (active.isNotEmpty())
+                        if (!transformed && path.size >= 2 &&
+                            latestStrokes.size < 500) {
+                            latestCommit(latestStrokes + ImageAnnotationStroke(
+                                tool = latestTool,
+                                colorArgb = latestColor,
+                                widthFraction = latestWidth.toDouble(),
+                                opacity = latestOpacity,
+                                points = path
+                            ))
+                        }
+                        drawing = emptyList()
+                    }
+                } else Modifier
+                Box(Modifier.fillMaxSize().then(input)) {
+                    Box(
+                        Modifier.fillMaxSize().graphicsLayer {
+                            scaleX = zoomState.floatValue
+                            scaleY = zoomState.floatValue
+                            translationX = panState.value.x
+                            translationY = panState.value.y
+                        }
+                    ) {
+                        if (!blankCanvas) {
+                            AsyncImage(
+                                model = if (imageUri.startsWith("/")) File(imageUri) else imageUri,
+                                contentDescription = "Fotografía original",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                        if (fit != null) {
+                            Canvas(Modifier.fillMaxSize()) {
+                                val current = if (drawing.size > 1) listOf(ImageAnnotationStroke(
+                                    tool = tool, colorArgb = colorArgb,
+                                    widthFraction = widthFraction.toDouble(),
+                                    opacity = opacity, points = drawing
+                                )) else emptyList()
+                                drawImageAnnotations(ImageAnnotations(strokes + current), fit)
+                            }
                         }
                     }
                 }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Zoom ${(zoomState.floatValue * 100).toInt()}%", color = TestarioMutedText)
+                Slider(
+                    value = zoomState.floatValue,
+                    onValueChange = { value ->
+                        zoomState.floatValue = value
+                        if (value <= 1f) panState.value = Offset.Zero
+                    },
+                    valueRange = 1f..5f,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = {
+                    zoomState.floatValue = 1f
+                    panState.value = Offset.Zero
+                }) { Text("1×") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
