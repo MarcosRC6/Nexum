@@ -138,6 +138,23 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
         return true
     }
 
+    /** Update the frozen in-session test appearance without touching grading IDs. */
+    fun toggleTestFlag(questionId: String): Boolean = edit { state ->
+        state.copy(items = state.items.map { item ->
+            if (item.type == MixedItemType.TEST && item.question?.id == questionId)
+                item.copy(question = item.question.copy(flagged = !item.question.flagged))
+            else item
+        })
+    }
+
+    fun updateTestDifficulty(questionId: String, level: Int?): Boolean = edit { state ->
+        state.copy(items = state.items.map { item ->
+            if (item.type == MixedItemType.TEST && item.question?.id == questionId)
+                item.copy(question = item.question.copy(difficulty = level))
+            else item
+        })
+    }
+
     fun selectTestAnswer(answerId: String?) = edit { state ->
         val item = state.items[state.currentIndex]
         require(item.type == MixedItemType.TEST)
