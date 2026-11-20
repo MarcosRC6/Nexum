@@ -40,6 +40,26 @@ class WebQuickLinkPolicyTest {
             WebQuickLinkPolicy.encodeBackup(items)))
     }
 
+    @Test fun customOtherCategorySurvivesBackupAndRequiresItsOwnName() {
+        val other = WebQuickLink(
+            id = "my-custom", title = "Pruebas", url = "https://example.com",
+            icon = "other", customTypeLabel = "Simulacros"
+        )
+        val restored = WebQuickLinkPolicy.parseBackup(
+            WebQuickLinkPolicy.encodeBackup(listOf(other))).single()
+        assertEquals("other", restored.icon)
+        assertEquals("Simulacros", restored.customTypeLabel)
+        assertNull(WebQuickLinkPolicy.validate(other.copy(customTypeLabel = " ")))
+        assertNull(WebQuickLinkPolicy.validate(other.copy(customTypeLabel = "z".repeat(31))))
+    }
+
+    @Test fun historicalWebLinkBackupsStillOpenWithoutCustomLabel() {
+        val raw = """{"format":"nexum.quick_web_links.v1","links":[{"id":"legacy","title":"Academia","url":"https://example.com","icon":"academy","hidden":false}]}"""
+        val restored = WebQuickLinkPolicy.parseBackup(raw).single()
+        assertEquals("academy", restored.icon)
+        assertEquals("", restored.customTypeLabel)
+    }
+
     @Test fun malformedOrDuplicatedBackupFailsBeforeMutation() {
         val invalid = WebQuickLinkPolicy.encodeBackup(listOf(
             WebQuickLink("same", "A", "https://example.com"),
