@@ -65,6 +65,7 @@ import com.example.testario.data.model.ImportPreview
 import com.example.testario.data.model.Topic
 import com.example.testario.domain.UnifiedDataManager
 import com.example.testario.domain.NexumExportNames
+import com.example.testario.domain.NexumNearbyArchive
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioGreenDark
@@ -142,6 +143,7 @@ fun SettingsScreen(
     var customTopicName by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
     val unifiedDataManager = remember { UnifiedDataManager(context.applicationContext) }
+    val verifiedGlobalRestore = remember { NexumNearbyArchive(context.applicationContext) }
     val studySettings by PlanarioDependencies.studyRepository.settings.collectAsState()
     val studyTimerState by PlanarioDependencies.studyTimerController.state.collectAsState()
     val timerHasUnsavedTime = studyTimerState.studyTimerState != StudyTimerState.STOPPED
@@ -1131,7 +1133,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showUnifiedRestoreConfirm = false; pendingUnifiedBytes = null },
             title = { Text("Restaurar copia completa") },
-            text = { Text("Se sustituirán Biblioteca, estadísticas, planificación, objetivos, ajustes y vínculos de test rápido por los de la copia seleccionada. Los tiempos registrados en la copia reemplazarán los actuales." +
+            text = { Text("Se sustituirán Biblioteca, estadísticas, planificación, objetivos, ajustes y vínculos de test rápido. Antes de cambiar nada, NEXUM guardará una copia completa verificable del estado anterior. Si la sustitución falla, intentará recuperarlo y conservará el respaldo." +
                 if (timerHasUnsavedTime) "\n\nGuarda y termina el cronómetro antes de restaurar: nunca se descartará automáticamente." else "") },
             confirmButton = {
                 Button(
@@ -1141,12 +1143,16 @@ fun SettingsScreen(
                         if (bytes != null) {
                             isLoading = true
                             coroutineScope.launch {
-                                val ok = runCatching { unifiedDataManager.restoreGlobalBackup(bytes) }.getOrDefault(false)
-                                if (ok) {
+                                val result = runCatching {
+                                    verifiedGlobalRestore.applyUserSelectedGlobalBackup(bytes)
+                                }
+                                result.onSuccess { recoveryName ->
                                     PlanarioDependencies.schedulePlanarioNotifications()
-                                    message = "Copia completa restaurada. Cierra y abre la app para recargar también todos los ajustes visuales."
-                                } else {
-                                    message = "Error: la copia completa no es válida."
+                                    message = "Copia global restaurada. Se ha conservado el estado previo en " +
+                                        "$recoveryName. Reinicia NEXUM para recargar todos los ajustes."
+                                }.onFailure { failure ->
+                                    message = "Restauración cancelada o fallida: " +
+                                        (failure.message ?: "Se ha conservado una copia de recuperación.")
                                 }
                                 pendingUnifiedBytes = null
                                 showUnifiedRestoreConfirm = false
