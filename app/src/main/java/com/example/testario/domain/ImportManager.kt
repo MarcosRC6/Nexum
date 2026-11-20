@@ -337,6 +337,88 @@ class ImportManager(private val context: Context, private val localStore: Testar
         }
     }
 
+    /** Preview and conflict decisions have NO side effects. Only this call commits the full batch. */
+    suspend fun importBatchProcessed(decisions: List<ImportBatchDecision>): ImportBatchPlan {
+        val before = localStore.database.value
+        require(before.version == DatabaseSchema.CURRENT_VERSION) {
+            "Base de datos incompatible: no se puede importar."
+        }
+        decisions.forEach { validateStudyExercises(listOf(it.topic)) }
+        // Ensure every new exercise image is available before writing any user data.
+        validateStudyMediaForImport(decisions.map { it.topic })
+        val plan = ImportBatchPlanner.prepare(before.topics, decisions) { topic ->
+            resolveTopicImagePaths(regenerateTopicIds(topic))
+        }
+        val replacement = before.copy(topics = plan.topics)
+        commitBatchAndImages(before, replacement)
+        return plan
+    }
+
+    /**
+     * Stage and check every image; then commit the DB durably in one operation.
+     * Failed image copies or DB writes remove only files created by this batch.
+     * Existing files are never overwritten, even transiently.
+     */
+    private suspend fun commitBatchAndImages(
+        before: TestarioDatabase,
+        replacement: TestarioDatabase
+    ) {
+        val stage = pendingImageStage
+        val created = mutableListOf<File>()
+        try {
+            val staged = stage?.listFiles()?.filter { it.isFile }.orEmpty()
+            require(imagesDir.isDirectory || imagesDir.mkdirs()) {
+                "No se pudo abrir el almacenamiento de imágenes."
+            }
+            val root = imagesDir.canonicalPath + File.separator
+            fun digest(file: File): ByteArray {
+                val sha = java.security.MessageDigest.getInstance("SHA-256")
+                file.inputStream().use { stream ->
+                    val bytes = ByteArray(8192)
+                    while (true) {
+                        val n = stream.read(bytes)
+                        if (n < 0) break
+                        sha.update(bytes, 0, n)
+                    }
+                }
+                return sha.digest()
+            }
+            // Preflight all collisions before copying the first file.
+            staged.forEach { source ->
+                val target = File(imagesDir, source.name)
+                require(target.canonicalPath.startsWith(root)) { "Ruta de imagen no segura." }
+                if (target.exists()) {
+                    require(target.isFile && source.length() == target.length() &&
+                        digest(source).contentEquals(digest(target))) {
+                        "La imagen ${source.name} ya existe con contenido diferente."
+                    }
+                }
+            }
+            staged.forEach { source ->
+                val target = File(imagesDir, source.name)
+                if (!target.exists()) {
+                    source.copyTo(target, overwrite = false)
+                    created += target
+                }
+            }
+            // Only after ALL media is ready, commit the complete library.
+            localStore.saveDatabaseDurably(before, replacement)
+        } catch (failure: Exception) {
+            created.asReversed().forEach { file -> runCatching { file.delete() } }
+            throw failure
+        } finally {
+            stage?.deleteRecursively()
+            pendingImageStage = null
+        }
+    }
+
+    /** Cancelled preview/conflict resolution never installs any staged images. */
+    @Synchronized
+    fun cancelPendingImport() {
+        pendingImageStage?.deleteRecursively()
+        pendingImageStage = null
+    }
+
     // NUEVO: Motor de sincronización
     fun syncWithExternalDatabase(rawJson: String): Int {
         val db = localStore.database.value
@@ -706,7 +788,9 @@ class ImportManager(private val context: Context, private val localStore: Testar
         val fileName = try { File(path).name } catch (_: Exception) { return path }
         if (fileName.isBlank()) return path
         val localFile = File(imagesDir, fileName)
-        return if (localFile.exists()) localFile.absolutePath else path
+        return if (localFile.exists() ||
+            pendingImageStage?.let { File(it, fileName).isFile } == true
+        ) localFile.absolutePath else path
     }
 
     private fun generateUniqueTopicName(baseName: String, existingTopics: List<Topic>): String {
