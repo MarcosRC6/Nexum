@@ -120,4 +120,46 @@ class StudyExerciseRulesTest {
         assertEquals(StudyExerciseMerge.signature(original), StudyExerciseMerge.signature(copy))
         assertTrue(StudyExerciseMerge.unique(listOf(copy), listOf(original)).isEmpty())
     }
+
+    @Test fun imageLocationsArePositionAwareButPlainEnumerationStaysUnordered() {
+        val a = CanonicalSolution(
+            id = "a", text = "Primera",
+            points = listOf(ImagePoint(x = .2, y = .2, order = 1))
+        )
+        val b = CanonicalSolution(
+            id = "b", text = "Segunda",
+            points = listOf(ImagePoint(x = .7, y = .6, order = 2))
+        )
+        val pictured = written(a, b).copy(baseImageUri = "private/photo.jpg")
+        val swapped = StudyExerciseRules.gradeWrittenForQuestion(
+            pictured, listOf("Segunda", "Primera")
+        )
+        assertEquals(0, swapped.correct)
+        assertEquals(2, swapped.incorrect)
+        assertTrue(swapped.correctIds.isEmpty())
+        val ordered = StudyExerciseRules.gradeWrittenForQuestion(
+            pictured, listOf("Primera", "Segunda")
+        )
+        assertEquals(2, ordered.correct)
+        assertEquals(10.0, ordered.scoreOutOfTen, 0.0)
+
+        val plain = written(a.copy(points = emptyList()), b.copy(points = emptyList()))
+        assertEquals(2, StudyExerciseRules.gradeWrittenForQuestion(
+            plain, listOf("Segunda", "Primera")).correct)
+    }
+
+    @Test fun blankFirstNumberedFieldDoesNotShiftSecondAnswer() {
+        val pictured = written(
+            CanonicalSolution(id = "a", text = "Primera",
+                points = listOf(ImagePoint(x = .2, y = .2, order = 1))),
+            CanonicalSolution(id = "b", text = "Segunda",
+                points = listOf(ImagePoint(x = .8, y = .8, order = 2)))
+        ).copy(sketch = SketchDrawing())
+        val result = StudyExerciseRules.gradeWrittenForQuestion(
+            pictured, listOf("", "Segunda")
+        )
+        assertEquals(1, result.correct)
+        assertEquals(0, result.incorrect)
+        assertEquals(setOf("b"), result.correctIds)
+    }
 }
