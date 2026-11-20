@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.testario.data.model.Answer
+import com.example.testario.data.model.ImageAnnotations
 import com.example.testario.data.model.Question
 import com.example.testario.data.model.QuestionStats
 import com.example.testario.ui.theme.TestarioBackground
@@ -87,7 +88,8 @@ fun QuestionEditorScreen(
     topicId: String,
     questionId: String?,
     libraryViewModel: LibraryViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    showTopBar: Boolean = true
 ) {
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
@@ -113,6 +115,8 @@ fun QuestionEditorScreen(
     // El campo histórico explanationImageUri se conserva como imagen del enunciado por compatibilidad.
     var statementImageUri by remember { mutableStateOf(existingQuestion?.explanationImageUri) }
     var correctionImageUri by remember { mutableStateOf(existingQuestion?.correctionImageUri) }
+    var statementAnnotations by remember { mutableStateOf(existingQuestion?.statementAnnotations ?: ImageAnnotations()) }
+    var correctionAnnotations by remember { mutableStateOf(existingQuestion?.correctionAnnotations ?: ImageAnnotations()) }
     var flagged by remember { mutableStateOf(existingQuestion?.flagged ?: false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -122,19 +126,25 @@ fun QuestionEditorScreen(
     val statementImagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        if (uri != null) statementImageUri = uri.toString()
+        if (uri != null) {
+            if (uri.toString() != statementImageUri) statementAnnotations = ImageAnnotations()
+            statementImageUri = uri.toString()
+        }
     }
 
     val correctionImagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        if (uri != null) correctionImageUri = uri.toString()
+        if (uri != null) {
+            if (uri.toString() != correctionImageUri) correctionAnnotations = ImageAnnotations()
+            correctionImageUri = uri.toString()
+        }
     }
 
     Scaffold(
         containerColor = TestarioBackground,
         topBar = {
-            TestarioTopBar(
+            if (showTopBar) TestarioTopBar(
                 title = if (existingQuestion == null) "Nueva pregunta" else "Editar pregunta",
                 onBack = onBack
             )
@@ -235,29 +245,25 @@ fun QuestionEditorScreen(
                         color = TestarioMutedText
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = { statementImagePicker.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, TestarioPrimary)
-                    ) {
-                        Text(if (statementImageUri == null) "Adjuntar imagen del enunciado" else "Cambiar imagen del enunciado")
-                    }
-                    if (statementImageUri != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(if (statementImageUri!!.startsWith("content://")) Uri.parse(statementImageUri) else File(statementImageUri!!))
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Imagen del enunciado",
-                            modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(12.dp)),
-                            contentScale = ContentScale.Crop
+                    if (statementImageUri == null) {
+                        OutlinedButton(
+                            onClick = { statementImagePicker.launch("image/*") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Adjuntar imagen del enunciado") }
+                    } else {
+                        Text("Toca la imagen para verla o editar sus anotaciones.",
+                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                        EditableAnnotationImage(
+                            imageUri = requireNotNull(statementImageUri),
+                            annotations = statementAnnotations,
+                            modifier = Modifier.fillMaxWidth().height(210.dp),
+                            onAnnotationsChanged = { statementAnnotations = it },
+                            onReplace = { statementImagePicker.launch("image/*") },
+                            onDelete = {
+                                statementImageUri = null
+                                statementAnnotations = ImageAnnotations()
+                            }
                         )
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "✓ Imagen lista", color = TestarioGreen)
-                            TextButton(onClick = { statementImageUri = null }) { Text("Eliminar", color = TestarioRed) }
-                        }
                     }
                 }
             }
@@ -283,29 +289,25 @@ fun QuestionEditorScreen(
                         color = TestarioMutedText
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = { correctionImagePicker.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, TestarioPrimary)
-                    ) {
-                        Text(if (correctionImageUri == null) "Adjuntar imagen de explicación" else "Cambiar imagen de explicación")
-                    }
-                    if (correctionImageUri != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(if (correctionImageUri!!.startsWith("content://")) Uri.parse(correctionImageUri) else File(correctionImageUri!!))
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Imagen de la explicación",
-                            modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(12.dp)),
-                            contentScale = ContentScale.Crop
+                    if (correctionImageUri == null) {
+                        OutlinedButton(
+                            onClick = { correctionImagePicker.launch("image/*") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Adjuntar imagen de explicación") }
+                    } else {
+                        Text("Toca la imagen para verla o editar sus anotaciones.",
+                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                        EditableAnnotationImage(
+                            imageUri = requireNotNull(correctionImageUri),
+                            annotations = correctionAnnotations,
+                            modifier = Modifier.fillMaxWidth().height(210.dp),
+                            onAnnotationsChanged = { correctionAnnotations = it },
+                            onReplace = { correctionImagePicker.launch("image/*") },
+                            onDelete = {
+                                correctionImageUri = null
+                                correctionAnnotations = ImageAnnotations()
+                            }
                         )
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "✓ Imagen lista", color = TestarioGreen)
-                            TextButton(onClick = { correctionImageUri = null }) { Text("Eliminar", color = TestarioRed) }
-                        }
                     }
                 }
             }
@@ -333,6 +335,8 @@ fun QuestionEditorScreen(
                             explanation = explanation.trim(),
                             explanationImageUri = statementImageUri,
                             correctionImageUri = correctionImageUri,
+                            statementAnnotations = statementAnnotations,
+                            correctionAnnotations = correctionAnnotations,
                             originTopicName = existingQuestion?.originTopicName,
                             favorite = existingQuestion?.favorite ?: false,
                             flagged = flagged,

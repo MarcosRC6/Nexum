@@ -41,11 +41,15 @@ import com.example.testario.ui.screen.HomeScreen
 import com.example.testario.ui.screen.NexumBackgroundWatermark
 import com.example.testario.ui.screen.LibraryTopicsScreen
 import com.example.testario.ui.screen.QuestionEditorScreen
+import com.example.testario.ui.screen.UnifiedQuestionEditorScreen
 import com.example.testario.ui.screen.SettingsScreen
 import com.example.testario.ui.screen.StatsScreen
 import com.example.testario.ui.screen.TestConfigScreen
 import com.example.testario.ui.screen.TestScreen
+import com.example.testario.ui.screen.MixedSessionScreen
 import com.example.testario.ui.screen.TopicDetailScreen
+import com.example.testario.ui.screen.StudyExerciseEditorScreen
+import com.example.testario.ui.screen.StudyExercisePracticeScreen
 import com.example.testario.ui.screen.UnifiedPlanScreen
 import com.example.testario.ui.theme.TestarioTheme
 import com.example.testario.viewmodel.BehaviorSettingsViewModel
@@ -54,6 +58,7 @@ import com.example.testario.viewmodel.ImportExportViewModel
 import com.example.testario.viewmodel.LibraryViewModel
 import com.example.testario.viewmodel.StatsViewModel
 import com.example.testario.viewmodel.TestSessionViewModel
+import com.example.testario.viewmodel.MixedSessionViewModel
 import com.example.testario.viewmodel.ThemeViewModel
 
 @Composable
@@ -71,11 +76,14 @@ fun TestarioApp(
     val statsViewModel: StatsViewModel = viewModel()
     val importExportViewModel: ImportExportViewModel = viewModel()
     val sessionViewModel: TestSessionViewModel = viewModel()
+    val mixedSessionViewModel: MixedSessionViewModel = viewModel()
 
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val context = LocalContext.current
     val timerState by PlanarioDependencies.studyTimerController.state.collectAsState()
+    val recoveryError by libraryViewModel.recoveryError.collectAsState()
+    var recoveryNoticeDismissed by remember { mutableStateOf(false) }
     var showTimerExitDialog by remember { mutableStateOf(false) }
     var announcedRelease by remember { mutableStateOf<NexumRelease?>(null) }
     var dismissedUpdateNotice by remember { mutableStateOf(false) }
@@ -182,6 +190,7 @@ fun TestarioApp(
             "calendar" -> goPlan("calendar")
             "settings" -> goSettings()
             "home" -> goHome()
+            "home_today" -> goHome()
             NexumQuickTestWidgetModel.LAUNCH_ROUTE -> {
                 // Reuse the same resolver as linked tests: no duplicated logic,
                 // database migrations, or guessed template defaults.
@@ -240,7 +249,9 @@ fun TestarioApp(
                         } else {
                             Toast.makeText(context, "No se pudo recuperar el test guardado.", Toast.LENGTH_LONG).show()
                         }
-                    }
+                    },
+                    focusTodayRequestId = if (requestedDestinationRoute == "home_today")
+                        navigationRequestId else null
                 )
             }
 
@@ -277,9 +288,23 @@ fun TestarioApp(
                     libraryViewModel = libraryViewModel,
                     statsViewModel = statsViewModel,
                     onBack = { goBack() },
-                    onAddQuestion = { navController.navigate(Routes.questionEditor(id)) },
+                    onAddQuestion = { navController.navigate(Routes.unifiedQuestionEditor(id)) },
                     onEditQuestion = { qId -> navController.navigate(Routes.questionEditor(id, qId)) },
+                    onAddExercise = { kind -> navController.navigate(Routes.studyExerciseEditor(id, initialKind = kind.name)) },
+                    onEditExercise = { exId -> navController.navigate(Routes.studyExerciseEditor(id, exId)) },
+                    onPracticeExercises = { exerciseId ->
+                        navController.navigate(Routes.studyExercisePractice(id, exerciseId))
+                    },
                     onStartTest = { topicIdParaTest -> navController.navigate(Routes.testConfig(topicIdParaTest)) }
+                )
+            }
+
+            composable(Routes.UNIFIED_QUESTION_EDITOR) { entry ->
+                val topicId = entry.arguments?.getString("topicId") ?: return@composable
+                UnifiedQuestionEditorScreen(
+                    topicId = topicId,
+                    libraryViewModel = libraryViewModel,
+                    onBack = { goBack() }
                 )
             }
 
@@ -294,12 +319,31 @@ fun TestarioApp(
                 )
             }
 
+            composable(Routes.STUDY_EXERCISE_EDITOR) { entry ->
+                val topicId = entry.arguments?.getString("topicId") ?: return@composable
+                StudyExerciseEditorScreen(
+                    topicId = topicId,
+                    exerciseId = entry.arguments?.getString("exerciseId"),
+                    initialKind = entry.arguments?.getString("initialKind")?.let {
+                        runCatching { com.example.testario.data.model.StudyExerciseKind.valueOf(it) }.getOrNull()
+                    } ?: com.example.testario.data.model.StudyExerciseKind.WRITTEN_MULTI,
+                    libraryViewModel = libraryViewModel,
+                    onBack = { goBack() }
+                )
+            }
+            composable(Routes.STUDY_EXERCISE_PRACTICE) { entry ->
+                val topicId = entry.arguments?.getString("topicId") ?: return@composable
+                StudyExercisePracticeScreen(topicId, libraryViewModel, onBack = { goBack() },
+                    selectedExerciseId = entry.arguments?.getString("exerciseId"))
+            }
+
             composable(Routes.TEST_CONFIG) { backStackEntry ->
                 val preselectedTopicId = backStackEntry.arguments?.getString("preselectedTopicId")
                 val preselectedTemplateId = backStackEntry.arguments?.getString("templateId")
                 TestConfigScreen(
                     libraryViewModel = libraryViewModel,
                     sessionViewModel = sessionViewModel,
+                    mixedSessionViewModel = mixedSessionViewModel,
                     preselectedTopicId = preselectedTopicId,
                     preselectedTemplateId = preselectedTemplateId,
                     onBack = { goBack() },
@@ -308,7 +352,8 @@ fun TestarioApp(
                     onPlan = { goPlan() },
                     onStats = { goStats() },
                     onSettings = { goSettings() },
-                    onStart = { navController.navigate(Routes.TEST_SCREEN) }
+                    onStart = { navController.navigate(Routes.TEST_SCREEN) },
+                    onStartMixed = { navController.navigate(Routes.MIXED_SESSION) }
                 )
             }
 
@@ -319,6 +364,13 @@ fun TestarioApp(
                     statsViewModel = statsViewModel,
                     onFinish = { goHome() },
                     onEditQuestion = { topicId, questionId -> navController.navigate(Routes.questionEditor(topicId, questionId)) }
+                )
+            }
+
+            composable(Routes.MIXED_SESSION) {
+                MixedSessionScreen(
+                    session = mixedSessionViewModel,
+                    onLeave = { goTest() }
                 )
             }
 
@@ -393,6 +445,24 @@ fun TestarioApp(
                 )
             }
             }
+        }
+
+        if (recoveryError != null && !recoveryNoticeDismissed) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Biblioteca protegida") },
+                text = {
+                    Text(recoveryError.orEmpty() +
+                        "\n\nLa base original se conserva. En Ajustes puedes restaurar una copia global ZIP compatible. " +
+                        "No crees temas ni realices sincronizaciones hasta recuperar los datos.")
+                },
+                confirmButton = {
+                    com.example.testario.ui.theme.NeonButton(onClick = {
+                        recoveryNoticeDismissed = true
+                        goSettings()
+                    }) { Text("Abrir Ajustes") }
+                }
+            )
         }
 
         if (showTimerExitDialog && timerState.studyTimerState == StudyTimerState.RUNNING) {

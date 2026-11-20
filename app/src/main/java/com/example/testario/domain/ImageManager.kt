@@ -47,6 +47,36 @@ class ImageManager(private val context: Context) {
         }
     }
 
+    /**
+     * A new blank page is still a regular private PNG image: backup,
+     * import and rendering use exactly the same path as imported photos.
+     */
+    fun createBlankCanvas(width: Int = 1200, height: Int = 800): String {
+        require(width in 128..4096 && height in 128..4096)
+        check(imagesDir.isDirectory || imagesDir.mkdirs()) {
+            "No se pudo crear la carpeta de imágenes."
+        }
+        val target = File(imagesDir, "CANVAS_${UUID.randomUUID()}.png")
+        val bitmap = android.graphics.Bitmap.createBitmap(
+            width, height, android.graphics.Bitmap.Config.ARGB_8888
+        )
+        try {
+            android.graphics.Canvas(bitmap).drawColor(android.graphics.Color.rgb(17, 24, 39))
+            target.outputStream().use { output ->
+                check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output)) {
+                    "No se pudo guardar el lienzo."
+                }
+                output.flush()
+            }
+            return target.absolutePath
+        } catch (failure: Exception) {
+            target.delete()
+            throw failure
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
     fun deleteImage(pathString: String?) {
         if (pathString.isNullOrBlank()) return
         try {
