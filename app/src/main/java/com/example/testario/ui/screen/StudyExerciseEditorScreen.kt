@@ -297,14 +297,6 @@ fun StudyExerciseEditorScreen(
                     }
                 }
                 if (sketchEnabled) {
-                            imageUri = null
-                            sketchMode = SketchMode.DRAW
-                        }
-                    }
-                }, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (sketchEnabled) "Cerrar editor de imagen" else "Crear imagen")
-                }
-                if (sketchEnabled) {
                     Text("Dibuja con el dedo o lápiz táctil y después pasa a «Colocar soluciones».",
                         color = TestarioMutedText)
                     Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
