@@ -314,7 +314,7 @@ class UnifiedDataManager(private val context: Context) {
                 is String -> editor.putString(key, value)
             }
         }
-        editor.apply()
+        check(editor.commit()) { "No se pudieron guardar los ajustes de Testario." }
     }
 
     private fun looksLikeTestarioBackup(raw: String): Boolean {
