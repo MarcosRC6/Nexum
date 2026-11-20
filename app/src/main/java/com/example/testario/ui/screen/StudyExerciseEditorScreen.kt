@@ -87,6 +87,11 @@ fun StudyExerciseEditorScreen(
     var imageUri by remember(exerciseId) { mutableStateOf(original?.baseImageUri) }
     var frontImageUri by remember(exerciseId) { mutableStateOf(original?.flashcard?.frontImageUri) }
     var backImageUri by remember(exerciseId) { mutableStateOf(original?.flashcard?.backImageUri) }
+    var baseAnnotations by remember(exerciseId) { mutableStateOf(original?.baseAnnotations ?: ImageAnnotations()) }
+    var frontAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.frontAnnotations ?: ImageAnnotations()) }
+    var backAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.backAnnotations ?: ImageAnnotations()) }
+    var photoMarkerMode by remember(exerciseId) { mutableStateOf(false) }
+    var occlusionMarkMode by remember(exerciseId) { mutableStateOf(true) }
     var pickerTarget by remember { mutableStateOf("written") }
     LaunchedEffect(exerciseId, solutions.size) {
         if (selectedSolutionId == null || solutions.none { it.id == selectedSolutionId }) {
@@ -127,16 +132,27 @@ fun StudyExerciseEditorScreen(
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) when (pickerTarget) {
             "written" -> {
+                if (imageUri != uri.toString()) baseAnnotations = ImageAnnotations()
                 imageUri = uri.toString()
                 sketchEnabled = false
             }
-            "front" -> frontImageUri = uri.toString()
-            "back" -> backImageUri = uri.toString()
+            "front" -> {
+                if (frontImageUri != uri.toString()) frontAnnotations = ImageAnnotations()
+                frontImageUri = uri.toString()
+            }
+            "back" -> {
+                if (backImageUri != uri.toString()) backAnnotations = ImageAnnotations()
+                backImageUri = uri.toString()
+            }
         }
     }
     fun chooseImage(target: String) {
         if (target == "written" && solutions.any { it.points.isNotEmpty() }) {
             error = "Antes de reemplazar el esquema, elimina sus marcadores; no se pueden trasladar automáticamente a una fotografía."
+            return
+        }
+        if (target == "front" && masks.isNotEmpty()) {
+            error = "Elimina primero las máscaras de ocultación antes de cambiar de imagen."
             return
         }
         pickerTarget = target
@@ -175,6 +191,7 @@ fun StudyExerciseEditorScreen(
         val card = if (exerciseKind == StudyExerciseKind.ANKI_CARD) FlashcardContent(
             kind = effectiveKind, front = markup.text, back = back,
             frontImageUri = frontImageUri, backImageUri = backImageUri,
+            frontAnnotations = frontAnnotations, backAnnotations = backAnnotations,
             gaps = stableGaps, masks = masks,
             acceptedAnswers = aliasesText.split(",").map(String::trim).filter(String::isNotBlank)
         ) else null
@@ -183,6 +200,8 @@ fun StudyExerciseEditorScreen(
             kind = exerciseKind, prompt = if (exerciseKind == StudyExerciseKind.ANKI_CARD) markup.text else prompt,
             solutions = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) solutions else emptyList(),
             flashcard = card, baseImageUri = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) imageUri else null,
+            baseAnnotations = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI)
+                baseAnnotations else ImageAnnotations(),
             diagram = null,
             sketch = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI && sketchEnabled)
                 SketchDrawing(strokes = sketchStrokes) else null,
