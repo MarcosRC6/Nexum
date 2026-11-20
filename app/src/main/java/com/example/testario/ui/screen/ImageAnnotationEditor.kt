@@ -90,7 +90,10 @@ internal fun EditableAnnotationImage(
     onReplace: () -> Unit,
     onDelete: () -> Unit,
     /** When marking numbered answers, image taps must remain marker gestures. */
-    onMarkerTap: ((Double, Double) -> Unit)? = null
+    onMarkerTap: ((Double, Double) -> Unit)? = null,
+    onMaskUpdate: ((ImageOcclusionMask) -> Unit)? = null,
+    selectedMaskId: String? = null,
+    onMaskSelect: ((String) -> Unit)? = null
 ) {
     var showActions by remember(imageUri) { mutableStateOf(false) }
     var editing by remember(imageUri) { mutableStateOf(false) }
@@ -104,7 +107,10 @@ internal fun EditableAnnotationImage(
             annotations = annotations,
             markers = markers, masks = masks, showCorrection = showCorrection,
             modifier = Modifier.fillMaxSize(),
-            onTapImage = if (onMarkerTap != null) onMarkerTap else { _, _ -> viewing = true }
+            onTapImage = if (onMarkerTap != null) onMarkerTap else { _, _ -> viewing = true },
+            onMaskUpdate = onMaskUpdate,
+            selectedMaskId = selectedMaskId,
+            onMaskSelect = onMaskSelect
         )
         IconButton(
             onClick = { showActions = true },
