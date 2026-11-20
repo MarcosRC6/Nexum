@@ -118,6 +118,7 @@ fun QuestionEditorScreen(
     var statementAnnotations by remember { mutableStateOf(existingQuestion?.statementAnnotations ?: ImageAnnotations()) }
     var correctionAnnotations by remember { mutableStateOf(existingQuestion?.correctionAnnotations ?: ImageAnnotations()) }
     var flagged by remember { mutableStateOf(existingQuestion?.flagged ?: false) }
+    var showImageTargetMenu by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
     // NUEVO: Estado para el diálogo de confirmación de borrado
@@ -205,22 +206,6 @@ fun QuestionEditorScreen(
                 ) { Text("+ Añadir respuesta") }
             }
 
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = TestarioSurface)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Marcar pregunta (🚩)", color = TestarioText, style = MaterialTheme.typography.titleMedium)
-                        Switch(checked = flagged, onCheckedChange = { flagged = it }, colors = SwitchDefaults.colors(checkedThumbColor = TestarioPrimary))
-                    }
-                }
-            }
 
             item {
                 EditorSectionCard {
@@ -237,20 +222,48 @@ fun QuestionEditorScreen(
 
             item {
                 EditorSectionCard {
-                    Text(text = "Imagen del enunciado", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Se muestra mientras respondes la pregunta.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TestarioMutedText
+                    Text(text = "Explicación", style = MaterialTheme.typography.titleMedium, color = TestarioText)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = explanation,
+                        onValueChange = { explanation = it },
+                        label = { Text("Texto de explicación (opcional)") },
+                        modifier = Modifier.fillMaxWidth().physicalKeyboardBehavior(focusManager),
+                        minLines = 3,
+                        shape = RoundedCornerShape(18.dp)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    if (statementImageUri == null) {
+                }
+            }
+
+            item {
+                EditorSectionCard {
+                    Text("Añadir imagen", color = TestarioText,
+                        style = MaterialTheme.typography.titleMedium)
+                    Box {
                         OutlinedButton(
-                            onClick = { statementImagePicker.launch("image/*") },
+                            onClick = { showImageTargetMenu = true },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("Adjuntar imagen del enunciado") }
-                    } else {
+                        ) { Text("+ Añadir imagen") }
+                        DropdownMenu(expanded = showImageTargetMenu,
+                            onDismissRequest = { showImageTargetMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Imagen del enunciado") },
+                                onClick = {
+                                    showImageTargetMenu = false
+                                    statementImagePicker.launch("image/*")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Imagen de la explicación") },
+                                onClick = {
+                                    showImageTargetMenu = false
+                                    correctionImagePicker.launch("image/*")
+                                }
+                            )
+                        }
+                    }
+                    if (statementImageUri != null) {
+                        Text("Imagen del enunciado", color = TestarioMutedText)
                         Text("Toca la imagen para verla o editar sus anotaciones.",
                             color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                         EditableAnnotationImage(
@@ -265,36 +278,8 @@ fun QuestionEditorScreen(
                             }
                         )
                     }
-                }
-            }
-
-            item {
-                EditorSectionCard {
-                    Text(text = "Explicación", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = explanation,
-                        onValueChange = { explanation = it },
-                        label = { Text("Texto de explicación (opcional)") },
-                        modifier = Modifier.fillMaxWidth().physicalKeyboardBehavior(focusManager),
-                        minLines = 3,
-                        shape = RoundedCornerShape(18.dp)
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(text = "Imagen de la explicación", style = MaterialTheme.typography.titleSmall, color = TestarioText)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Solo aparece al corregir: al responder en Entrenamiento y en la revisión del Examen.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TestarioMutedText
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    if (correctionImageUri == null) {
-                        OutlinedButton(
-                            onClick = { correctionImagePicker.launch("image/*") },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("Adjuntar imagen de explicación") }
-                    } else {
+                    if (correctionImageUri != null) {
+                        Text("Imagen de explicación", color = TestarioMutedText)
                         Text("Toca la imagen para verla o editar sus anotaciones.",
                             color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                         EditableAnnotationImage(
