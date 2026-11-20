@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import java.util.UUID
 
 object DatabaseSchema {
-    const val CURRENT_VERSION = 5
+    const val CURRENT_VERSION = 6
 }
 
 @Serializable
@@ -24,7 +24,9 @@ data class TestarioDatabase(
     val ankiScheduleSettings: AnkiScheduleSettings = AnkiScheduleSettings(),
     val exerciseAttempts: List<ExerciseAttempt> = emptyList(),
     /** Per-note next numbered group. Absence means first numbered round. */
-    val ankiClozeCursors: Map<String, Int> = emptyMap()
+    val ankiClozeCursors: Map<String, Int> = emptyMap(),
+    /** Separate history for mixed tests; never regrade old Testario attempts. */
+    val mixedSessionHistory: List<MixedSessionHistory> = emptyList()
 )
 
 @Serializable
@@ -85,7 +87,9 @@ data class TestTemplate(
     val easyPercent: Int = 33,
     val mediumPercent: Int = 33,
     val hardPercent: Int = 34,
-    val difficultyFilterEnabled: Boolean = false
+    val difficultyFilterEnabled: Boolean = false,
+    /** Legacy templates stay TEST until the user explicitly chooses otherwise. */
+    val contentFilter: SessionContentFilter = SessionContentFilter.TEST
 )
 
 @Serializable
