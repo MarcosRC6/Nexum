@@ -108,7 +108,7 @@ fun StudyExerciseEditorScreen(
     var backAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.backAnnotations ?: ImageAnnotations()) }
     var photoMarkerMode by remember(exerciseId) { mutableStateOf(false) }
     var showImageOptions by remember { mutableStateOf(false) }
-    var occlusionMarkMode by remember(exerciseId) { mutableStateOf(true) }
+    var selectedMaskId by remember(exerciseId) { mutableStateOf(masks.firstOrNull()?.id) }
     var pickerTarget by remember { mutableStateOf("written") }
     LaunchedEffect(exerciseId, solutions.size) {
         if (selectedSolutionId == null || solutions.none { it.id == selectedSolutionId }) {
@@ -699,33 +699,48 @@ fun StudyExerciseEditorScreen(
                                 error = "Para ocultar zonas en la imagen, elimina primero los huecos de texto. Puedes conservar esta tarjeta y crear otra para la imagen."
                             } else {
                                 flashKind = FlashcardKind.IMAGE_OCCLUSION
-                                occlusionMarkMode = true
+                                selectedMaskId = masks.firstOrNull()?.id
                             }
                         },
-                        label = { Text("Ocultar partes de la imagen") }
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("●", color = TestarioPrimary)
+                                Spacer(Modifier.width(6.dp))
+                                Text("Ocultar partes de la imagen")
+                            }
+                        }
                     )
                 }
                 if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
-                    Text("Toca las zonas de la imagen que quieras tapar. Al revelar la tarjeta los bloques desaparecen.",
-                        color = TestarioMutedText)
+                    Text(
+                        "Toca una zona libre de la imagen para añadir un bloque. Toca un bloque para seleccionarlo, " +
+                            "arrástralo para moverlo o tira de cualquiera de sus ocho tiradores para cambiar el tamaño. " +
+                            "Al revelar la respuesta desaparecerá.",
+                        color = TestarioMutedText,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                     frontImageUri?.let { image ->
-                        FilterChip(
-                            selected = occlusionMarkMode,
-                            onClick = { occlusionMarkMode = !occlusionMarkMode },
-                            label = { Text(if (occlusionMarkMode) "Ocultar zonas · activo"
-                                else "Ocultar zonas") }
-                        )
                         EditableAnnotationImage(
                             imageUri = image,
                             annotations = frontAnnotations,
-                            modifier = Modifier.fillMaxWidth().height(240.dp),
+                            modifier = Modifier.fillMaxWidth().height(270.dp),
                             masks = masks,
-                            onMarkerTap = if (occlusionMarkMode) { x, y ->
-                                masks = masks + ImageOcclusionMask(
-                                    x = x.coerceAtMost(0.82), y = y.coerceAtMost(0.82),
-                                    width = 0.18, height = 0.18
-                                )
-                            } else null,
+                            selectedMaskId = selectedMaskId ?: masks.firstOrNull()?.id,
+                            onMaskSelect = { selectedMaskId = it },
+                            onMaskUpdate = { updated ->
+                                masks = masks.map { if (it.id == updated.id) updated else it }
+                                selectedMaskId = updated.id
+                            },
+                            onMarkerTap = { x, y ->
+                                if (masks.size < 100) {
+                                    val item = ImageOcclusionMask(
+                                        x = x.coerceAtMost(.82), y = y.coerceAtMost(.82),
+                                        width = .18, height = .18
+                                    )
+                                    masks = masks + item
+                                    selectedMaskId = item.id
+                                } else error = "Esta imagen ya tiene demasiadas zonas ocultas."
+                            },
                             onAnnotationsChanged = { frontAnnotations = it },
                             onReplace = { chooseImage("front") },
                             onDelete = {
@@ -738,44 +753,31 @@ fun StudyExerciseEditorScreen(
                             }
                         )
                     }
-                    masks.forEach { mask ->
-                        Text("Zona oculta ${masks.indexOf(mask) + 1}", color = TestarioMutedText)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Ancho", color = TestarioMutedText)
-                            Slider(
-                                value = mask.width.toFloat().coerceIn(.04f,.7f),
-                                onValueChange = { v ->
-                                    masks = masks.map { if (it.id == mask.id)
-                                        it.copy(width = v.toDouble(), x = it.x.coerceAtMost(1.0 - v))
-                                        else it }
-                                },
-                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
+                    masks.forEachIndexed { index, mask ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FilterChip(
+                                selected = selectedMaskId == mask.id,
+                                onClick = { selectedMaskId = mask.id },
+                                label = { Text("● Zona ${index + 1}") }
                             )
+                            Spacer(Modifier.width(8.dp))
+                            TextButton(onClick = {
+                                masks = masks.filterNot { it.id == mask.id }
+                                if (selectedMaskId == mask.id)
+                                    selectedMaskId = masks.firstOrNull()?.id
+                            }) { Text("Quitar", color = TestarioRed) }
                         }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Alto", color = TestarioMutedText)
-                            Slider(
-                                value = mask.height.toFloat().coerceIn(.04f,.7f),
-                                onValueChange = { v ->
-                                    masks = masks.map { if (it.id == mask.id)
-                                        it.copy(height = v.toDouble(), y = it.y.coerceAtMost(1.0 - v))
-                                        else it }
-                                },
-                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
-                            )
-                        }
-                        OutlinedTextField(
+                        if (selectedMaskId == mask.id) OutlinedTextField(
                             value = mask.answer,
-                            onValueChange = { newText -> masks = masks.map {
-                                if (it.id == mask.id) it.copy(answer = newText) else it
-                            } },
-                            label = { Text("Respuesta de la zona ${masks.indexOf(mask) + 1}") },
-                            modifier = Modifier.fillMaxWidth(),
-                            trailingIcon = {
-                                TextButton(onClick = { masks = masks.filterNot { it.id == mask.id } }) {
-                                    Text("Quitar")
-                                }
-                            }
+                            onValueChange = { newText ->
+                                masks = masks.map { if (it.id == mask.id)
+                                    it.copy(answer = newText) else it }
+                            },
+                            label = { Text("Respuesta opcional de la zona ${index + 1}") },
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
