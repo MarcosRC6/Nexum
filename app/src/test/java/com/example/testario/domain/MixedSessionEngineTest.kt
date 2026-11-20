@@ -53,7 +53,7 @@ class MixedSessionEngineTest {
     }
 
     @Test fun objectiveGradeExcludesSelfEvaluatedCards() {
-        val initial = MixedSessionEngine.create(source(), config(3), SessionContentFilter.MIXED, random = Random(4))
+        val initial = MixedSessionEngine.create(source(), config(6), SessionContentFilter.MIXED, random = Random(4))
         val desired = listOf(
             initial.items.first { it.type == MixedItemType.TEST },
             initial.items.first { it.type == MixedItemType.WRITTEN },
