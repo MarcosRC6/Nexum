@@ -154,11 +154,8 @@ internal fun StudyVisualImage(
                     val at = fit.locate(p.x, p.y)
                     Text(
                         text = p.order.toString(),
-                        color = when (markerStatuses[p.id]) {
-                            true -> Color(0xFF51D79D)
-                            false -> Color(0xFFEA6877)
-                            null -> Color.White
-                        },
+                        // Label must contrast with the green/red/purple filled pin.
+                        color = Color.White,
                         modifier = Modifier.offset(
                             x = with(density) { at.x.toDp() } - 6.dp,
                             y = with(density) { at.y.toDp() } - 12.dp
