@@ -93,6 +93,7 @@ internal fun EditableAnnotationImage(
             annotations = annotations,
             markers = markers, masks = masks, showCorrection = showCorrection,
             modifier = Modifier.fillMaxSize(),
+            zoomable = true,
             onTapImage = onMarkerTap ?: { _, _ -> viewing = true }
         )
         Box(
@@ -139,7 +140,8 @@ internal fun EditableAnnotationImage(
                 TextButton(onClick = { viewing = false }) { Text("Volver") }
                 StudyVisualImage(
                     imageUri = imageUri, annotations = annotations,
-                    modifier = Modifier.fillMaxWidth().weight(1f)
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    zoomable = true
                 )
             }
         }
