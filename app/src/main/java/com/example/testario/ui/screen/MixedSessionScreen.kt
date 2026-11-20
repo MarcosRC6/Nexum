@@ -36,7 +36,8 @@ fun MixedSessionScreen(
     session: MixedSessionViewModel,
     libraryViewModel: LibraryViewModel,
     onEditQuestion: (String, String) -> Unit,
-    onLeave: () -> Unit
+    onLeave: () -> Unit,
+    onFinish: () -> Unit
 ) {
     val snapshot by session.snapshot.collectAsState()
     val result by session.result.collectAsState()
@@ -124,7 +125,7 @@ fun MixedSessionScreen(
                         onClick = { reviewingFinished = true },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Revisar preguntas") }
-                    Button(onClick = onLeave, modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = onFinish, modifier = Modifier.fillMaxWidth()) {
                         Text("Volver al Inicio")
                     }
                     return@Column
