@@ -20,7 +20,9 @@ data class WebQuickLink(
     val title: String,
     val url: String,
     val icon: String = "web",
-    val hidden: Boolean = false
+    val hidden: Boolean = false,
+    /** Optional user-defined category for the «Otro» shortcut type. */
+    val customTypeLabel: String? = null
 )
 
 @Serializable
@@ -33,8 +35,9 @@ object WebQuickLinkPolicy {
     private val codec = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     const val MAX_LINKS = 40
     const val MAX_TITLE_LENGTH = 50
+    const val MAX_CUSTOM_TYPE_LENGTH = 40
     const val MAX_URL_LENGTH = 2048
-    val icons = listOf("web", "academy", "map", "document")
+    val icons = listOf("web", "academy", "map", "document", "other")
 
     fun normalizeUrl(input: String): String? {
         val trimmed = input.trim()
@@ -62,7 +65,14 @@ object WebQuickLinkPolicy {
         val url = normalizeUrl(link.url) ?: return null
         if (title.isEmpty() || title.length > MAX_TITLE_LENGTH ||
             title.any { it.isISOControl() }) return null
-        return link.copy(title = title, url = url, icon = link.icon.takeIf { it in icons } ?: "web")
+        val kind = link.icon.takeIf { it in icons } ?: "web"
+        val customType = if (kind == "other") {
+            link.customTypeLabel?.trim()?.takeIf {
+                it.isNotBlank() && it.length <= MAX_CUSTOM_TYPE_LENGTH &&
+                    it.none(Char::isISOControl)
+            } ?: return null
+        } else null
+        return link.copy(title = title, url = url, icon = kind, customTypeLabel = customType)
     }
 
     fun parseBackup(raw: String): List<WebQuickLink> {
