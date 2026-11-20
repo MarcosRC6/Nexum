@@ -243,6 +243,36 @@ object StudyExerciseRules {
         require(pointsCorrect.isFinite() && pointsCorrect > 0) { "Acierto no válido." }
         require(penaltyWrong.isFinite() && penaltyWrong <= 0) { "Penalización no válida." }
         val aliases = ownerIndex(exercise)
+        // A marked photograph asks WHAT IS AT LOCATION 1/2/3. Answers are
+        // positional: swapping two valid street names must not score as correct.
+        // Unmarked enumerations retain their historical order-independent rules.
+        if (exercise.solutions.any { it.points.isNotEmpty() }) {
+            val correctIds = linkedSetOf<String>()
+            val incorrect = mutableListOf<String>()
+            exercise.solutions.forEachIndexed { index, solution ->
+                val raw = submitted.getOrNull(index).orEmpty().trim()
+                if (raw.isNotEmpty()) {
+                    if (aliases[normalize(raw)] == solution.id) correctIds.add(solution.id)
+                    else incorrect += raw
+                }
+            }
+            // Extra submitted fields are invalid rather than ignored.
+            submitted.drop(exercise.solutions.size).filter(String::isNotBlank)
+                .forEach { incorrect += it.trim() }
+            val total = exercise.solutions.size
+            val correctFraction = correctIds.size.toDouble() / total
+            val penaltyFraction = if (incorrect.isEmpty() || penaltyWrong == 0.0) 0.0
+                else (incorrect.size.toDouble() / total) * (penaltyWrong / pointsCorrect)
+            val score = (correctFraction + penaltyFraction).coerceIn(0.0, 1.0)
+            return WrittenResult(
+                correct = correctIds.size, incorrect = incorrect.size,
+                omitted = total - correctIds.size -
+                    (submitted.take(total).count { it.isNotBlank() } - correctIds.size),
+                correctIds = correctIds, incorrectInputs = incorrect,
+                percent = score * 100.0, scoreOutOfTen = score * 10.0,
+                recallPercent = correctIds.size * 100.0 / total
+            )
+        }
         val correctIds = linkedSetOf<String>()
         val invalid = linkedMapOf<String, String>()
         submitted.forEach { input ->
