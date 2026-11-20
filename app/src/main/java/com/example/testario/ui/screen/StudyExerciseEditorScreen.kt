@@ -64,6 +64,7 @@ fun StudyExerciseEditorScreen(
     var sketchToolHighlighter by remember(exerciseId) { mutableStateOf(false) }
     var sketchWidthMultiplier by remember(exerciseId) { mutableFloatStateOf(1f) }
     var sketchOpacity by remember(exerciseId) { mutableFloatStateOf(.34f) }
+    var sketchZoom by remember(exerciseId) { mutableFloatStateOf(1f) }
     var sketchMode by remember(exerciseId) { mutableStateOf(SketchMode.DRAW) }
     var sketchUndo by remember(exerciseId) { mutableStateOf<List<List<SketchStroke>>>(emptyList()) }
     var sketchRedo by remember(exerciseId) { mutableStateOf<List<List<SketchStroke>>>(emptyList()) }
@@ -381,19 +382,32 @@ fun StudyExerciseEditorScreen(
                         listOf(
                             SketchMode.DRAW to "Dibujar",
                             SketchMode.ERASE to "Borrar",
-                            SketchMode.MARK to "Colocar soluciones"
+                            SketchMode.MARK to "Colocar soluciones",
+                            SketchMode.PAN to "Mover"
                         ).forEach { (mode, title) ->
                             FilterChip(selected = sketchMode == mode,
                                 onClick = { sketchMode = mode },
                                 label = { Text(title) })
                         }
                     }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Zoom", color = TestarioMutedText)
+                        Slider(value = sketchZoom, onValueChange = { sketchZoom = it },
+                            valueRange = 1f..5f, modifier = Modifier.weight(1f))
+                        Text("${"%.1f".format(sketchZoom)}×", color = TestarioText)
+                    }
+                    if (sketchZoom > 1f) Text(
+                        "Para desplazar la imagen ampliada, elige Mover.",
+                        color = TestarioMutedText,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                     StudySketchCanvas(
                         sketch = SketchDrawing(strokes = sketchStrokes),
                         modifier = Modifier.fillMaxWidth().height(240.dp),
                         markers = solutions.flatMap { it.points },
                         showMarkers = sketchMode == SketchMode.MARK,
                         mode = sketchMode,
+                        zoomFactor = sketchZoom,
                         penArgb = sketchColor,
                         penWidthFraction = (if (sketchToolHighlighter) .045 else .005) *
                             sketchWidthMultiplier.toDouble(),
