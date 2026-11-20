@@ -106,6 +106,33 @@ class TestarioLocalStore private constructor(context: Context) {
     }
 
     /**
+     * Commit a complete import in one AtomicFile transaction, not via the
+     * fire-and-forget saveDatabase() queue. Reject a stale snapshot instead
+     * of overwriting an edit made while import conflicts were being resolved.
+     * A failed disk write leaves the previously published in-memory DB intact.
+     */
+    suspend fun saveDatabaseDurably(
+        expected: TestarioDatabase,
+        replacement: TestarioDatabase
+    ) {
+        check(_recoveryError.value == null) {
+            "La base está en modo recuperación: importación bloqueada."
+        }
+        mutex.withLock {
+            synchronized(databaseStateGuard) {
+                check(_recoveryError.value == null) {
+                    "La base está en modo recuperación: importación bloqueada."
+                }
+                check(_database.value === expected) {
+                    "La biblioteca cambió mientras se preparaba el lote. Repite la importación."
+                }
+                writeDatabaseAtomically(replacement)
+                _database.value = replacement
+            }
+        }
+    }
+
+    /**
      * The ONLY write allowed while in recovery mode: a validated user-selected
      * backup. Persist before unlocking, so failures cannot replace the old DB.
      */
