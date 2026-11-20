@@ -875,7 +875,9 @@ fun StudyExerciseEditorScreen(
                                     color = TestarioText)
                                 card.frontImageUri?.let { image ->
                                     StudyVisualImage(image, modifier = Modifier.fillMaxWidth().height(190.dp),
-                                        annotations = card.frontAnnotations)
+                                        annotations = card.frontAnnotations,
+                                        masks = if (previewRevealed) emptyList() else card.masks,
+                                        showCorrection = false)
                                 }
                                 if (previewRevealed) {
                                     Divider()
