@@ -159,7 +159,6 @@ fun MixedSessionScreen(
             val locked = current.remainingSeconds == 0
             if (item.type != MixedItemType.TEST)
                 Text(item.topicName, color = TestarioMutedText)
-            when (item.type) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 current.items.forEachIndexed { idx, candidate ->
@@ -191,6 +190,7 @@ fun MixedSessionScreen(
                     }
                 }
             }
+            when (item.type) {
                 MixedItemType.TEST -> {
                     val question = requireNotNull(item.question)
                     val currentQuestion = libraryDatabase.topics.asSequence()
