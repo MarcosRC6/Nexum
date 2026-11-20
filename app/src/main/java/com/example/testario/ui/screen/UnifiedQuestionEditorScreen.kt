@@ -1,6 +1,9 @@
 package com.example.testario.ui.screen
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -37,10 +40,23 @@ fun UnifiedQuestionEditorScreen(
                     FilterChip(
                         selected = kind == choice,
                         onClick = { if (kind != choice) requested = choice },
-                        label = { Text(title, maxLines = 1) },
-                        modifier = Modifier.weight(
-                            if (choice == NewQuestionKind.WRITTEN) 1.6f else 1f
-                        )
+                        label = {
+                            Text(title, maxLines = 1,
+                                style = MaterialTheme.typography.labelMedium)
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = TestarioNeonSurface,
+                            labelColor = TestarioMutedText,
+                            selectedContainerColor = TestarioNeonSelected,
+                            selectedLabelColor = TestarioPrimary
+                        ),
+                        modifier = Modifier
+                            .weight(if (choice == NewQuestionKind.WRITTEN) 1.6f else 1f)
+                            .border(
+                                if (kind == choice) 1.6.dp else 1.dp,
+                                if (kind == choice) TestarioPrimary else TestarioOutline,
+                                RoundedCornerShape(12.dp)
+                            )
                     )
                 }
             }
