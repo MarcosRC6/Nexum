@@ -70,6 +70,15 @@ object MigrationManager {
             jsonObject.put("version", currentVersion)
         }
 
+        // v6: additive mixed-session history. Existing Testario questions,
+        // training/exam records, Anki schedules and Planario data are unchanged.
+        if (currentVersion < 6) {
+            if (!jsonObject.has("mixedSessionHistory"))
+                jsonObject.put("mixedSessionHistory", JSONArray())
+            currentVersion = 6
+            jsonObject.put("version", currentVersion)
+        }
+
         return jsonObject.toString()
     }
 }
