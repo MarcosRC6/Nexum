@@ -46,7 +46,9 @@ fun MixedSessionScreen(
     }
     fun persistDraft(): Boolean {
         if (active?.type != MixedItemType.WRITTEN || currentResponse?.revealed == true) return true
-        val lines = writtenInput.lines().map(String::trim).filter(String::isNotBlank)
+        val count = active.exercise?.solutions?.size ?: 0
+        val parsed = writtenInput.lines().take(count).map(String::trim)
+        val lines = if (parsed.all(String::isBlank)) emptyList() else parsed
         return if (currentResponse?.writtenAnswers == lines) true
             else session.submitWritten(writtenInput, reveal = false)
     }
