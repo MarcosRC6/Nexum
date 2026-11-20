@@ -52,8 +52,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.testario.data.model.ImageAnnotations
 import com.example.testario.data.model.TestMode
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
@@ -308,7 +311,7 @@ fun TestScreen(
 
                             reviewState.question.explanationImageUri?.let { path ->
                                 Spacer(Modifier.height(14.dp))
-                                TestQuestionImage(path = path, contentDescription = "Imagen del enunciado")
+                                TestQuestionImage(path = path, contentDescription = "Imagen del enunciado", annotations = reviewState.question.statementAnnotations)
                             }
 
                             Spacer(Modifier.height(16.dp))
@@ -356,7 +359,8 @@ fun TestScreen(
                                 Spacer(Modifier.height(16.dp))
                                 ExplanationCard(
                                     explanation = reviewState.question.explanation,
-                                    correctionImageUri = reviewState.question.correctionImageUri
+                                    correctionImageUri = reviewState.question.correctionImageUri,
+                                    annotations = reviewState.question.correctionAnnotations
                                 )
                             }
                         }
@@ -535,9 +539,12 @@ fun TestScreen(
 
                             IconButton(
                                 onClick = {
-                                    sessionViewModel.toggleFlag(current.question.id)
-                                    libraryViewModel.toggleQuestionFlag(current.question.id)
-                                }
+                                    if (!current.question.flagged) {
+                                        sessionViewModel.toggleFlag(current.question.id)
+                                        libraryViewModel.toggleQuestionFlag(current.question.id)
+                                    }
+                                },
+                                enabled = !current.question.flagged
                             ) {
                                 Text(if (current.question.flagged) "🚩" else "🏳️")
                             }
@@ -554,7 +561,7 @@ fun TestScreen(
 
                     current.question.explanationImageUri?.let { path ->
                         Spacer(Modifier.height(14.dp))
-                        TestQuestionImage(path = path, contentDescription = "Imagen del enunciado")
+                        TestQuestionImage(path = path, contentDescription = "Imagen del enunciado", annotations = current.question.statementAnnotations)
                     }
 
                     Spacer(Modifier.height(16.dp))
@@ -593,7 +600,8 @@ fun TestScreen(
                         Spacer(Modifier.height(16.dp))
                         ExplanationCard(
                             explanation = current.question.explanation,
-                            correctionImageUri = current.question.correctionImageUri
+                            correctionImageUri = current.question.correctionImageUri,
+                            annotations = current.question.correctionAnnotations
                         )
                     }
                 }
@@ -620,29 +628,19 @@ fun TestScreen(
 }
 
 @Composable
-private fun TestQuestionImage(path: String, contentDescription: String) {
-    val context = LocalContext.current
-    val imageSource = if (path.startsWith("content://")) {
-        android.net.Uri.parse(path)
-    } else {
-        File(path)
-    }
-    AsyncImage(
-        model = ImageRequest.Builder(context)
-            .data(imageSource)
-            .crossfade(true)
-            .build(),
-        contentDescription = contentDescription,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(220.dp)
-            .clip(RoundedCornerShape(14.dp)),
-        contentScale = ContentScale.Inside
+private fun TestQuestionImage(
+    path: String, contentDescription: String, annotations: ImageAnnotations
+) {
+    StudyVisualImage(
+        imageUri = path, annotations = annotations,
+        modifier = Modifier.fillMaxWidth().height(220.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .semantics { this.contentDescription = contentDescription }
     )
 }
 
 @Composable
-private fun ExplanationCard(explanation: String, correctionImageUri: String?) {
+private fun ExplanationCard(explanation: String, correctionImageUri: String?, annotations: ImageAnnotations) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -657,7 +655,7 @@ private fun ExplanationCard(explanation: String, correctionImageUri: String?) {
             }
             correctionImageUri?.let { path ->
                 Spacer(Modifier.height(12.dp))
-                TestQuestionImage(path = path, contentDescription = "Imagen de la explicación")
+                TestQuestionImage(path = path, contentDescription = "Imagen de la explicación", annotations = annotations)
             }
         }
     }

@@ -7,6 +7,7 @@ import com.example.testario.data.model.DuplicateTopicAction
 import com.example.testario.data.model.ImportPreview
 import com.example.testario.data.model.Topic
 import com.example.testario.domain.ExportManager
+import com.example.testario.domain.ImportBatchDecision
 import com.example.testario.domain.ImportManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -48,6 +49,14 @@ class ImportExportViewModel(application: Application) : AndroidViewModel(applica
 
     suspend fun importSingleTopicProcessed(topic: Topic, action: DuplicateTopicAction, customName: String? = null) = withContext(Dispatchers.IO) {
         importManager.importSingleTopicProcessed(topic, action, customName)
+    }
+
+    suspend fun importBatchProcessed(decisions: List<ImportBatchDecision>) = withContext(Dispatchers.IO) {
+        importManager.importBatchProcessed(decisions)
+    }
+
+    suspend fun cancelPendingImport() = withContext(Dispatchers.IO) {
+        importManager.cancelPendingImport()
     }
 
     // NUEVO: Función para inyectar el archivo del colega en el motor de sincronización
