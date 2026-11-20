@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.domain.StudyExerciseRules
 import com.example.testario.domain.ClozeMarkupEngine
+import com.example.testario.domain.SketchAnnotationCodec
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.LibraryViewModel
 import java.util.UUID
@@ -92,6 +93,7 @@ fun StudyExerciseEditorScreen(
     var baseAnnotations by remember(exerciseId) { mutableStateOf(original?.baseAnnotations ?: ImageAnnotations()) }
     var frontAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.frontAnnotations ?: ImageAnnotations()) }
     var backAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.backAnnotations ?: ImageAnnotations()) }
+    var showSketchInkEditor by remember(exerciseId) { mutableStateOf(false) }
     var photoMarkerMode by remember(exerciseId) { mutableStateOf(false) }
     var occlusionMarkMode by remember(exerciseId) { mutableStateOf(true) }
     var pickerTarget by remember { mutableStateOf("written") }
@@ -213,6 +215,18 @@ fun StudyExerciseEditorScreen(
 
     val schematicLineColor = TestarioPrimary
 
+    if (showSketchInkEditor) {
+        ImageAnnotationEditorDialog(
+            imageUri = "nexum://blank",
+            blankCanvas = true,
+            initial = SketchAnnotationCodec.toAnnotations(SketchDrawing(strokes = sketchStrokes)),
+            onSave = { layer ->
+                editSketch(SketchAnnotationCodec.fromAnnotations(layer).strokes)
+                showSketchInkEditor = false
+            },
+            onCancel = { showSketchInkEditor = false }
+        )
+    }
     if (pendingMarkerId != null) {
         val marker = solutions.flatMap { it.points }.find { it.id == pendingMarkerId }
         if (marker != null) AlertDialog(
@@ -297,22 +311,23 @@ fun StudyExerciseEditorScreen(
                     }
                 }
                 if (sketchEnabled) {
-                    Text("Dibuja con el dedo o lápiz táctil y después pasa a «Colocar soluciones».",
+                    Text("Lienzo creado · pulsa el lápiz para dibujar con colores, subrayador y zoom.",
                         color = TestarioMutedText)
-                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        listOf(
-                            SketchMode.DRAW to "Dibujar",
-                            SketchMode.ERASE to "Borrar",
-                            SketchMode.MARK to "Colocar soluciones"
-                        ).forEach { (mode, title) ->
-                            FilterChip(selected = sketchMode == mode,
-                                onClick = { sketchMode = mode },
-                                label = { Text(title) })
+                    FilterChip(
+                        selected = sketchMode == SketchMode.MARK,
+                        onClick = {
+                            sketchMode = if (sketchMode == SketchMode.MARK)
+                                SketchMode.PREVIEW else SketchMode.MARK
+                        },
+                        label = {
+                            Text(if (sketchMode == SketchMode.MARK)
+                                "Colocar soluciones · activo" else "Colocar soluciones")
                         }
-                    }
+                    )
                     if (sketchMode == SketchMode.MARK && solutions.isNotEmpty()) {
                         Text("Asignar marcador a:", color = TestarioMutedText)
-                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             solutions.forEachIndexed { idx, sol ->
                                 FilterChip(selected = sol.id == selectedSolutionId,
                                     onClick = { selectedSolutionId = sol.id },
@@ -320,33 +335,27 @@ fun StudyExerciseEditorScreen(
                             }
                         }
                     }
-                    StudySketchCanvas(
-                        sketch = SketchDrawing(strokes = sketchStrokes),
-                        modifier = Modifier.fillMaxWidth().height(240.dp),
-                        markers = solutions.flatMap { it.points },
-                        showMarkers = sketchMode == SketchMode.MARK,
-                        mode = sketchMode,
-                        onDrawStroke = { stroke -> editSketch(sketchStrokes + stroke) },
-                        onEraseStroke = { id -> editSketch(sketchStrokes.filterNot { it.id == id }) },
-                        onMarkTap = ::placeOrSelectMarker
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = {
-                            if (sketchUndo.isNotEmpty()) {
-                                sketchRedo = sketchRedo + listOf(sketchStrokes)
-                                sketchStrokes = sketchUndo.last()
-                                sketchUndo = sketchUndo.dropLast(1)
+                    Box(Modifier.fillMaxWidth().height(255.dp)) {
+                        StudySketchCanvas(
+                            sketch = SketchDrawing(strokes = sketchStrokes),
+                            modifier = Modifier.fillMaxSize(),
+                            markers = solutions.flatMap { it.points },
+                            showMarkers = true,
+                            mode = if (sketchMode == SketchMode.MARK)
+                                SketchMode.MARK else SketchMode.PREVIEW,
+                            onMarkTap = ::placeOrSelectMarker
+                        )
+                        Surface(
+                            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                                .size(42.dp).clickable { showSketchInkEditor = true },
+                            color = TestarioSurface.copy(alpha = 1f),
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("✎", color = TestarioText,
+                                    style = MaterialTheme.typography.titleLarge)
                             }
-                        }, enabled = sketchUndo.isNotEmpty()) { Text("Deshacer") }
-                        TextButton(onClick = {
-                            if (sketchRedo.isNotEmpty()) {
-                                sketchUndo = sketchUndo + listOf(sketchStrokes)
-                                sketchStrokes = sketchRedo.last()
-                                sketchRedo = sketchRedo.dropLast(1)
-                            }
-                        }, enabled = sketchRedo.isNotEmpty()) { Text("Rehacer") }
-                        TextButton(onClick = { confirmClearSketch = true },
-                            enabled = sketchStrokes.isNotEmpty()) { Text("Limpiar dibujo") }
+                        }
                     }
                 } else if (imageUri != null) {
                     Text(
