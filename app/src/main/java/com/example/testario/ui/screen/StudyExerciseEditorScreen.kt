@@ -108,7 +108,6 @@ fun StudyExerciseEditorScreen(
     var backAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.backAnnotations ?: ImageAnnotations()) }
     var photoMarkerMode by remember(exerciseId) { mutableStateOf(false) }
     var showImageOptions by remember { mutableStateOf(false) }
-    var occlusionMarkMode by remember(exerciseId) { mutableStateOf(true) }
     var pickerTarget by remember { mutableStateOf("written") }
     LaunchedEffect(exerciseId, solutions.size) {
         if (selectedSolutionId == null || solutions.none { it.id == selectedSolutionId }) {
@@ -676,9 +675,9 @@ fun StudyExerciseEditorScreen(
                                 error = "Para ocultar zonas en la imagen, elimina primero los huecos de texto. Puedes conservar esta tarjeta y crear otra para la imagen."
                             } else {
                                 flashKind = FlashcardKind.IMAGE_OCCLUSION
-                                occlusionMarkMode = true
                             }
                         },
+                        leadingIcon = { Text("●", color = TestarioPrimary) },
                         label = { Text("Ocultar partes de la imagen") }
                     )
                 }
@@ -686,28 +685,30 @@ fun StudyExerciseEditorScreen(
                     Text("Toca las zonas de la imagen que quieras tapar. Al revelar la tarjeta los bloques desaparecen.",
                         color = TestarioMutedText)
                     frontImageUri?.let { image ->
-                        FilterChip(
-                            selected = occlusionMarkMode,
-                            onClick = { occlusionMarkMode = !occlusionMarkMode },
-                            label = { Text(if (occlusionMarkMode) "Ocultar zonas · activo"
-                                else "Ocultar zonas") }
+                        Text(
+                            "Toca la imagen para crear una zona. Arrastra el rectángulo para moverlo o sus cuatro esquinas para cambiar el tamaño.",
+                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall
                         )
-                        EditableAnnotationImage(
+                        OcclusionMaskEditor(
                             imageUri = image,
                             annotations = frontAnnotations,
-                            modifier = Modifier.fillMaxWidth().height(240.dp),
+                            modifier = Modifier.fillMaxWidth().height(310.dp),
                             masks = masks,
-                            onMarkerTap = if (occlusionMarkMode) { x, y ->
+                            onAddMask = { x, y ->
                                 masks = masks + ImageOcclusionMask(
-                                    x = x.coerceAtMost(0.82), y = y.coerceAtMost(0.82),
-                                    width = 0.18, height = 0.18
+                                    x = x.coerceIn(0.0,.82),
+                                    y = y.coerceIn(0.0,.82),
+                                    width = .18, height = .18
                                 )
-                            } else null,
+                            },
+                            onMaskChanged = { change ->
+                                masks = masks.map { if (it.id == change.id) change else it }
+                            },
                             onAnnotationsChanged = { frontAnnotations = it },
                             onReplace = { chooseImage("front") },
-                            onDelete = {
+                            onDeleteImage = {
                                 if (masks.isNotEmpty()) error =
-                                    "Elimina primero las máscaras asociadas a esta fotografía."
+                                    "Elimina primero las zonas ocultas asociadas a esta foto."
                                 else {
                                     frontImageUri = null
                                     frontAnnotations = ImageAnnotations()
@@ -715,44 +716,22 @@ fun StudyExerciseEditorScreen(
                             }
                         )
                     }
-                    masks.forEach { mask ->
-                        Text("Zona oculta ${masks.indexOf(mask) + 1}", color = TestarioMutedText)
+                    masks.forEachIndexed { index, mask ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Ancho", color = TestarioMutedText)
-                            Slider(
-                                value = mask.width.toFloat().coerceIn(.04f,.7f),
-                                onValueChange = { v ->
-                                    masks = masks.map { if (it.id == mask.id)
-                                        it.copy(width = v.toDouble(), x = it.x.coerceAtMost(1.0 - v))
-                                        else it }
-                                },
-                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Alto", color = TestarioMutedText)
-                            Slider(
-                                value = mask.height.toFloat().coerceIn(.04f,.7f),
-                                onValueChange = { v ->
-                                    masks = masks.map { if (it.id == mask.id)
-                                        it.copy(height = v.toDouble(), y = it.y.coerceAtMost(1.0 - v))
-                                        else it }
-                                },
-                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
-                            )
+                            Text("Zona ${index + 1}", color = TestarioText,
+                                modifier = Modifier.weight(1f))
+                            TextButton(onClick = { masks = masks.filterNot { it.id == mask.id } }) {
+                                Text("Eliminar zona", color = TestarioRed)
+                            }
                         }
                         OutlinedTextField(
                             value = mask.answer,
-                            onValueChange = { newText -> masks = masks.map {
-                                if (it.id == mask.id) it.copy(answer = newText) else it
-                            } },
-                            label = { Text("Respuesta de la zona ${masks.indexOf(mask) + 1}") },
-                            modifier = Modifier.fillMaxWidth(),
-                            trailingIcon = {
-                                TextButton(onClick = { masks = masks.filterNot { it.id == mask.id } }) {
-                                    Text("Quitar")
-                                }
-                            }
+                            onValueChange = { input ->
+                                masks = masks.map { if (it.id == mask.id)
+                                    it.copy(answer = input) else it }
+                            },
+                            label = { Text("Respuesta o pista (opcional)") },
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
