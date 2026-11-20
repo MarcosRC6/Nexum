@@ -51,7 +51,10 @@ fun MixedSessionScreen(
     }
     fun persistDraft(): Boolean {
         if (active?.type != MixedItemType.WRITTEN || currentResponse?.revealed == true) return true
-        val lines = writtenInput.lines().map(String::trim).filter(String::isNotBlank)
+        val positional = active.exercise?.solutions?.any { it.points.isNotEmpty() } == true
+        val lines = writtenInput.lines().map(String::trim).let {
+            if (positional) it else it.filter(String::isNotBlank)
+        }
         return if (currentResponse?.writtenAnswers == lines) true
             else session.submitWritten(writtenInput, reveal = false)
     }
@@ -334,16 +337,40 @@ fun MixedSessionScreen(
                     ) {
                         Text("Soluciones", style = MaterialTheme.typography.titleMedium,
                             color = TestarioText)
-                        OutlinedTextField(
-                            value = writtenInput,
-                            onValueChange = { writtenInput = it },
-                            label = { Text("Una respuesta por línea") },
-                            modifier = Modifier.fillMaxWidth(),
-                            minLines = maxOf(3, exercise.solutions.size),
-                            enabled = !locked && !showAnswer
+                        val numbered = exercise.solutions.any { it.points.isNotEmpty() }
+                        if (numbered) {
+                            exercise.solutions.forEachIndexed { index, _ ->
+                                OutlinedTextField(
+                                    value = writtenInput.split("\n").getOrElse(index) { "" },
+                                    onValueChange = { value ->
+                                        val values = writtenInput.split("\n").toMutableList()
+                                        while (values.size <= index) values.add("")
+                                        values[index] = value.replace("\n", " ")
+                                        writtenInput = values.take(exercise.solutions.size)
+                                            .joinToString("\n")
+                                    },
+                                    label = { Text("Solución ${index + 1}") },
+                                    singleLine = true,
+                                    enabled = !locked && !showAnswer,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        } else {
+                            OutlinedTextField(
+                                value = writtenInput,
+                                onValueChange = { writtenInput = it },
+                                label = { Text("Una respuesta por línea") },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = maxOf(3, exercise.solutions.size),
+                                enabled = !locked && !showAnswer
+                            )
+                        }
+                        Text(
+                            if (numbered) "Escribe cada respuesta en la casilla con el mismo número de la imagen."
+                            else "${exercise.solutions.size} soluciones esperadas.",
+                            color = TestarioMutedText,
+                            style = MaterialTheme.typography.bodySmall
                         )
-                        Text("${exercise.solutions.size} soluciones esperadas. Los números de la imagen señalan qué debes identificar.",
-                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                     }
                     if (!showAnswer) {
                         Button(onClick = { session.submitWritten(writtenInput) },
@@ -356,10 +383,18 @@ fun MixedSessionScreen(
                         )
                         Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
                             color = if (graded.incorrect > 0 || graded.omitted > 0) TestarioRed else TestarioGreen)
-                        response.writtenAnswers.forEach { entry ->
-                            val solution = StudyExerciseRules.findAcceptedSolution(exercise, entry)
-                            Text(entry + (solution?.let { " ✓" } ?: " ✗"),
-                                color = if (solution == null) TestarioRed else TestarioGreen)
+                        response.writtenAnswers.forEachIndexed { index, entry ->
+                            if (entry.isNotBlank()) {
+                                val accepted = StudyExerciseRules.findAcceptedSolution(exercise, entry)
+                                val numbered = exercise.solutions.any { it.points.isNotEmpty() }
+                                val matches = accepted != null && (!numbered ||
+                                    exercise.solutions.getOrNull(index)?.id == accepted.id)
+                                Text(
+                                    (if (numbered) "${index + 1}. " else "") + entry +
+                                        (if (matches) " ✓" else " ✗"),
+                                    color = if (matches) TestarioGreen else TestarioRed
+                                )
+                            }
                         }
                         val missing = exercise.solutions.filterNot { it.id in graded.correctIds }
                         if (missing.isNotEmpty()) Text("Faltaban: " +
