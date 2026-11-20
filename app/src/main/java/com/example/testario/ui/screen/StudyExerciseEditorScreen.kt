@@ -821,7 +821,8 @@ fun StudyExerciseEditorScreen(
                 }
                 OutlinedTextField(
                     value = back, onValueChange = { back = it },
-                    label = { Text(if (flashKind == FlashcardKind.CLOZE ||
+                    label = { Text(if (masks.isNotEmpty() ||
+                        flashKind == FlashcardKind.CLOZE ||
                         (flashKind == FlashcardKind.BASIC &&
                             runCatching { ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty() }
                                 .getOrDefault(false))) "Explicación (opcional)"
