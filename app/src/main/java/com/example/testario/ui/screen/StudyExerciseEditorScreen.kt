@@ -131,10 +131,15 @@ fun StudyExerciseEditorScreen(
             return
         }
         val id = selectedSolutionId ?: return
-        val nextNumber = (solutions.flatMap { it.points }.maxOfOrNull { it.order } ?: 0) + 1
-        solutions = solutions.map { item ->
-            if (item.id == id) item.copy(points = item.points +
-                ImagePoint(x = x, y = y, order = nextNumber)) else item
+        val index = solutions.indexOfFirst { it.id == id }
+        if (index < 0 || solutions[index].text.isBlank()) {
+            error = "Escribe primero el texto de esta solución."
+            return
+        }
+        solutions = solutions.mapIndexed { position, item ->
+            if (item.id == id) item.copy(points = listOf(
+                ImagePoint(x = x, y = y, order = position + 1)
+            )) else item
         }
     }
     fun removeMarker(markerId: String) {
@@ -486,6 +491,9 @@ fun StudyExerciseEditorScreen(
                             Text("Solución ${index + 1}", color = TestarioText, modifier = Modifier.weight(1f))
                             TextButton(onClick = {
                                 solutions = solutions.filterNot { it.id == solution.id }
+                                    .mapIndexed { position, entry ->
+                                        entry.copy(points = entry.points.map { it.copy(order = position + 1) })
+                                    }
                                 if (selectedSolutionId == solution.id)
                                     selectedSolutionId = solutions.firstOrNull()?.id
                             }) { Text("Eliminar") }
@@ -795,7 +803,7 @@ fun StudyExerciseEditorScreen(
                 }
             }
 
-            if (showPreview) {
+            if (showPreview && exerciseKind == StudyExerciseKind.ANKI_CARD) {
                 val candidate = runCatching { construct(draft = false) }
                 Column(Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(12.dp)).padding(12.dp)) {
                     Text("Vista previa", color = TestarioText, style = MaterialTheme.typography.titleMedium)
@@ -852,16 +860,15 @@ fun StudyExerciseEditorScreen(
                     }
                 }
             }
-            OutlinedButton(onClick = { showPreview = !showPreview }, modifier = Modifier.fillMaxWidth()) {
-                Text(if (showPreview) "Ocultar vista previa" else "Vista previa y comprobaciones")
+            if (exerciseKind == StudyExerciseKind.ANKI_CARD) {
+                OutlinedButton(onClick = { showPreview = !showPreview },
+                    modifier = Modifier.fillMaxWidth()) {
+                    Text(if (showPreview) "Ocultar vista previa" else "Vista previa de Anki")
+                }
             }
             if (error != null) Text(error.orEmpty(), color = TestarioRed)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = {
-                    runCatching { libraryViewModel.saveStudyExercise(topicId, construct(draft = true), original?.revision) }
-                        .onSuccess { if (it) onBack() else error = "Este ejercicio se ha modificado en otro lugar." }
-                        .onFailure { error = it.message ?: "No se pudo guardar el borrador." }
-                }, modifier = Modifier.weight(1f)) { Text("Borrador") }
+
                 Button(onClick = {
                     runCatching { construct(draft = false) }.onSuccess { candidate ->
                         val errors = StudyExerciseRules.errors(candidate)
