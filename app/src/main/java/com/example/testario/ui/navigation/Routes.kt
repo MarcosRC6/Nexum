@@ -10,6 +10,7 @@ object Routes {
     const val TEST_CONFIG = "testConfig?preselectedTopicId={preselectedTopicId}&templateId={templateId}"
     const val GROUPS = "groups"
     const val TEST_SCREEN = "testScreen"
+    const val MIXED_SESSION = "mixedSession"
     const val PLAN = "plan/{tab}"
     const val CALENDAR = "calendar"
     const val STATS = "stats"
