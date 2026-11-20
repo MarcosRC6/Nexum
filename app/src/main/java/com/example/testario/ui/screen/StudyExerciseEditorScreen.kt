@@ -426,6 +426,7 @@ fun StudyExerciseEditorScreen(
                         showMarkers = true,
                         mode = sketchMode,
                         zoomFactor = sketchZoom,
+                        onZoomChange = { sketchZoom = it },
                         penArgb = sketchColor,
                         penWidthFraction = (if (sketchToolHighlighter) .045 else .005) *
                             sketchWidthMultiplier.toDouble(),
