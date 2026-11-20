@@ -43,19 +43,18 @@ internal fun StudySketchCanvas(
     penWidthFraction: Double = .007,
     penOpacity: Double = 1.0,
     onDrawStroke: (SketchStroke) -> Unit = {},
-    onEraseStroke: (String) -> Unit = {},
+    onErasePath: (List<SketchPoint>, Int, Int) -> Unit = { _, _, _ -> },
     onMarkTap: (Double, Double) -> Unit = { _, _ -> }
 ) {
     var inProgress by remember { mutableStateOf<List<SketchPoint>>(emptyList()) }
     var panX by remember { mutableFloatStateOf(0f) }
     var panY by remember { mutableFloatStateOf(0f) }
     val latestDraw by rememberUpdatedState(onDrawStroke)
-    val latestErase by rememberUpdatedState(onEraseStroke)
+    val latestErasePath by rememberUpdatedState(onErasePath)
     val latestMark by rememberUpdatedState(onMarkTap)
     val latestZoom by rememberUpdatedState(zoomFactor)
     val latestZoomChange by rememberUpdatedState(onZoomChange)
     val latestPen by rememberUpdatedState(Triple(penArgb, penWidthFraction, penOpacity))
-    val latestSketch by rememberUpdatedState(sketch)
     val purple = TestarioPrimary
     val green = TestarioGreen
     val red = TestarioRed
@@ -67,25 +66,15 @@ internal fun StudySketchCanvas(
         return SketchPoint((x / w).toDouble().coerceIn(0.0, 1.0),
             (y / h).toDouble().coerceIn(0.0, 1.0))
     }
-    fun closestStroke(point: SketchPoint, width: Int, height: Int): String? =
-        latestSketch.strokes.mapNotNull { stroke ->
-            stroke.points.minOfOrNull { candidate ->
-                val dx = (candidate.x - point.x) * width
-                val dy = (candidate.y - point.y) * height
-                dx * dx + dy * dy
-            }?.let { stroke.id to it }
-        }.minByOrNull { it.second }?.takeIf {
-            it.second <= (22.dp.value * width / 400f).let { radius -> radius * radius }
-        }?.first
-
     val gestures = when (mode) {
         SketchMode.DRAW, SketchMode.ERASE, SketchMode.PAN ->
             Modifier.pointerInput(mode) {
                 awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
+                    val down = awaitFirstDown(requireUnconsumed = false)
                     var multiTouch = false
-                    var lastErased: String? = null
-                    var gesturePoints = emptyList<SketchPoint>()
+                    var gesturePoints = if (mode == SketchMode.ERASE)
+                        listOf(coordinates(down.position.x, down.position.y, size.width, size.height))
+                        else emptyList()
                     while (true) {
                         val event = awaitPointerEvent()
                         val touches = event.changes.filter { it.pressed }
@@ -110,11 +99,8 @@ internal fun StudySketchCanvas(
                                     inProgress = gesturePoints
                                 }
                                 SketchMode.ERASE -> {
-                                    val id = closestStroke(at, size.width, size.height)
-                                    if (id != null && id != lastErased) {
-                                        latestErase(id)
-                                        lastErased = id
-                                    }
+                                    if (gesturePoints.lastOrNull() != at && gesturePoints.size < 1200)
+                                        gesturePoints = gesturePoints + at
                                 }
                                 SketchMode.PAN -> {
                                     val displacement = change.positionChange()
@@ -133,12 +119,16 @@ internal fun StudySketchCanvas(
                         event.changes.forEach { if (it.pressed) it.consume() }
                         if (touches.isEmpty()) break
                     }
-                    if (mode == SketchMode.DRAW && !multiTouch && gesturePoints.size >= 2) {
-                        val (argb, thickness, alpha) = latestPen
-                        latestDraw(SketchStroke(
-                            points = gesturePoints, colorArgb = argb,
-                            widthFraction = thickness, opacity = alpha
-                        ))
+                    if (!multiTouch) {
+                        if (mode == SketchMode.DRAW && gesturePoints.size >= 2) {
+                            val (argb, thickness, alpha) = latestPen
+                            latestDraw(SketchStroke(
+                                points = gesturePoints, colorArgb = argb,
+                                widthFraction = thickness, opacity = alpha
+                            ))
+                        } else if (mode == SketchMode.ERASE && gesturePoints.isNotEmpty()) {
+                            latestErasePath(gesturePoints, size.width, size.height)
+                        }
                     }
                     inProgress = emptyList()
                 }
