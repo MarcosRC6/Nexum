@@ -161,7 +161,7 @@ fun MixedSessionScreen(
                         MixedItemType.WRITTEN -> {
                             val ex = requireNotNull(item.exercise)
                             Text(ex.prompt, color = TestarioText)
-                            val grade = StudyExerciseRules.gradeWritten(
+                            val grade = StudyExerciseRules.gradeWrittenForQuestion(
                                 ex, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
                             )
                             Text("Nota: ${"%.2f".format(grade.scoreOutOfTen)} / 10 · " +
@@ -330,7 +330,7 @@ fun MixedSessionScreen(
                     val exercise = requireNotNull(item.exercise)
                     Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
                     val statuses = if (showAnswer) {
-                        val grade = StudyExerciseRules.gradeWritten(
+                        val grade = StudyExerciseRules.gradeWrittenForQuestion(
                             exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong)
                         exercise.solutions.flatMap { solution ->
                             solution.points.map { point -> point.id to (solution.id in grade.correctIds) }
@@ -351,31 +351,62 @@ fun MixedSessionScreen(
                             markerStatuses = statuses
                         )
                     }
-                    if (!showAnswer && exercise.solutions.any { it.points.isNotEmpty() }) {
-                        Text("Identifica las zonas numeradas y escribe cada respuesta en una línea.",
+                    if (exercise.solutions.any { it.points.isNotEmpty() }) {
+                        Text("Responde a cada número señalado en la imagen.",
                             color = TestarioMutedText)
+                        val slots = writtenInput.split("\n")
+                        exercise.solutions.forEachIndexed { index, _ ->
+                            OutlinedTextField(
+                                value = slots.getOrNull(index).orEmpty(),
+                                onValueChange = { text ->
+                                    val entries = writtenInput.split("\n").toMutableList()
+                                    while (entries.size < exercise.solutions.size) entries.add("")
+                                    entries[index] = text.replace("\n", " ")
+                                    writtenInput = entries.joinToString("\n")
+                                },
+                                label = { Text("Respuesta ${index + 1}") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                enabled = !locked && !showAnswer
+                            )
+                        }
+                    } else {
+                        OutlinedTextField(
+                            value = writtenInput,
+                            onValueChange = { writtenInput = it },
+                            label = { Text("Una respuesta por línea") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 3,
+                            enabled = !locked && !showAnswer
+                        )
                     }
-                    OutlinedTextField(
-                        value = writtenInput,
-                        onValueChange = { writtenInput = it },
-                        label = { Text("Una respuesta por línea") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3,
-                        enabled = !locked && !showAnswer
-                    )
                     if (!showAnswer) {
                         Button(onClick = { session.submitWritten(writtenInput) },
                             enabled = !locked, modifier = Modifier.fillMaxWidth()) {
                             Text(if (current.mode == TestMode.EXAM) "Guardar respuestas" else "Comprobar")
                         }
                     } else {
-                        val graded = StudyExerciseRules.gradeWritten(
+                        val graded = StudyExerciseRules.gradeWrittenForQuestion(
                             exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
                         )
                         Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
                             color = if (graded.correct == exercise.solutions.size &&
                                 graded.incorrect == 0) TestarioGreen else TestarioRed)
-                        response.writtenAnswers.forEach { entry ->
+                        if (exercise.solutions.any { it.points.isNotEmpty() }) {
+                            exercise.solutions.forEachIndexed { index, solution ->
+                                val entry = response.writtenAnswers.getOrNull(index).orEmpty()
+                                val isCorrect = StudyExerciseRules.findAcceptedSolution(
+                                    exercise, entry
+                                )?.id == solution.id
+                                Text("${index + 1}. " +
+                                    (entry.ifBlank { "(sin responder)" }) +
+                                    (if (isCorrect) " ✓" else " ✗"),
+                                    color = if (isCorrect) TestarioGreen else TestarioRed
+                                )
+                                if (!isCorrect) Text("Correcta: ${solution.text}",
+                                    color = TestarioGreen, style = MaterialTheme.typography.bodySmall)
+                            }
+                        } else response.writtenAnswers.forEach { entry ->
                             val solution = StudyExerciseRules.findAcceptedSolution(exercise, entry)
                             Text(entry + (solution?.let { " ✓" } ?: " ✗"),
                                 color = if (solution == null) TestarioRed else TestarioGreen)
