@@ -117,7 +117,7 @@ fun MixedSessionScreen(
                                     TestarioGreen else TestarioRed
                             )
                             Text("${finished.objectiveItems} evaluados · " +
-                                "${finished.manualReviewItems} tarjetas manuales",
+                                "${finished.manualReviewItems} tarjetas Anki",
                                 color = TestarioMutedText)
                         }
                     }
@@ -134,13 +134,12 @@ fun MixedSessionScreen(
                     Text("Volver a resultados")
                 }
                 if (finished.scoreOutOfTen == null) {
-                    Text("Sin nota objetiva · ${finished.manualReviewItems} tarjetas de repaso manual.",
-                        color = TestarioPrimary)
+                    Text("Sesión completada", color = TestarioPrimary)
                 } else {
                     Text("Nota objetiva: ${"%.2f".format(finished.scoreOutOfTen)} / 10",
                         color = TestarioGreen, style = MaterialTheme.typography.titleLarge)
-                    Text("${finished.objectiveItems} elementos puntuables · " +
-                        "${finished.manualReviewItems} tarjetas excluidas de la nota.",
+                    Text("${finished.objectiveItems} ejercicios puntuables · " +
+                        "${finished.manualReviewItems} tarjetas Anki",
                         color = TestarioMutedText)
                 }
                 current.items.zip(current.responses).forEachIndexed { idx, pair ->
@@ -173,7 +172,7 @@ fun MixedSessionScreen(
                             val card = requireNotNull(item.exercise?.flashcard)
                             Text(card.front, color = TestarioText)
                             Text("Respuesta: " + card.back, color = TestarioGreen)
-                            Text("Repaso manual · sin calificación", color = TestarioMutedText)
+
                         }
                     }
                 }
