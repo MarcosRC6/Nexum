@@ -560,6 +560,10 @@ fun TopicDetailScreen(
                                 },
                                 onRemoveFailure = {
                                     statsViewModel.removeFromFailures(question.id)
+                                },
+                                onUnflag = {
+                                    if (question.flagged)
+                                        libraryViewModel.toggleQuestionFlag(question.id)
                                 }
                             )
                         }
@@ -986,10 +990,12 @@ private fun QuestionCard(
     onEdit: () -> Unit,
     onDeleteConfirmed: () -> Unit,
     onDuplicate: () -> Unit,
-    onRemoveFailure: () -> Unit
+    onRemoveFailure: () -> Unit,
+    onUnflag: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showUnflagDialog by remember { mutableStateOf(false) }
 
     val difficultyText = when (question.difficulty) {
         null -> "Sin dificultad"
@@ -1110,7 +1116,11 @@ private fun QuestionCard(
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 InfoPill(difficultyText, difficultyColor)
-                if (question.flagged) InfoPill("Marcada 🚩", TestarioPrimary)
+                if (question.flagged) {
+                    TextButton(onClick = { showUnflagDialog = true }) {
+                        Text("Marcada 🚩 · Quitar", color = TestarioPrimary)
+                    }
+                }
                 if (question.stats.inFailures) InfoPill("En fallos", TestarioRed)
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -1126,6 +1136,21 @@ private fun QuestionCard(
         }
     }
 
+    if (showUnflagDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnflagDialog = false },
+            title = { Text("Desmarcar pregunta") },
+            text = { Text("¿Quieres desmarcar esta pregunta?") },
+            confirmButton = {
+                TextButton(onClick = { showUnflagDialog = false; onUnflag() }) {
+                    Text("Desmarcar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnflagDialog = false }) { Text("Cancelar") }
+            }
+        )
+    }
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
