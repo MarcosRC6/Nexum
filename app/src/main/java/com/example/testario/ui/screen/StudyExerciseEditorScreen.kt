@@ -696,30 +696,22 @@ fun StudyExerciseEditorScreen(
                                 occlusionMarkMode = true
                             }
                         },
-                        label = { Text("Ocultar partes de la imagen") }
+                        leadingIcon = { Text("●", color = TestarioPrimary) },
+                        label = { Text("Ocultar partes de la imagen") },
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp, TestarioPrimary
+                        )
                     )
                 }
                 if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
                     Text("Toca las zonas de la imagen que quieras tapar. Al revelar la tarjeta los bloques desaparecen.",
                         color = TestarioMutedText)
                     frontImageUri?.let { image ->
-                        FilterChip(
-                            selected = occlusionMarkMode,
-                            onClick = { occlusionMarkMode = !occlusionMarkMode },
-                            label = { Text(if (occlusionMarkMode) "Ocultar zonas · activo"
-                                else "Ocultar zonas") }
-                        )
-                        EditableAnnotationImage(
+                        AnkiOcclusionImageEditor(
                             imageUri = image,
                             annotations = frontAnnotations,
-                            modifier = Modifier.fillMaxWidth().height(240.dp),
                             masks = masks,
-                            onMarkerTap = if (occlusionMarkMode) { x, y ->
-                                masks = masks + ImageOcclusionMask(
-                                    x = x.coerceAtMost(0.82), y = y.coerceAtMost(0.82),
-                                    width = 0.18, height = 0.18
-                                )
-                            } else null,
+                            onMasksChange = { masks = it },
                             onAnnotationsChanged = { frontAnnotations = it },
                             onReplace = { chooseImage("front") },
                             onDelete = {
@@ -734,30 +726,6 @@ fun StudyExerciseEditorScreen(
                     }
                     masks.forEach { mask ->
                         Text("Zona oculta ${masks.indexOf(mask) + 1}", color = TestarioMutedText)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Ancho", color = TestarioMutedText)
-                            Slider(
-                                value = mask.width.toFloat().coerceIn(.04f,.7f),
-                                onValueChange = { v ->
-                                    masks = masks.map { if (it.id == mask.id)
-                                        it.copy(width = v.toDouble(), x = it.x.coerceAtMost(1.0 - v))
-                                        else it }
-                                },
-                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Alto", color = TestarioMutedText)
-                            Slider(
-                                value = mask.height.toFloat().coerceIn(.04f,.7f),
-                                onValueChange = { v ->
-                                    masks = masks.map { if (it.id == mask.id)
-                                        it.copy(height = v.toDouble(), y = it.y.coerceAtMost(1.0 - v))
-                                        else it }
-                                },
-                                valueRange = .04f.. .7f, modifier = Modifier.weight(1f)
-                            )
-                        }
                         OutlinedTextField(
                             value = mask.answer,
                             onValueChange = { newText -> masks = masks.map {
