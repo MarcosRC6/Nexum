@@ -22,6 +22,7 @@ import com.example.testario.data.model.*
 import com.example.testario.domain.ClozeMarkupEngine
 import com.example.testario.domain.OcclusionRevealRules
 import com.example.testario.domain.StudyExerciseRules
+import com.example.testario.domain.WrittenMarkerFeedback
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.MixedSessionViewModel
 import kotlinx.coroutines.launch
@@ -319,14 +320,11 @@ fun MixedSessionScreen(
                 MixedItemType.WRITTEN -> {
                     val exercise = requireNotNull(item.exercise)
                     Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
+                    val pinStatuses = if (showAnswer)
+                        WrittenMarkerFeedback.statusByMarker(exercise, response.writtenAnswers)
+                    else emptyMap()
                     exercise.baseImageUri?.let { path ->
-                        val statuses = if (showAnswer) {
-                            val grade = StudyExerciseRules.gradeWrittenInSession(
-                                exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong)
-                            exercise.solutions.flatMap { solution ->
-                                solution.points.map { point -> point.id to (solution.id in grade.correctIds) }
-                            }.toMap()
-                        } else emptyMap()
+                        val statuses = pinStatuses
                         StudyVisualImage(imageUri = path, modifier = Modifier.fillMaxWidth().height(230.dp),
                             annotations = exercise.baseAnnotations,
                             markers = exercise.solutions.flatMap { it.points },
@@ -338,14 +336,7 @@ fun MixedSessionScreen(
                             sketch = drawing, modifier = Modifier.fillMaxWidth().height(220.dp),
                             markers = exercise.solutions.flatMap { it.points },
                             mode = SketchMode.PREVIEW, showMarkers = true,
-                            markerStatuses = if (showAnswer) exercise.solutions.flatMap { solution ->
-                                solution.points.map { point ->
-                                    point.id to (solution.id in StudyExerciseRules.gradeWrittenInSession(
-                                        exercise, response.writtenAnswers,
-                                        current.pointsCorrect, current.penaltyWrong
-                                    ).correctIds)
-                                }
-                            }.toMap() else emptyMap()
+                            markerStatuses = pinStatuses
                         )
                     }
                     // The photograph/sketch stays visible; only the answer fields scroll.
@@ -375,11 +366,6 @@ fun MixedSessionScreen(
                                     enabled = !locked
                                 )
                             }
-                            Button(onClick = { session.submitWritten(writtenInput) },
-                                enabled = !locked, modifier = Modifier.fillMaxWidth()) {
-                                Text(if (current.mode == TestMode.EXAM)
-                                    "Guardar respuestas" else "Comprobar")
-                            }
                         } else {
                             val graded = StudyExerciseRules.gradeWrittenInSession(
                                 exercise, response.writtenAnswers,
@@ -389,6 +375,14 @@ fun MixedSessionScreen(
                                 color = if (graded.scoreOutOfTen >= 5)
                                     TestarioGreen else TestarioRed)
                             WrittenCorrectionRows(exercise, response.writtenAnswers, graded)
+                        }
+                    }
+                    if (!showAnswer) {
+                        // Fixed below the independently scrolling answer list.
+                        Button(onClick = { session.submitWritten(writtenInput) },
+                            enabled = !locked, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (current.mode == TestMode.EXAM)
+                                "Guardar respuestas" else "Comprobar")
                         }
                     }
                 }
