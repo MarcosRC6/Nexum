@@ -49,6 +49,9 @@ class HomeSettingsViewModel(application: Application) : AndroidViewModel(applica
     var showPlanShortcut by mutableStateOf(preferencesManager.getHomeShowPlanShortcut())
         private set
 
+    var showWebLinksShortcut by mutableStateOf(preferencesManager.getHomeShowWebLinksShortcut())
+        private set
+
     var widgetOrder by mutableStateOf(preferencesManager.getHomeWidgetOrder(DEFAULT_WIDGET_ORDER))
         private set
 
@@ -117,6 +120,11 @@ class HomeSettingsViewModel(application: Application) : AndroidViewModel(applica
         preferencesManager.setHomeShowPlanShortcut(enabled)
     }
 
+    fun changeShowWebLinksShortcut(enabled: Boolean) {
+        showWebLinksShortcut = enabled
+        preferencesManager.setHomeShowWebLinksShortcut(enabled)
+    }
+
     fun moveWidgetRelative(
         widgetId: String,
         direction: Int,
@@ -160,6 +168,7 @@ class HomeSettingsViewModel(application: Application) : AndroidViewModel(applica
         changeShowTestShortcut(true)
         changeShowPlanShortcut(true)
         changeShowStatsShortcut(true)
+        changeShowWebLinksShortcut(true)
         widgetOrder = DEFAULT_WIDGET_ORDER
         preferencesManager.setHomeWidgetOrder(widgetOrder)
     }
@@ -178,6 +187,7 @@ class HomeSettingsViewModel(application: Application) : AndroidViewModel(applica
             showTestShortcut &&
             showPlanShortcut &&
             showStatsShortcut &&
+            showWebLinksShortcut &&
             widgetOrder == DEFAULT_WIDGET_ORDER
 
     companion object {
