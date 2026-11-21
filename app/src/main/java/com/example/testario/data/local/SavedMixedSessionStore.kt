@@ -15,7 +15,8 @@ import java.io.File
  */
 class SavedMixedSessionStore(context: Context) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-    private val atomic = AtomicFile(File(context.applicationContext.filesDir, FILE_NAME))
+    private val target = File(context.applicationContext.filesDir, FILE_NAME)
+    private val atomic = AtomicFile(target)
 
     fun load(): MixedSessionSnapshot? = runCatching {
         val text = atomic.openRead().bufferedReader().use { it.readText() }
@@ -35,7 +36,11 @@ class SavedMixedSessionStore(context: Context) {
         }
     }.isSuccess
 
-    fun clear() = atomic.delete()
+    fun clear(): Boolean = runCatching {
+        atomic.delete()
+        !target.exists() && !File(target.path + ".bak").exists() &&
+            !File(target.path + ".new").exists()
+    }.getOrDefault(false)
 
     fun exportJson(): String? = load()?.let { json.encodeToString(it) }
 
@@ -43,7 +48,7 @@ class SavedMixedSessionStore(context: Context) {
         json.decodeFromString<MixedSessionSnapshot>(raw).also(MixedSessionEngine::validate)
 
     fun importJson(raw: String?) {
-        if (raw == null) clear()
+        if (raw == null) check(clear()) { "No se pudo eliminar la sesión mixta previa." }
         else check(save(validate(raw))) { "No se pudo restaurar la sesión mixta." }
     }
 
