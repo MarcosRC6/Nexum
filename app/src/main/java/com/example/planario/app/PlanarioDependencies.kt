@@ -25,6 +25,14 @@ object PlanarioDependencies {
 
         appContext = context.applicationContext
         studyTimerController.attachContext(appContext)
+        // If Planario's database cannot be parsed, DO NOT consume or clear
+        // any saved active-timer snapshot: addTimerTime() cannot durably save
+        // it while the planning store is locked for recovery. Keep the timer
+        // bytes intact until a validated backup is restored and app restarted.
+        if (studyRepository.recoveryError.value != null) {
+            Log.w("NEXUM_Planario", "Planning recovery lock active; preserving timer snapshots")
+            return
+        }
         synchronizeConfiguredPomodoroDuration()
 
         val trackedSnapshot = studyRepository.getActiveStudyTimerSnapshot()
