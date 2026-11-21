@@ -325,8 +325,6 @@ fun StudyExercisePracticeScreen(
                         }
                     }, modifier = Modifier.fillMaxWidth()) { Text("Mostrar respuesta") }
                 } else {
-                    Divider(color = TestarioSurfaceLight)
-                    Text("Respuesta", color = TestarioGreen)
                     val mask = card.masks.find { it.id == variant }
                     val gapAnswer = when {
                         card.kind == FlashcardKind.CLOZE -> activeGaps.joinToString(" · ") { gap ->
@@ -335,7 +333,13 @@ fun StudyExercisePracticeScreen(
                         mask != null -> mask.answer.ifBlank { solution }
                         else -> solution
                     }
-                    Text(gapAnswer, color = TestarioText, style = MaterialTheme.typography.titleMedium)
+                    if (gapAnswer.isNotBlank()) {
+                        Divider(color = TestarioSurfaceLight)
+                        Text(if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
+                            "Explicación" else "Respuesta", color = TestarioGreen)
+                        Text(gapAnswer, color = TestarioText,
+                            style = MaterialTheme.typography.titleMedium)
+                    }
                     if (card.kind == FlashcardKind.CLOZE && solution.isNotBlank())
                         Text(solution, color = TestarioMutedText)
                     val answerImage = if (isReverse) card.frontImageUri else card.backImageUri
