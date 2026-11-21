@@ -96,6 +96,10 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     fun deleteStudyExercise(topicId: String, exerciseId: String): Boolean =
         exerciseRepo.delete(topicId, exerciseId)
 
+    /** Same durable-JSON model used by classic test flags, for every exercise type. */
+    fun toggleStudyExerciseFlag(topicId: String, exerciseId: String): Boolean =
+        exerciseRepo.toggleFlag(topicId, exerciseId)
+
     /**
      * Advance only after the learner reveals the current solution.
      * The cursor belongs to the original card, not to each generated view.
