@@ -108,7 +108,9 @@ internal fun StudyVisualImage(
     showMarkerNumbers: Boolean = false,
     markerStatuses: Map<String, Boolean> = emptyMap(),
     onTapImage: ((Double, Double) -> Unit)? = null,
-    enableFullscreen: Boolean = true
+    enableFullscreen: Boolean = true,
+    externalFullscreen: Boolean = false,
+    onExternalFullscreenDismiss: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var fullScreen by remember(imageUri) { mutableStateOf(false) }
@@ -191,11 +193,15 @@ internal fun StudyVisualImage(
             }
         }
     }
-    if (fullScreen && enableFullscreen) {
+    if ((fullScreen || externalFullscreen) && enableFullscreen) {
+        val dismissFullscreen = {
+            fullScreen = false
+            if (externalFullscreen) onExternalFullscreenDismiss()
+        }
         var scale by remember(imageUri) { mutableFloatStateOf(1f) }
         var offset by remember(imageUri) { mutableStateOf(Offset.Zero) }
         Dialog(
-            onDismissRequest = { fullScreen = false },
+            onDismissRequest = dismissFullscreen,
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Box(Modifier.fillMaxSize().background(Color(0xFF090C15))) {
@@ -226,14 +232,15 @@ internal fun StudyVisualImage(
                         enableFullscreen = false
                     )
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth().background(Color(0xD9090C15))
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Keep the image itself unobstructed; pinch and pan already work.
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(10.dp),
+                    contentAlignment = Alignment.TopEnd
                 ) {
-                    Text("Pellizca para ampliar · arrastra con dos dedos",
-                        color = Color.White, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { fullScreen = false }) {
+                    IconButton(
+                        onClick = dismissFullscreen,
+                        modifier = Modifier.background(Color(0xD9090C15), CircleShape)
+                    ) {
                         Text("✕", color = Color.White)
                     }
                 }

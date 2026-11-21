@@ -31,6 +31,20 @@ class QuestionSyncMatcherTest {
         assertNull(QuestionSyncMatcher.findCompatible(local, listOf(unrelated)))
     }
 
+    @Test fun differentOperatorsNeverPairDistinctQuestionIds() {
+        val local = question("local", "C++", "Java", "Rust")
+        val external = question("external", "C#", "Java", "Rust")
+        assertNull(QuestionSyncMatcher.findCompatible(local, listOf(external)))
+    }
+
+    @Test fun changedSymbolAnswerMustReceiveNewIdInsteadOfOldHistory() {
+        val local = question("local", "C++", "Java", "Rust")
+        val external = question("external", "C#", "Java", "Rust")
+        val mapped = QuestionSyncMatcher.remapAnswers(local, external)
+        assertNotEquals(local.answers.first().id, mapped?.answers?.first()?.id)
+        assertEquals(local.answers[1].id, mapped?.answers?.get(1)?.id)
+    }
+
     @Test fun sameAnswersWithDifferentOrderAreCompatible() {
         val local = question("local", "A", "B", "C")
         val external = question("external", "C", "A", "B")

@@ -52,31 +52,18 @@ class ExportManager(private val context: Context, private val localStore: Testar
                 testTemplates = exportedTemplates
             )
         )
-        // A study package must not silently lose a photograph used by a new exercise.
+        // A library export must not silently drop either a classic Test
+        // photograph or a new exercise/Anki picture.
         val root = imagesDir.canonicalPath + File.separator
-        cleanTopics.flatMap { it.exercises }.flatMap { it.referencedImageUris() }
-            .forEach { path ->
-                val file = File(path)
-                require(file.isFile && file.canonicalPath.startsWith(root)) {
-                    "No se puede exportar: falta una imagen interna de un ejercicio. Corrige el ejercicio."
-                }
+        val paths = LibraryMediaReferences.paths(cleanTopics)
+        paths.forEach { path ->
+            val file = File(path)
+            require(file.isFile && file.canonicalPath.startsWith(root)) {
+                "No se puede exportar: falta una fotografía interna de una pregunta o ejercicio. " +
+                    "Comprueba y reimporta la imagen desde el editor."
             }
-
-        val referencedImageNames = cleanTopics
-            .asSequence()
-            .flatMap { it.questions.asSequence() }
-            .flatMap { question ->
-                sequenceOf(question.explanationImageUri, question.correctionImageUri)
-            }
-            .mapNotNull { path -> path?.takeIf { it.isNotBlank() } }
-            .map { path -> File(path).name }
-            .filter { it.isNotBlank() }
-            .toSet() + cleanTopics.asSequence()
-                .flatMap { it.exercises.asSequence() }
-                .flatMap { it.referencedImageUris().asSequence() }
-                .map { File(it).name }
-                .filter { it.isNotBlank() }
-                .toSet()
+        }
+        val referencedImageNames = paths.mapTo(linkedSetOf()) { File(it).name }
 
         packageZip(outputStream, jsonString, referencedImageNames)
     }

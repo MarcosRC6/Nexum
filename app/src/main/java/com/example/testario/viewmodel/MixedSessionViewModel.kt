@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.testario.data.local.PreferencesManager
 import com.example.testario.data.local.SavedMixedSessionStore
 import com.example.testario.data.local.TestarioLocalStore
+import com.example.testario.data.repository.StudyExerciseRepository
 import com.example.testario.data.model.*
 import com.example.testario.domain.MixedSessionEngine
 import com.example.testario.domain.MixedSessionClock
@@ -157,6 +158,31 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
                 if (it.type == MixedItemType.TEST && it.question?.id == question.id)
                     it.copy(question = it.question?.copy(flagged = newValue))
                 else it
+            })
+        }
+    }
+
+    /** Flags for both written exercises and Anki cards, saved to the original
+     * topic and mirrored into any in-progress snapshots of the same exercise.
+     * This never marks an answer correct or advances Anki scheduling. */
+    fun toggleExerciseFlag(): Boolean {
+        val state = _snapshot.value ?: return false
+        val item = state.items.getOrNull(state.currentIndex) ?: return false
+        if (item.type == MixedItemType.TEST) return false
+        val exercise = item.exercise ?: return false
+        val dbStore = TestarioLocalStore.get(getApplication<Application>())
+        val current = dbStore.database.value.topics.firstOrNull { it.id == item.topicId }
+            ?.exercises?.firstOrNull { it.id == exercise.id } ?: return false
+        val next = !current.flagged
+        if (!runCatching {
+            StudyExerciseRepository(dbStore).toggleFlag(item.topicId, exercise.id)
+        }.getOrDefault(false)) return false
+        return edit { original ->
+            original.copy(items = original.items.map { inSession ->
+                if (inSession.exercise?.id == exercise.id &&
+                    inSession.topicId == item.topicId)
+                    inSession.copy(exercise = inSession.exercise?.copy(flagged = next))
+                else inSession
             })
         }
     }

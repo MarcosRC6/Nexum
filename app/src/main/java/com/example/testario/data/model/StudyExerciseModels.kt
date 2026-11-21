@@ -104,7 +104,9 @@ data class StudyExercise(
     val diagram: LineDiagram? = null,
     val sketch: SketchDrawing? = null,
     val revision: Int = 1,
-    val draft: Boolean = false
+    val draft: Boolean = false,
+    /** Additive v7 field: old card/exercise JSON loads as unflagged. */
+    val flagged: Boolean = false
 ) {
     fun referencedImageUris(): List<String> =
         listOfNotNull(baseImageUri, flashcard?.frontImageUri, flashcard?.backImageUri)

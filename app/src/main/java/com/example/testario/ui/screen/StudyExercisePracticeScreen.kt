@@ -115,7 +115,16 @@ fun StudyExercisePracticeScreen(
                 val statusByMarker = if (graded != null)
                     WrittenMarkerFeedback.fromGradedResult(exercise, graded)
                 else emptyMap()
-                Text("Ejercicio ${index + 1} de ${written.size}", color = TestarioMutedText)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Ejercicio ${index + 1} de ${written.size}",
+                        modifier = Modifier.weight(1f), color = TestarioMutedText)
+                    IconButton(onClick = {
+                        libraryViewModel.toggleStudyExerciseFlag(topicId, exercise.id)
+                    }) {
+                        Text(if (exercise.flagged) "🚩" else "⚑",
+                            color = if (exercise.flagged) TestarioPrimary else TestarioMutedText)
+                    }
+                }
                 Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
                 exercise.diagram?.let { diagram ->
                     BoxWithConstraints(Modifier.fillMaxWidth().height(140.dp)
@@ -288,7 +297,16 @@ fun StudyExercisePracticeScreen(
                     ClozeMarkupEngine.activeGaps(card.gaps, cursor) else emptyList()
                 val maskedQuestion = if (card.kind == FlashcardKind.CLOZE)
                     ClozeMarkupEngine.mask(question, card.gaps, cursor) else question
-                Text("Tarjeta ${index + 1} de ${cards.size}", color = TestarioMutedText)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tarjeta ${index + 1} de ${cards.size}",
+                        modifier = Modifier.weight(1f), color = TestarioMutedText)
+                    IconButton(onClick = {
+                        libraryViewModel.toggleStudyExerciseFlag(topicId, exercise.id)
+                    }) {
+                        Text(if (exercise.flagged) "🚩" else "⚑",
+                            color = if (exercise.flagged) TestarioPrimary else TestarioMutedText)
+                    }
+                }
                 if (question.isNotBlank()) Text(if (revealed) question else maskedQuestion,
                     color = TestarioText, style = MaterialTheme.typography.titleLarge)
                 if (card.kind == FlashcardKind.CLOZE && currentGroup != null) {

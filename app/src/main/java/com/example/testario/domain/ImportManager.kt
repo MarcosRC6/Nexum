@@ -169,19 +169,16 @@ class ImportManager(private val context: Context, private val localStore: Testar
                 validateStudyExercises(topics)
                 json.encodeToString(TestarioDatabase(topics = topics))
             }
-            // New exercises must carry every referenced asset in the SAME archive.
-            // Reject broken archives before any image or topic is committed.
+            // Classic question photos also matter: an archive without them
+            // must fail before the preview, rather than import broken image URIs.
             val validated = json.decodeFromString<TestarioDatabase>(
                 MigrationManager.migrate(validJson)
             )
-            val missing = validated.topics.asSequence()
-                .flatMap { it.exercises.asSequence() }
-                .flatMap { it.referencedImageUris().asSequence() }
+            val missing = LibraryMediaReferences.paths(validated.topics)
                 .map { File(it).name }
                 .filterNot { it in names }
-                .toList()
             require(missing.isEmpty()) {
-                "El ZIP no contiene ${missing.size} imágenes necesarias para los ejercicios."
+                "El ZIP no contiene ${missing.size} fotografías necesarias para las preguntas o ejercicios."
             }
             pendingImageStage = stage
             validJson
@@ -343,7 +340,10 @@ class ImportManager(private val context: Context, private val localStore: Testar
     }
 
     /** Preview and conflict decisions have NO side effects. Only this call commits the full batch. */
-    suspend fun importBatchProcessed(decisions: List<ImportBatchDecision>): ImportBatchPlan {
+    suspend fun importBatchProcessed(
+        decisions: List<ImportBatchDecision>,
+        importedRawJson: String? = null
+    ): ImportBatchPlan {
         val before = localStore.database.value
         require(before.version == DatabaseSchema.CURRENT_VERSION) {
             "Base de datos incompatible: no se puede importar."
@@ -354,7 +354,19 @@ class ImportManager(private val context: Context, private val localStore: Testar
         val plan = ImportBatchPlanner.prepare(before.topics, decisions) { topic ->
             resolveTopicImagePaths(regenerateTopicIds(topic))
         }
-        val replacement = before.copy(topics = plan.topics)
+        val importedDatabase = importedRawJson?.let { raw ->
+            runCatching {
+                json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(raw))
+            }.getOrNull()
+        }
+        // An export includes groups and saved test templates. Keep them in the
+        // SAME atomic library commit, remapping all references to imported/merged
+        // topic IDs. Older text/simple formats still import topics alone.
+        val replacement = if (importedDatabase != null &&
+            (importedDatabase.groups.isNotEmpty() ||
+                importedDatabase.testTemplates.isNotEmpty())) {
+            ImportOrganizationMerge.merge(before, importedDatabase, decisions, plan)
+        } else before.copy(topics = plan.topics)
         commitBatchAndImages(before, replacement)
         return plan
     }
@@ -560,13 +572,12 @@ class ImportManager(private val context: Context, private val localStore: Testar
         val stagedNames = pendingImageStage?.listFiles()?.mapTo(hashSetOf()) { it.name }
             ?: emptySet()
         val safeRoot = imagesDir.canonicalPath + File.separator
-        topics.asSequence().flatMap { it.exercises.asSequence() }
-            .flatMap { it.referencedImageUris().asSequence() }.forEach { reference ->
+        LibraryMediaReferences.paths(topics).forEach { reference ->
                 val image = File(reference)
                 val isStaged = image.name in stagedNames
                 val isOwnFile = image.isFile && image.canonicalPath.startsWith(safeRoot)
                 require(isStaged || isOwnFile) {
-                    "El ejercicio necesita una imagen no incluida. Importa el ZIP con sus recursos."
+                    "La pregunta o ejercicio necesita una imagen no incluida. Importa el ZIP con sus recursos."
                 }
             }
     }
@@ -604,10 +615,10 @@ class ImportManager(private val context: Context, private val localStore: Testar
         return false
     }
 
-    private fun normalizeText(text: String): String =
-        java.text.Normalizer.normalize(text.lowercase(), java.text.Normalizer.Form.NFD)
-            .replace(Regex("\\p{Mn}+"), "")
-            .replace(Regex("[^a-z0-9]"), "")
+    // The legacy sync also groups by question statement and compares correct answers.
+    // Preserve mathematical symbols and decimal separators here as well; otherwise
+    // distinct questions could be treated as the same editable record.
+    private fun normalizeText(text: String): String = TopicImportMatcher.normalize(text)
 
     private fun detectImportFileType(rawText: String, fileName: String?): ImportFileType {
         val extension = fileName?.substringAfterLast('.', missingDelimiterValue = "")?.lowercase()?.trim().orEmpty()

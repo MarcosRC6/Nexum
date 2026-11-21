@@ -85,6 +85,29 @@ class StudyExerciseRulesTest {
         assertTrue(StudyExerciseRules.errors(ex).any { it.contains("superpuestos") })
     }
 
+    @Test fun photoAndFrontTextCanBeSavedWithoutOcclusionOrAnswer() {
+        val ex = StudyExercise(
+            kind = StudyExerciseKind.ANKI_CARD, prompt = "Reconoce la ubicación",
+            flashcard = FlashcardContent(
+                kind = FlashcardKind.BASIC,
+                front = "Reconoce la ubicación", back = "",
+                frontImageUri = "/private/photograph.png"
+            )
+        )
+        assertTrue(StudyExerciseRules.errors(ex).isEmpty())
+    }
+
+    @Test fun emptyBasicCardWithoutPhotoStillNeedsAnAnswer() {
+        val ex = StudyExercise(
+            kind = StudyExerciseKind.ANKI_CARD, prompt = "Pregunta",
+            flashcard = FlashcardContent(kind = FlashcardKind.BASIC,
+                front = "Pregunta", back = "")
+        )
+        assertTrue(StudyExerciseRules.errors(ex).any {
+            it.contains("Falta respuesta")
+        })
+    }
+
     @Test fun imageMasksMustFitInsideImage() {
         val ex = StudyExercise(
             kind = StudyExerciseKind.ANKI_CARD, prompt = "",

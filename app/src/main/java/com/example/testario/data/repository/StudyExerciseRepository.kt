@@ -28,6 +28,21 @@ class StudyExerciseRepository(private val store: TestarioLocalStore) {
         return true
     }
 
+    /** Flags are a user preference independent of test answers and Anki scheduling. */
+    fun toggleFlag(topicId: String, exerciseId: String): Boolean {
+        val db = store.database.value
+        val topic = db.topics.firstOrNull { it.id == topicId } ?: return false
+        if (topic.exercises.none { it.id == exerciseId }) return false
+        store.saveDatabase(db.copy(topics = db.topics.map { current ->
+            if (current.id == topicId) current.copy(
+                exercises = current.exercises.map { ex ->
+                    if (ex.id == exerciseId) ex.copy(flagged = !ex.flagged) else ex
+                }
+            ) else current
+        }))
+        return true
+    }
+
     /** Media is retained conservatively; no file is deleted while other refs may exist. */
     fun delete(topicId: String, exerciseId: String): Boolean {
         val db = store.database.value

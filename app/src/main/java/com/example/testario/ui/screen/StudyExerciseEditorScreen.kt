@@ -228,7 +228,8 @@ fun StudyExerciseEditorScreen(
             diagram = null,
             sketch = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI && sketchEnabled)
                 SketchDrawing(strokes = sketchStrokes) else null,
-            revision = original?.revision ?: 1, draft = draft
+            revision = original?.revision ?: 1, draft = draft,
+            flagged = original?.flagged ?: false
         )
     }
 
@@ -406,7 +407,7 @@ fun StudyExerciseEditorScreen(
                     }
                 }
                 if (sketchEnabled) {
-                    Text("Dibuja o borra con un dedo. Usa dos dedos para ampliar o mover el lienzo.",
+                    Text("Dibuja o borra con un dedo.",
                         color = TestarioMutedText,
                         style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -649,7 +650,7 @@ fun StudyExerciseEditorScreen(
                         shape = RoundedCornerShape(18.dp)
                     )
                 }
-                if (!simpleAnki) Text(
+                if (!simpleAnki && flashKind != FlashcardKind.IMAGE_OCCLUSION) Text(
                     "Formato heredado: se mantiene su comportamiento y sus respuestas.",
                     color = TestarioMutedText,
                     style = MaterialTheme.typography.bodySmall
@@ -705,6 +706,8 @@ fun StudyExerciseEditorScreen(
                     }
                 }
                 val canRevealWithoutText = flashKind == FlashcardKind.IMAGE_OCCLUSION ||
+                    (flashKind == FlashcardKind.BASIC && frontImageUri != null &&
+                        front.text.isNotBlank()) ||
                     runCatching { ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty() }
                         .getOrDefault(false)
                 Column(
@@ -744,7 +747,11 @@ fun StudyExerciseEditorScreen(
                         selected = flashKind == FlashcardKind.IMAGE_OCCLUSION,
                         onClick = {
                             if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
-                                showOcclusionEditor = true
+                                // The chip is a real toggle: returning from the
+                                // editor keeps it selected, tapping it again
+                                // restores an ordinary image/front note.
+                                flashKind = FlashcardKind.BASIC
+                                showOcclusionEditor = false
                             } else if (runCatching {
                                     ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty()
                                 }.getOrDefault(false)) {
@@ -763,12 +770,15 @@ fun StudyExerciseEditorScreen(
                 }
                 if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
                     frontImageUri?.let { image ->
-                        // Read-only compact preview. The purple chip always opens full-screen editing.
+                        // After leaving full-screen edit, tapping the image
+                        // reopens that SAME editor as long as occlusion is active.
+                        // No intermediate preview dialog and no nested zoom.
                         StudyVisualImage(
                             imageUri = image,
                             annotations = frontAnnotations,
                             masks = masks,
                             modifier = Modifier.fillMaxWidth().height(210.dp),
+                            onTapImage = { _, _ -> showOcclusionEditor = true },
                             enableFullscreen = false
                         )
                         Text("${masks.size} ${if (masks.size == 1) "zona oculta" else "zonas ocultas"}",
@@ -777,11 +787,7 @@ fun StudyExerciseEditorScreen(
                             TextButton(onClick = { chooseImage("front") }) {
                                 Text("Cambiar fotografía")
                             }
-                            if (masks.isEmpty()) {
-                                TextButton(onClick = { flashKind = FlashcardKind.BASIC }) {
-                                    Text("Desactivar ocultación", color = TestarioMutedText)
-                                }
-                            }
+
                         }
                     }
                 }
