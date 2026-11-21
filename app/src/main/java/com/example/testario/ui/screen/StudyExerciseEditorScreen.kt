@@ -133,11 +133,20 @@ fun StudyExerciseEditorScreen(
             pendingMarkerId = nearby.id
             return
         }
-        val id = selectedSolutionId ?: return
-        runCatching { WrittenMarkerRules.place(solutions, id, x, y) }
-            .onSuccess { solutions = it; error = null }
+        // Marker-first authoring: tap 1, 2, 3... on the image, then enter
+        // each answer later. Never overwrite an existing point when placing next.
+        var available = solutions
+        val selected = available.firstOrNull { it.id == selectedSolutionId }
+        val target = if (selected != null && selected.points.isEmpty()) selected
+            else available.firstOrNull { it.points.isEmpty() }
+                ?: CanonicalSolution(text = "").also { available = available + it }
+        runCatching { WrittenMarkerRules.place(available, target.id, x, y) }
+            .onSuccess { placed ->
+                solutions = placed
+                selectedSolutionId = placed.firstOrNull { it.points.isEmpty() }?.id
+                error = null
+            }
             .onFailure { error = it.message }
-
     }
     fun removeMarker(markerId: String) {
         solutions = WrittenMarkerRules.withoutMarker(solutions, markerId)
@@ -308,7 +317,6 @@ fun StudyExerciseEditorScreen(
             Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Tema: ${topic.name}", color = TestarioMutedText)
             if (!embedded) {
                 Text("Tipo de contenido", color = TestarioText)
                 Text(if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) "Respuesta escrita" else "Tarjeta Anki",
@@ -316,37 +324,55 @@ fun StudyExerciseEditorScreen(
             }
 
             if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) {
-                OutlinedTextField(
-                    value = prompt, onValueChange = { prompt = it },
-                    label = { Text("Enunciado") }, modifier = Modifier.fillMaxWidth(), minLines = 2
-                )
-                Box {
-                    OutlinedButton(onClick = { showImageOptions = true },
-                        modifier = Modifier.fillMaxWidth()) { Text("Añadir imagen") }
-                    DropdownMenu(expanded = showImageOptions,
-                        onDismissRequest = { showImageOptions = false }) {
-                        DropdownMenuItem(text = { Text("Crear imagen") }, onClick = {
-                            showImageOptions = false
-                            if (imageUri != null && solutions.any { it.points.isNotEmpty() }) {
-                                error = "Borra los marcadores existentes antes de cambiar a un dibujo."
-                            } else {
-                                sketchEnabled = true; imageUri = null; sketchMode = SketchMode.DRAW
+                Column(
+                    Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(18.dp))
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Enunciado", color = TestarioText,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f))
+                        Box {
+                            TextButton(onClick = { showImageOptions = true }) {
+                                Text("Añadir imagen", color = TestarioPrimary)
                             }
-                        })
-                        DropdownMenuItem(text = { Text("Importar imagen") }, onClick = {
-                            showImageOptions = false; chooseImage("written")
-                        })
+                            DropdownMenu(expanded = showImageOptions,
+                                onDismissRequest = { showImageOptions = false }) {
+                                DropdownMenuItem(text = { Text("Crear imagen") }, onClick = {
+                                    showImageOptions = false
+                                    if (imageUri != null &&
+                                        solutions.any { it.points.isNotEmpty() }) {
+                                        error = "Borra primero los marcadores antes de cambiar de imagen."
+                                    } else {
+                                        sketchEnabled = true
+                                        imageUri = null
+                                        sketchMode = SketchMode.DRAW
+                                    }
+                                })
+                                DropdownMenuItem(text = { Text("Importar imagen") }, onClick = {
+                                    showImageOptions = false
+                                    chooseImage("written")
+                                })
+                            }
+                        }
                     }
+                    OutlinedTextField(
+                        value = prompt, onValueChange = { prompt = it },
+                        label = { Text("Texto del enunciado") },
+                        modifier = Modifier.fillMaxWidth(), minLines = 3,
+                        shape = RoundedCornerShape(18.dp)
+                    )
                 }
                 if (sketchEnabled) {
                     OutlinedButton(onClick = { sketchEnabled = false }, modifier = Modifier.fillMaxWidth()) {
                         Text("Cerrar creador de imagen")
                     }
                 }
-                if ((sketchEnabled && sketchMode == SketchMode.MARK) ||
-                    (imageUri != null && photoMarkerMode)) {
-                    Text("Selecciona la solución que vas a colocar", color = TestarioText,
-                        style = MaterialTheme.typography.titleSmall)
+                if (sketchEnabled || imageUri != null) {
+                    Text("Puedes colocar los números primero y escribir las soluciones después.",
+                        color = TestarioMutedText,
+                        style = MaterialTheme.typography.bodySmall)
                     Row(Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         solutions.forEachIndexed { index, solution ->
@@ -363,44 +389,42 @@ fun StudyExerciseEditorScreen(
                                     )
                                 },
                                 label = { Text("${index + 1}: ${solution.text.take(15).ifBlank { "Sin escribir" }}") },
-                                enabled = solution.text.isNotBlank()
                             )
                         }
                     }
                 }
                 if (sketchEnabled) {
-                    Text("Dibuja con rotulador o subrayador y después utiliza «Colocar soluciones».",
-                        color = TestarioMutedText)
-                    if (sketchMode == SketchMode.DRAW) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FilterChip(selected = !sketchToolHighlighter,
-                                onClick = { sketchToolHighlighter = false },
-                                label = { Text("Rotulador fino") })
-                            FilterChip(selected = sketchToolHighlighter,
-                                onClick = { sketchToolHighlighter = true },
-                                label = { Text("Subrayador") })
-                        }
-                        AnnotationColorPalette(selected = sketchColor,
-                            onSelect = { sketchColor = it })
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Grosor", color = TestarioMutedText)
-                            Slider(value = sketchWidthMultiplier,
-                                onValueChange = { sketchWidthMultiplier = it },
-                                valueRange = .5f..2f, modifier = Modifier.weight(1f))
-                        }
-                        if (sketchToolHighlighter) Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Opacidad", color = TestarioMutedText)
-                            Slider(value = sketchOpacity,
-                                onValueChange = { sketchOpacity = it },
-                                valueRange = .1f..1f, modifier = Modifier.weight(1f))
-                        }
+                    Text("Dibuja o borra con un dedo. Usa dos dedos para ampliar o mover el lienzo.",
+                        color = TestarioMutedText,
+                        style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(selected = !sketchToolHighlighter,
+                            onClick = { sketchToolHighlighter = false; sketchMode = SketchMode.DRAW },
+                            label = { Text("Rotulador fino") })
+                        FilterChip(selected = sketchToolHighlighter,
+                            onClick = { sketchToolHighlighter = true; sketchMode = SketchMode.DRAW },
+                            label = { Text("Subrayador") })
+                    }
+                    AnnotationColorPalette(selected = sketchColor,
+                        onSelect = { sketchColor = it; sketchMode = SketchMode.DRAW })
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Grosor", color = TestarioMutedText)
+                        Slider(value = sketchWidthMultiplier,
+                            onValueChange = { sketchWidthMultiplier = it },
+                            valueRange = .5f..2f, modifier = Modifier.weight(1f))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Opacidad", color = TestarioMutedText)
+                        Slider(value = sketchOpacity,
+                            onValueChange = { sketchOpacity = it },
+                            enabled = sketchToolHighlighter,
+                            valueRange = .1f..1f, modifier = Modifier.weight(1f))
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         listOf(
                             SketchMode.DRAW to "Dibujar",
                             SketchMode.ERASE to "Borrar",
-                            SketchMode.MARK to "Colocar soluciones",
-                            SketchMode.PAN to "Mover"
+                            SketchMode.MARK to "Colocar números"
                         ).forEach { (mode, title) ->
                             FilterChip(selected = sketchMode == mode,
                                 onClick = { sketchMode = mode },
@@ -413,11 +437,6 @@ fun StudyExerciseEditorScreen(
                             valueRange = 1f..5f, modifier = Modifier.weight(1f))
                         Text("${"%.1f".format(sketchZoom)}×", color = TestarioText)
                     }
-                    if (sketchZoom > 1f) Text(
-                        "Para desplazar la imagen ampliada, elige Mover.",
-                        color = TestarioMutedText,
-                        style = MaterialTheme.typography.bodySmall
-                    )
                     StudySketchCanvas(
                         sketch = SketchDrawing(strokes = sketchStrokes),
                         modifier = Modifier.fillMaxWidth().height(240.dp),
@@ -489,13 +508,15 @@ fun StudyExerciseEditorScreen(
                     )
                 }
 
-                Text("Soluciones", color = TestarioText)
-                Text("NEXUM reconoce automáticamente variantes y abreviaturas inequívocas.",
-                    color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = { showOptionalAliases = !showOptionalAliases }) {
-                    Text(if (showOptionalAliases) "Ocultar excepciones manuales"
+                    Text(if (showOptionalAliases) "Ocultar variantes especiales"
                         else "Variantes especiales (opcional)")
                 }
+                if (showOptionalAliases) Text(
+                    "Añade solo variantes que NEXUM no reconozca automáticamente.",
+                    color = TestarioMutedText,
+                    style = MaterialTheme.typography.bodySmall
+                )
                 solutions.forEach { solution ->
                     val index = solutions.indexOfFirst { it.id == solution.id }
                     Column(Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(12.dp)).padding(10.dp)) {
@@ -523,6 +544,9 @@ fun StudyExerciseEditorScreen(
                                 } },
                                 label = { Text("Alias separados por comas") }, modifier = Modifier.fillMaxWidth()
                             )
+                            Text("Algunas variantes se integran automáticamente.",
+                                color = TestarioMutedText,
+                                style = MaterialTheme.typography.bodySmall)
                         }
                         if (solution.points.isNotEmpty()) {
                             TextButton(onClick = {
