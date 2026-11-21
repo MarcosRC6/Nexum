@@ -245,11 +245,8 @@ fun StudyExercisePracticeScreen(
                     Text("Aciertos: ${result.correct} · Errores: ${result.incorrect} · Omitidas: ${result.omitted}",
                         color = TestarioText)
                     val missing = exercise.solutions.filterNot { it.id in result.correctIds }
-                    if (missing.isNotEmpty()) {
-                        Text("Faltaban", color = TestarioPrimary)
-                        missing.forEach { solution ->
-                            Text("✓ ${solution.text}", color = TestarioGreen)
-                        }
+                    missing.forEach { solution ->
+                        Text("${solution.text} ✓", color = TestarioGreen)
                     }
                 }
                 if (completed) {
@@ -325,19 +322,21 @@ fun StudyExercisePracticeScreen(
                         }
                     }, modifier = Modifier.fillMaxWidth()) { Text("Mostrar respuesta") }
                 } else {
-                    Divider(color = TestarioSurfaceLight)
-                    Text("Respuesta", color = TestarioGreen)
-                    val mask = card.masks.find { it.id == variant }
-                    val gapAnswer = when {
-                        card.kind == FlashcardKind.CLOZE -> activeGaps.joinToString(" · ") { gap ->
-                            question.substring(gap.start, gap.end)
-                        }
-                        mask != null -> mask.answer.ifBlank { solution }
-                        else -> solution
+                    // Image occlusion reveals the photograph itself. Never echo the
+                    // prompt as a fake answer when there is no explanation.
+                    val revealText = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
+                        card.back else if (card.kind == FlashcardKind.CLOZE) {
+                        if (solution.isNotBlank()) solution else
+                            activeGaps.joinToString(" · ") { gap ->
+                                question.substring(gap.start, gap.end)
+                            }
+                    } else solution
+                    if (revealText.isNotBlank()) {
+                        Text(if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
+                            "Explicación" else "Respuesta", color = TestarioGreen)
+                        Text(revealText, color = TestarioText,
+                            style = MaterialTheme.typography.titleMedium)
                     }
-                    Text(gapAnswer, color = TestarioText, style = MaterialTheme.typography.titleMedium)
-                    if (card.kind == FlashcardKind.CLOZE && solution.isNotBlank())
-                        Text(solution, color = TestarioMutedText)
                     val answerImage = if (isReverse) card.frontImageUri else card.backImageUri
                     answerImage?.let { path ->
                         StudyVisualImage(
