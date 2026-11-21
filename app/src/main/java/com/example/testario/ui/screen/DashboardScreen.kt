@@ -69,6 +69,7 @@ import com.example.planario.domain.timer.StudyTimerState
 import com.example.planario.ui.notifications.rememberTimerNotificationPermissionRequest
 import com.example.testario.data.local.QuickTestLinkManager
 import com.example.testario.data.local.WebQuickLinkStore
+import com.example.testario.domain.QuickAccessVisibility
 import com.example.testario.data.model.TestMode
 import com.example.testario.ui.theme.FourItemDropdown
 import com.example.testario.ui.theme.TestarioNeonSelected
@@ -142,11 +143,13 @@ fun HomeScreen(
         HomeSettingsViewModel.WIDGET_FAILURES -> homeSettingsViewModel.showFailures && failures > 0
         HomeSettingsViewModel.WIDGET_TEMPLATES -> homeSettingsViewModel.showTemplates
         HomeSettingsViewModel.WIDGET_QUICK_ACCESS ->
-            homeSettingsViewModel.showLibraryShortcut ||
-                homeSettingsViewModel.showTestShortcut ||
-                homeSettingsViewModel.showPlanShortcut ||
-                homeSettingsViewModel.showStatsShortcut ||
-                homeSettingsViewModel.showWebLinksShortcut
+            QuickAccessVisibility.show(
+                library = homeSettingsViewModel.showLibraryShortcut,
+                test = homeSettingsViewModel.showTestShortcut,
+                plan = homeSettingsViewModel.showPlanShortcut,
+                statistics = homeSettingsViewModel.showStatsShortcut,
+                links = homeSettingsViewModel.showWebLinksShortcut
+            )
         else -> false
     }
 
