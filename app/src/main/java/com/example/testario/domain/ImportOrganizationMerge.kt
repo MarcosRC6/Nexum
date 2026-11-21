@@ -33,7 +33,16 @@ object ImportOrganizationMerge {
         val topicIds = linkedMapOf<String, String>()
         incoming.topics.forEachIndexed { index, source ->
             val choice = decisions[index].topic
-            require(source == choice) {
+            // Preview uses regenerateTopicIds() to avoid collisions, so the
+            // selected topic has DIFFERENT IDs from the original JSON. Map by
+            // source order and verify stable content, never by those new IDs.
+            require(source.name.trim().equals(choice.name.trim(), true) &&
+                source.questions.size == choice.questions.size &&
+                source.exercises.size == choice.exercises.size &&
+                source.questions.map(TopicImportMatcher::fingerprint) ==
+                    choice.questions.map(TopicImportMatcher::fingerprint) &&
+                source.exercises.map(StudyExerciseMerge::signature) ==
+                    choice.exercises.map(StudyExerciseMerge::signature)) {
                 "El orden o contenido de los temas cambió durante la importación."
             }
             val destination = plan.outcomes[index].destinationName
