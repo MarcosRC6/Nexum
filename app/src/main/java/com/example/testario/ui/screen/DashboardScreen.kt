@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -643,7 +644,7 @@ fun HomeScreen(
                                                                 border = BorderStroke(1.5.dp, TestarioPrimary)
                                                             ) {
                                                                 Box(
-                                                                    Modifier.fillMaxWidth().height(66.dp),
+                                                                    Modifier.fillMaxWidth().aspectRatio(1f),
                                                                     contentAlignment = Alignment.Center
                                                                 ) {
                                                                     Text("+", color = TestarioPrimary,
