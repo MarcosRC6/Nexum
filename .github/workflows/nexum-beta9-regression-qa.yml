@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/beta8-pre2-integrity-ux-audit-20261121
+      - release/nexum-v2.0-beta.9-20261121
   workflow_dispatch:
 
 permissions:
