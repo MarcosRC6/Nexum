@@ -17,16 +17,31 @@ object WrittenMarkerFeedback {
     fun fromGradedResult(
         exercise: StudyExercise,
         grade: StudyExerciseRules.WrittenResult
-    ): Map<String, Boolean> =
-        exercise.solutions.flatMap { solution ->
-            solution.points.map { point -> point.id to (solution.id in grade.correctIds) }
+    ): Map<String, Boolean> {
+        // The visible number (not the historical owner/insertion order)
+        // determines which corrected answer colors the marker.
+        val byNumber = StudyExerciseRules.positionalSolutions(exercise)
+            .mapIndexed { index, solution ->
+                (index + 1) to (solution.id in grade.correctIds)
+            }.toMap()
+        return exercise.solutions.flatMap { solution ->
+            solution.points.map { marker ->
+                marker.id to (byNumber[marker.order] ?: (solution.id in grade.correctIds))
+            }
         }.toMap()
+    }
 
-
-    fun statusByMarker(exercise: StudyExercise, submitted: List<String>): Map<String, Boolean> =
-        StudyExerciseRules.positionalSolutions(exercise).flatMapIndexed { index, solution ->
-            val submittedText = submitted.getOrNull(index).orEmpty()
-            val matched = StudyExerciseRules.findAcceptedSolution(exercise, submittedText)
-            solution.points.map { marker -> marker.id to (matched?.id == solution.id) }
+    fun statusByMarker(exercise: StudyExercise, submitted: List<String>): Map<String, Boolean> {
+        val ordered = StudyExerciseRules.positionalSolutions(exercise)
+        val correctByNumber = ordered.mapIndexed { index, solution ->
+            val text = submitted.getOrNull(index).orEmpty()
+            val matched = StudyExerciseRules.findAcceptedSolution(exercise, text)
+            (index + 1) to (matched?.id == solution.id)
         }.toMap()
+        return exercise.solutions.flatMap { solution ->
+            solution.points.map { marker ->
+                marker.id to (correctByNumber[marker.order] ?: false)
+            }
+        }.toMap()
+    }
 }
