@@ -176,10 +176,11 @@ fun TopicDetailScreen(
     val filteredExercises = remember(topic.exercises, searchText, debouncedSearchText,
         filterFlagged, selectedDifficultyFilter) {
         topic.exercises.filter { ex ->
-            !filterFlagged && selectedDifficultyFilter == null &&
+            (!filterFlagged || ex.flagged) && selectedDifficultyFilter == null &&
                 (searchText.isBlank() || (debouncedSearchText == searchText &&
                     (ex.prompt.contains(searchText, ignoreCase = true) ||
                     ex.solutions.any { it.text.contains(searchText, ignoreCase = true) } ||
+                    ex.flashcard?.front?.contains(searchText, ignoreCase = true) == true ||
                     ex.flashcard?.back?.contains(searchText, ignoreCase = true) == true)))
         }
     }
@@ -537,7 +538,10 @@ fun TopicDetailScreen(
                                     onDeleteConfirmed = {
                                         libraryViewModel.deleteStudyExercise(topicId, exercise.id)
                                     },
-                                    onPractice = { onPracticeExercises(exercise.id) }
+                                    onPractice = { onPracticeExercises(exercise.id) },
+                                    onToggleFlag = {
+                                        libraryViewModel.toggleStudyExerciseFlag(topicId, exercise.id)
+                                    }
                                 )
                             }
                         }
@@ -917,9 +921,11 @@ private fun StudyExerciseCard(
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
     onDeleteConfirmed: () -> Unit,
-    onPractice: () -> Unit
+    onPractice: () -> Unit,
+    onToggleFlag: () -> Unit
 ) {
     var expanded by remember(exercise.id) { mutableStateOf(false) }
+    var showFlagDialog by remember(exercise.id) { mutableStateOf(false) }
     var deleteConfirm by remember(exercise.id) { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -929,14 +935,22 @@ private fun StudyExerciseCard(
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
-                    Text(exercise.prompt, color = TestarioText,
-                        style = MaterialTheme.typography.titleMedium)
+                    Text(exercise.prompt.ifBlank {
+                        exercise.flashcard?.front?.takeIf { it.isNotBlank() }
+                            ?: if (exercise.flashcard?.frontImageUri != null) "Tarjeta con imagen"
+                            else "Tarjeta sin enunciado"
+                    }, color = TestarioText, style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
                     Text(when (exercise.kind) {
                         StudyExerciseKind.WRITTEN_MULTI -> "Respuesta escrita · ${exercise.solutions.size} soluciones"
                         StudyExerciseKind.ANKI_CARD -> "Tarjeta"
                     } + if (exercise.draft) " · Borrador" else "",
                         color = TestarioMutedText)
+                }
+                IconButton(onClick = { showFlagDialog = true }) {
+                    Text(if (exercise.flagged) "🚩" else "⚑",
+                        color = if (exercise.flagged) TestarioPrimary else TestarioMutedText,
+                        style = MaterialTheme.typography.titleLarge)
                 }
                 Box {
                     IconButton(onClick = { expanded = true }) {
@@ -960,6 +974,19 @@ private fun StudyExerciseCard(
             }
         }
     }
+    if (showFlagDialog) AlertDialog(
+        onDismissRequest = { showFlagDialog = false },
+        title = { Text(if (exercise.flagged) "Desmarcar pregunta" else "Marcar pregunta") },
+        text = { Text(if (exercise.flagged)
+            "¿Quieres quitar la bandera de esta pregunta?"
+            else "¿Quieres marcar esta pregunta para repasarla después?") },
+        confirmButton = { Button(onClick = { onToggleFlag(); showFlagDialog = false }) {
+            Text(if (exercise.flagged) "Desmarcar" else "Marcar")
+        } },
+        dismissButton = { TextButton(onClick = { showFlagDialog = false }) {
+            Text("Cancelar")
+        } }
+    )
     if (deleteConfirm) AlertDialog(
         onDismissRequest = { deleteConfirm = false },
         title = { Text("Eliminar ejercicio") },
