@@ -126,7 +126,9 @@ class QuickTestLinkManager(context: Context) {
             })
         }
         root.put("links", array)
-        prefs.edit().putString(KEY, root.toString()).apply()
+        check(prefs.edit().putString(KEY, root.toString()).commit()) {
+            "No se pudieron guardar los vínculos de test rápido."
+        }
     }
 
     companion object {

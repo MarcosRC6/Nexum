@@ -32,6 +32,7 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             appWidgetManager = appWidgetManager,
             appWidgetIds = appWidgetIds
         )
+        TodayRolloverScheduler.schedule(context)
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -49,6 +50,12 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         appWidgetIds.forEach { id -> prefs(context).edit().remove("density_$id").apply() }
+        TodayRolloverScheduler.schedule(context)
+    }
+
+    override fun onDisabled(context: Context) {
+        TodayRolloverScheduler.cancel(context)
+        super.onDisabled(context)
     }
 
     override fun onRestored(context: Context, oldWidgetIds: IntArray, newWidgetIds: IntArray) {
@@ -111,6 +118,7 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
                     appWidgetIds = appWidgetIds
                 )
             }
+            TodayRolloverScheduler.schedule(appContext)
         }
 
         private fun updateWidgets(
@@ -129,6 +137,7 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
 
         fun updateWidget(context: Context, appWidgetId: Int) {
             updateWidget(context, AppWidgetManager.getInstance(context), appWidgetId)
+            TodayRolloverScheduler.schedule(context)
         }
 
         private fun updateWidget(
@@ -175,7 +184,7 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             setTextColor(R.id.widgetCompactProgress, state.primaryTextColor)
             setTextColor(R.id.widgetCompactObjectives, state.primaryTextColor)
             setOnClickPendingIntent(R.id.widgetCompactRoot,
-                createOpenAppPendingIntent(context, PlanarioDestination.Home.route, 4101))
+                createOpenAppPendingIntent(context, "home_today", 4101))
         }
 
         private fun buildExpandedRemoteViews(
@@ -211,9 +220,9 @@ class PlanarioTodayWidgetReceiver : AppWidgetProvider() {
             setViewVisibility(R.id.widgetTodayExpandedTest,
                 if (state.hasLinkedTest) View.VISIBLE else View.GONE)
             setOnClickPendingIntent(R.id.widgetTodayExpandedRoot,
-                createOpenAppPendingIntent(context, PlanarioDestination.Plan.route, 4101))
+                createOpenAppPendingIntent(context, "home_today", 4101))
             setOnClickPendingIntent(R.id.widgetTodayExpandedPlan,
-                createOpenAppPendingIntent(context, PlanarioDestination.Plan.route, 4103))
+                createOpenAppPendingIntent(context, "home_today", 4103))
             if (state.hasLinkedTest) {
                 setOnClickPendingIntent(R.id.widgetTodayExpandedTest,
                     createLinkedTestPendingIntent(context, state))
