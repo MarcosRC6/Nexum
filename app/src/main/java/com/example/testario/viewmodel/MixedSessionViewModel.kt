@@ -241,8 +241,9 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
             _snapshot.value = finished
             _pending.value = finished
             repo.registerCompletion(finished)
-            _result.value = MixedSessionEngine.finish(finished)
+            val calculatedResult = MixedSessionEngine.finish(finished)
             check(store.clear()) { "No se pudo eliminar la sesión pendiente tras guardar el resultado." }
+            _result.value = calculatedResult
             _pending.value = null
             _error.value = null
             true
