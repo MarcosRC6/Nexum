@@ -149,6 +149,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
                     "El ZIP mezcla una base completa y temas JSON separados: usa un solo formato."
                 }
                 val source = requireNotNull(rawJson)
+                DatabaseBackupValidator.requireLibraryShape(source)
                 val database = json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(source))
                 validateStudyExercises(database.topics)
                 source
@@ -253,6 +254,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
     }
 
     fun restoreBackup(rawJson: String) {
+        DatabaseBackupValidator.requireLibraryShape(rawJson)
         val migratedJson = MigrationManager.migrate(rawJson)
         val backup = json.decodeFromString<TestarioDatabase>(migratedJson)
         validateStudyExercises(backup.topics)
@@ -274,6 +276,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
     }
 
     fun importAllJson(rawJson: String) {
+        DatabaseBackupValidator.requireLibraryShape(rawJson)
         val imported = json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(rawJson))
         validateStudyExercises(imported.topics)
         commitPendingImages()
