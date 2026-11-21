@@ -98,11 +98,12 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
                         } else {
                             StudyExerciseRules.findAcceptedSolution(exercise, text) != null
                         }
-                        Text("${position + 1}. ${text.ifBlank { "Sin responder" }} " +
-                            if (accepted) "✓" else "✗",
-                            color = if (accepted) TestarioGreen else TestarioRed)
-                        if (!accepted) Text("Solución: ${sol.text}", color = TestarioGreen,
-                            style = MaterialTheme.typography.bodySmall)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("${position + 1}. ${text.ifBlank { "Sin responder" }} " +
+                                if (accepted) "✓" else "✗",
+                                color = if (accepted) TestarioGreen else TestarioRed)
+                            if (!accepted) Text("${sol.text} ✓", color = TestarioGreen)
+                        }
                     }
                     Text("Nota: ${"%.2f".format(grade.scoreOutOfTen)} / 10",
                         color = if (grade.scoreOutOfTen >= 5) TestarioGreen else TestarioRed)
@@ -125,7 +126,7 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
                             modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true
                         )
                     }
-                    Text(answer.ifBlank { question }, color = TestarioGreen)
+                    if (answer.isNotBlank()) Text(answer, color = TestarioGreen)
                 }
             }
         }
