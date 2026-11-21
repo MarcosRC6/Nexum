@@ -276,11 +276,10 @@ internal fun StudySketchCanvas(
                         enableFullscreen = false
                     )
                 }
-                Row(Modifier.fillMaxWidth().background(Color(0xD9090C15))
-                    .padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Pellizca para ampliar · arrastra con dos dedos",
-                        color = Color.White, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { fullScreen = false }) {
+                Box(Modifier.fillMaxWidth().padding(10.dp),
+                    contentAlignment = Alignment.TopEnd) {
+                    IconButton(onClick = { fullScreen = false },
+                        modifier = Modifier.background(Color(0xD9090C15), CircleShape)) {
                         Text("✕", color = Color.White)
                     }
                 }
