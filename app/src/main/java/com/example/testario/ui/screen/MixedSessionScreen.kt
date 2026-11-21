@@ -204,12 +204,15 @@ fun MixedSessionScreen(
                 }
             }
             Card(
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = if (item.type == MixedItemType.ANKI)
+                    Modifier.fillMaxWidth().weight(1f, fill = false)
+                else Modifier.fillMaxWidth().weight(1f),
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = TestarioSurface)
             ) {
                 Column(
-                    Modifier.fillMaxSize().padding(18.dp).then(
+                    (if (item.type == MixedItemType.ANKI) Modifier.fillMaxWidth()
+                        else Modifier.fillMaxSize()).padding(18.dp).then(
                         if (item.type == MixedItemType.WRITTEN) Modifier
                         else Modifier.verticalScroll(rememberScrollState())
                     ),
