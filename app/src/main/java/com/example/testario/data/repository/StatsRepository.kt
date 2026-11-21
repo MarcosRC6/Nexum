@@ -40,6 +40,8 @@ class StatsRepository(
                 testHistory = emptyList(),
                 detailedExamHistory = emptyList(),
                 performanceHistory = emptyList(),
+                mixedSessionHistory = emptyList(),
+                exerciseAttempts = emptyList(),
                 topics = db.topics.map { topic ->
                     topic.copy(questions = topic.questions.map { it.copy(stats = QuestionStats()) })
                 }
