@@ -104,9 +104,13 @@ fun StudyExercisePracticeScreen(
                 }
                 val exercise = written[index.coerceIn(0, written.lastIndex)]
                 val graded = if (completed) runCatching {
-                    StudyExerciseRules.gradeWritten(exercise, answers,
-                        points.replace(",", ".").toDouble(),
-                        penalty.replace(",", ".").toDouble())
+                    val correctPoints = points.replace(",", ".").toDouble()
+                    val wrongPoints = penalty.replace(",", ".").toDouble()
+                    if (exercise.solutions.any { it.points.isNotEmpty() })
+                        StudyExerciseRules.gradeWrittenInSession(exercise, answers,
+                            correctPoints, wrongPoints)
+                    else StudyExerciseRules.gradeWritten(exercise, answers,
+                        correctPoints, wrongPoints)
                 }.getOrNull() else null
                 val statusByMarker = if (graded != null)
                     WrittenMarkerFeedback.statusByMarker(exercise, answers)
@@ -239,9 +243,12 @@ fun StudyExercisePracticeScreen(
                 } else {
                     val a = points.replace(",", ".").toDoubleOrNull() ?: 1.0
                     val b = penalty.replace(",", ".").toDoubleOrNull() ?: -0.25
-                    val result = StudyExerciseRules.gradeWritten(exercise, answers, a, b)
+                    val result = if (exercise.solutions.any { it.points.isNotEmpty() })
+                        StudyExerciseRules.gradeWrittenInSession(exercise, answers, a, b)
+                    else StudyExerciseRules.gradeWritten(exercise, answers, a, b)
                     Text("Nota: ${"%.2f".format(result.scoreOutOfTen)} / 10",
-                        color = TestarioGreen, style = MaterialTheme.typography.titleLarge)
+                        color = if (result.scoreOutOfTen >= 5) TestarioGreen else TestarioRed,
+                        style = MaterialTheme.typography.titleLarge)
                     Text("Aciertos: ${result.correct} · Errores: ${result.incorrect} · Omitidas: ${result.omitted}",
                         color = TestarioText)
                     val missing = exercise.solutions.filterNot { it.id in result.correctIds }
