@@ -621,45 +621,60 @@ fun HomeScreen(
                                     }
                                     val visibleWebLinks = if (homeSettingsViewModel.showWebLinksShortcut)
                                         webQuickLinks.filterNot { it.hidden } else emptyList()
-                                    if (homeSettingsViewModel.showWebLinksShortcut &&
-                                        visibleWebLinks.isEmpty()) {
-                                        TextButton(onClick = { showManageWebLinks = true }) {
-                                            Text("Añadir mi primer enlace", color = TestarioPrimary)
-                                        }
-                                    }
-                                    if (visibleWebLinks.isNotEmpty()) {
+                                    if (homeSettingsViewModel.showWebLinksShortcut) {
+                                        // Always include the compact add tile, even
+                                        // when all other quick access categories are off.
+                                        // The same tile remains available beside links.
                                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            visibleWebLinks.chunked(3).forEach { linksRow ->
+                                            (0..visibleWebLinks.size).toList().chunked(3).forEach { slots ->
                                                 Row(
                                                     Modifier.fillMaxWidth(),
                                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                 ) {
-                                                    linksRow.forEach { link ->
-                                                        Card(
-                                                            modifier = Modifier.weight(1f)
-                                                                .clickable { openWebQuickLink(context, link) },
-                                                            shape = RoundedCornerShape(15.dp),
-                                                            colors = CardDefaults.cardColors(
-                                                                containerColor = TestarioSurfaceLight),
-                                                            border = BorderStroke(1.dp, TestarioOutline)
-                                                        ) {
-                                                            Column(
-                                                                Modifier.fillMaxWidth().padding(
-                                                                    vertical = 12.dp, horizontal = 5.dp),
-                                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                                verticalArrangement = Arrangement.spacedBy(5.dp)
+                                                    slots.forEach { index ->
+                                                        if (index == visibleWebLinks.size) {
+                                                            Card(
+                                                                modifier = Modifier.weight(1f).clickable {
+                                                                    showManageWebLinks = true
+                                                                },
+                                                                shape = RoundedCornerShape(15.dp),
+                                                                colors = CardDefaults.cardColors(
+                                                                    containerColor = TestarioSurfaceLight),
+                                                                border = BorderStroke(1.5.dp, TestarioPrimary)
                                                             ) {
-                                                                Text(webQuickLinkIcon(link.icon))
-                                                                Text(
-                                                                    link.title,
-                                                                    color = TestarioText,
-                                                                    style = MaterialTheme.typography.labelSmall,
-                                                                    maxLines = 1
-                                                                )
+                                                                Box(
+                                                                    Modifier.fillMaxWidth().height(66.dp),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    Text("+", color = TestarioPrimary,
+                                                                        style = MaterialTheme.typography.headlineMedium)
+                                                                }
+                                                            }
+                                                        } else {
+                                                            val link = visibleWebLinks[index]
+                                                            Card(
+                                                                modifier = Modifier.weight(1f)
+                                                                    .clickable { openWebQuickLink(context, link) },
+                                                                shape = RoundedCornerShape(15.dp),
+                                                                colors = CardDefaults.cardColors(
+                                                                    containerColor = TestarioSurfaceLight),
+                                                                border = BorderStroke(1.dp, TestarioOutline)
+                                                            ) {
+                                                                Column(
+                                                                    Modifier.fillMaxWidth().padding(
+                                                                        vertical = 12.dp, horizontal = 5.dp),
+                                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                                                                ) {
+                                                                    Text(webQuickLinkIcon(link.icon))
+                                                                    Text(link.title, color = TestarioText,
+                                                                        style = MaterialTheme.typography.labelSmall,
+                                                                        maxLines = 1)
+                                                                }
                                                             }
                                                         }
                                                     }
-                                                    repeat(3 - linksRow.size) {
+                                                    repeat(3 - slots.size) {
                                                         Spacer(Modifier.weight(1f))
                                                     }
                                                 }
