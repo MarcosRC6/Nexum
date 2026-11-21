@@ -377,14 +377,6 @@ fun MixedSessionScreen(
                             WrittenCorrectionRows(exercise, response.writtenAnswers, graded)
                         }
                     }
-                    if (!showAnswer) {
-                        // Fixed below the independently scrolling answer list.
-                        Button(onClick = { session.submitWritten(writtenInput) },
-                            enabled = !locked, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (current.mode == TestMode.EXAM)
-                                "Guardar respuestas" else "Comprobar")
-                        }
-                    }
                 }
                 MixedItemType.ANKI -> {
                     val exercise = requireNotNull(item.exercise)
@@ -410,12 +402,7 @@ fun MixedSessionScreen(
                             showCorrection = showAnswer &&
                                 card.kind != FlashcardKind.IMAGE_OCCLUSION)
                     }
-                    if (!showAnswer) {
-                        Button(onClick = { session.revealAnki() },
-                            enabled = !locked, modifier = Modifier.fillMaxWidth()) {
-                            Text("Mostrar respuesta")
-                        }
-                    } else {
+                    if (showAnswer) {
                         // The image itself is the answer for image-occlusion cards.
                         // A blank explanation must not repeat the question below it.
                         val revealedText = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
@@ -451,8 +438,23 @@ fun MixedSessionScreen(
                         modifier = Modifier.weight(1f)) { Text("Finalizar") }
                 }
             }
-            OutlinedButton(onClick = { exitConfirm = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("Guardar y salir")
+            // The X in the header retains the full protected Save / Discard / Cancel
+            // workflow. Keep the lower action immediately accessible outside scroll.
+            when (item.type) {
+                MixedItemType.WRITTEN -> if (!showAnswer) {
+                    Button(onClick = { session.submitWritten(writtenInput) },
+                        enabled = !locked, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (current.mode == TestMode.EXAM)
+                            "Guardar respuestas" else "Comprobar")
+                    }
+                }
+                MixedItemType.ANKI -> if (!showAnswer) {
+                    Button(onClick = { session.revealAnki() },
+                        enabled = !locked, modifier = Modifier.fillMaxWidth()) {
+                        Text("Mostrar respuesta")
+                    }
+                }
+                else -> Unit // Legacy and mixed Test have navigation-only footer.
             }
         }
     }
