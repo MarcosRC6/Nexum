@@ -180,7 +180,11 @@ class NexumNearbyArchive(private val context: Context) {
         val target = File(context.filesDir, "${prefix}${System.currentTimeMillis()}_${UUID.randomUUID()}.zip")
         val partial = File(context.filesDir, "${target.name}.part")
         try {
-            partial.outputStream().use { unified.exportGlobalBackup(BoundedOutputStream(it)) }
+            partial.outputStream().use {
+                unified.exportGlobalBackup(
+                    BoundedOutputStream(it), privateRescueOnly = true
+                )
+            }
             requireValid(partial)
             require(partial.renameTo(target)) { "No se pudo finalizar la copia preventiva" }
             return target
