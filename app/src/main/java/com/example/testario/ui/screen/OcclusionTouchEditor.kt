@@ -240,10 +240,10 @@ internal fun OcclusionTouchEditor(
                                 val w = kotlin.math.abs(a.first - b.first)
                                 val h = kotlin.math.abs(a.second - b.second)
                                 Box(Modifier.offset {
-                                    IntOffset((fit.left + fit.width * x).roundToInt(),
-                                        (fit.top + fit.height * y).roundToInt())
-                                }.size(with(density) { (fit.width * w).toDp() },
-                                    with(density) { (fit.height * h).toDp() })
+                                    IntOffset((fit.left + fit.width * x.toFloat()).roundToInt(),
+                                        (fit.top + fit.height * y.toFloat()).roundToInt())
+                                }.size(with(density) { (fit.width * w.toFloat()).toDp() },
+                                    with(density) { (fit.height * h.toFloat()).toDp() })
                                     .background(Color.Black.copy(alpha = .5f))
                                     .border(2.dp, TestarioPrimary))
                             }
