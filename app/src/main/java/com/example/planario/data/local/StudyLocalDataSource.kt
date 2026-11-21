@@ -12,6 +12,8 @@ import com.example.planario.core.model.TimeEntry
 import com.example.planario.core.model.TimeEntryType
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -30,24 +32,48 @@ class StudyLocalDataSource(
         Context.MODE_PRIVATE
     )
 
+    // A damaged planning JSON must never be silently replaced by a new empty
+    // planning database. The lock is persisted independently from the backup
+    // so a process restart cannot reopen a destructive write path.
+    private val _recoveryError = MutableStateFlow<String?>(null)
+    val recoveryError: StateFlow<String?> = _recoveryError
+
+    private fun recoveryNotice(): String =
+        "No se puede abrir la planificación guardada. NEXUM ha bloqueado " +
+        "los cambios de Planario para conservar el archivo original y su " +
+        "copia de recuperación. Restaura una copia global completa válida " +
+        "desde Ajustes; no borres los datos ni reinstales la aplicación."
+
+
     fun load(): StoredStudyData {
+        if (preferences.getBoolean(KEY_RECOVERY_LOCKED, false)) {
+            _recoveryError.value = recoveryNotice()
+            return StoredStudyData()
+        }
         val rawJson = preferences.getString(KEY_DATA, null) ?: return StoredStudyData()
 
         return try {
             val root = JSONObject(rawJson)
             jsonObjectToStoredStudyData(root)
         } catch (_: Exception) {
-            // Nunca descartamos el JSON dañado: el siguiente guardado podría
-            // reemplazarlo por una base vacía. Guardamos la copia de recuperación
-            // antes de devolver el estado predeterminado a la interfaz.
-            if (!preferences.contains(KEY_RECOVERY_DATA)) {
-                preferences.edit().putString(KEY_RECOVERY_DATA, rawJson).commit()
-            }
+            // Read-only recovery state: keep the original preferences value and
+            // store a separate emergency copy BEFORE any future save is allowed.
+            val protected = preferences.edit().apply {
+                if (!preferences.contains(KEY_RECOVERY_DATA)) {
+                    putString(KEY_RECOVERY_DATA, rawJson)
+                }
+                putBoolean(KEY_RECOVERY_LOCKED, true)
+            }.commit()
+            _recoveryError.value = recoveryNotice() +
+                if (protected) "" else
+                    " No se pudo crear el respaldo adicional: conserva la aplicación abierta."
             StoredStudyData()
         }
     }
 
     fun save(data: StoredStudyData): Boolean {
+        if (preferences.getBoolean(KEY_RECOVERY_LOCKED, false) ||
+            _recoveryError.value != null) return false
         val root = storedStudyDataToJsonObject(data)
 
         val saved = preferences.edit()
@@ -56,8 +82,29 @@ class StudyLocalDataSource(
 
         if (saved) {
             PlanarioWidgetUpdater.updateTodayWidget(appContext)
+        } else {
+            _recoveryError.value = "No se han podido escribir los cambios de Planario " +
+                "en el almacenamiento. Guarda una copia global completa fuera del móvil " +
+                "antes de cerrar NEXUM."
         }
         return saved
+    }
+
+    /**
+     * Only a validated user-selected backup may unlock recovery. A failed
+     * commit must leave the lock and previous bytes unchanged.
+     */
+    fun restoreValidatedBackup(data: StoredStudyData): Boolean {
+        val body = storedStudyDataToJsonObject(data).toString()
+        val restored = preferences.edit()
+            .putString(KEY_DATA, body)
+            .remove(KEY_RECOVERY_LOCKED)
+            .commit()
+        if (restored) {
+            _recoveryError.value = null
+            PlanarioWidgetUpdater.updateTodayWidget(appContext)
+        }
+        return restored
     }
 
     fun exportToJson(data: StoredStudyData): String {
@@ -190,6 +237,7 @@ class StudyLocalDataSource(
     companion object {
         private const val KEY_DATA = "study_data"
         private const val KEY_RECOVERY_DATA = "study_data_corrupt_recovery"
+        private const val KEY_RECOVERY_LOCKED = "study_data_recovery_locked"
 
         private const val KEY_ACTIVE_TIMER_STATE = "active_timer_state"
         private const val KEY_ACTIVE_TIMER_DATE = "active_timer_date"
