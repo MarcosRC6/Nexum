@@ -12,6 +12,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -100,7 +101,7 @@ internal fun OcclusionTouchEditor(
                 }
             }
             Text(if (drawing) "Arrastra un dedo sobre lo que quieres tapar."
-                else "Toca o arrastra la zona. Usa dos dedos para ampliar y desplazar.",
+                else "Arrastra el centro para mover o tira de las cuatro esquinas para redimensionar. Pellizca para ampliar.",
                 color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
 
             BoxWithConstraints(
@@ -193,7 +194,12 @@ internal fun OcclusionTouchEditor(
                                 val top = fit.top + fit.height * mask.y.toFloat()
                                 val width = fit.width * mask.width.toFloat()
                                 val height = fit.height * mask.height.toFloat()
-                                val targetSize = with(density) { 34.dp.toPx() }
+                                // On small masks, fan touch targets outward so all
+                                // four corners remain usable on a phone without
+                                // changing the mask's actual stored dimensions.
+                                val targetSize = with(density) {
+                                    (if (!drawing && mask.id == selectedId) 88.dp else 36.dp).toPx()
+                                }
                                 val targetW = if (drawing) width else maxOf(width, targetSize)
                                 val targetH = if (drawing) height else maxOf(height, targetSize)
                                 val selected = mask.id == selectedId
@@ -207,8 +213,8 @@ internal fun OcclusionTouchEditor(
                                                     onMasksChanged(latestMasks.map { old ->
                                                         if (old.id == mask.id)
                                                             OcclusionResize.translate(old,
-                                                                (drag.x / fit.width).toDouble(),
-                                                                (drag.y / fit.height).toDouble())
+                                                                (drag.x / (fit.width * scale)).toDouble(),
+                                                                (drag.y / (fit.height * scale)).toDouble())
                                                         else old
                                                     })
                                                 }
@@ -230,6 +236,38 @@ internal fun OcclusionTouchEditor(
                                         .border(if (selected) 2.dp else 1.dp,
                                             if (selected) TestarioPrimary else TestarioMutedText,
                                             RoundedCornerShape(2.dp)))
+                                    if (selected && !drawing) {
+                                        listOf(
+                                            OcclusionHandle.TOP_LEFT to Alignment.TopStart,
+                                            OcclusionHandle.TOP_RIGHT to Alignment.TopEnd,
+                                            OcclusionHandle.BOTTOM_LEFT to Alignment.BottomStart,
+                                            OcclusionHandle.BOTTOM_RIGHT to Alignment.BottomEnd
+                                        ).forEach { (handle, alignment) ->
+                                            // The hit area is 36 dp; only the center 12 dp
+                                            // is visible, avoiding bulky handles on tiny masks.
+                                            Box(Modifier.align(alignment).size(36.dp)
+                                                .pointerInput(mask.id, fit, handle, scale) {
+                                                    detectDragGestures(
+                                                        onDragStart = { selectedId = mask.id },
+                                                        onDrag = { change, drag ->
+                                                            change.consume()
+                                                            onMasksChanged(latestMasks.map { old ->
+                                                                if (old.id == mask.id)
+                                                                    OcclusionResize.apply(
+                                                                        old, handle,
+                                                                        (drag.x / (fit.width * scale)).toDouble(),
+                                                                        (drag.y / (fit.height * scale)).toDouble()
+                                                                    )
+                                                                else old
+                                                            })
+                                                        })
+                                                }, contentAlignment = Alignment.Center) {
+                                                Box(Modifier.size(13.dp)
+                                                    .background(TestarioPrimary, CircleShape)
+                                                    .border(2.dp, Color.White, CircleShape))
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             val a = start
