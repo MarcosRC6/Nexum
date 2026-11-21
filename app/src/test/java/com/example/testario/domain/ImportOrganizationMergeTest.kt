@@ -38,7 +38,19 @@ class ImportOrganizationMergeTest {
 
     private fun stage(target: TestarioDatabase, action: DuplicateTopicAction):
         Pair<List<ImportBatchDecision>, ImportBatchPlan> {
-        val decisions = listOf(ImportBatchDecision(importedTopic, action))
+        // The actual decoder regenerates topic and answer IDs before showing preview.
+        val previewTopic = importedTopic.copy(
+            id = "preview-topic",
+            questions = listOf(sourceQuestion.copy(
+                id = "preview-question",
+                answers = listOf(
+                    Answer("preview-a", "Avenida"), Answer("preview-b", "Calle"),
+                    Answer("preview-c", "Ronda")
+                ),
+                correctAnswerId = "preview-a"
+            ))
+        )
+        val decisions = listOf(ImportBatchDecision(previewTopic, action))
         val plan = ImportBatchPlanner.prepare(target.topics, decisions) {
             it.copy(id = "local-topic")
         }
