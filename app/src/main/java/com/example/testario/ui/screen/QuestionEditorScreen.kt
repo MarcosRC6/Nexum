@@ -243,9 +243,10 @@ fun QuestionEditorScreen(
                     )
                 }
             }
-            item {
-                EditorSectionCard {
-                    if (statementImageUri != null) {
+            if (statementImageUri != null || correctionImageUri != null) {
+                item {
+                    EditorSectionCard {
+                        if (statementImageUri != null) {
                         Text("Imagen del enunciado", color = TestarioMutedText)
                         EditableAnnotationImage(
                             imageUri = requireNotNull(statementImageUri),
@@ -266,6 +267,7 @@ fun QuestionEditorScreen(
                             onReplace = { correctionImagePicker.launch("image/*") },
                             onDelete = { correctionImageUri = null; correctionAnnotations = ImageAnnotations() }
                         )
+                    }
                     }
                 }
             }
