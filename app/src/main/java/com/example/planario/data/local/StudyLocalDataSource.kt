@@ -702,11 +702,37 @@ private fun jsonObjectToStoredStudyData(root: JSONObject): StoredStudyData {
             "La planificación pertenece a una versión futura o incompatible."
         }
     }
-    return StoredStudyData(
+    val decoded = StoredStudyData(
         topics = jsonArrayToStudyTopics(root.optJSONArray("topics")),
         fixedObjectives = jsonArrayToFixedObjectives(root.optJSONArray("fixedObjectives")),
         studyDays = jsonArrayToStudyDays(root.optJSONArray("studyDays")),
         timeEntries = jsonArrayToTimeEntries(root.optJSONArray("timeEntries")),
         settings = jsonObjectToStudySettings(root.optJSONObject("settings"))
     )
+    // Historical decoders skip invalid elements. That is acceptable for
+    // *displaying* legacy data, but silently dropping a malformed topic,
+    // objective, day or time entry during restore would destroy information.
+    fun sameCount(key: String, actual: Int) {
+        val expected = root.optJSONArray(key)?.length() ?: return
+        require(expected == actual) {
+            "Planario: el campo $key contiene registros inválidos o duplicados " +
+                "($actual de $expected). No se sustituirán los datos existentes."
+        }
+    }
+    sameCount("topics", decoded.topics.size)
+    sameCount("fixedObjectives", decoded.fixedObjectives.size)
+    sameCount("studyDays", decoded.studyDays.size)
+    sameCount("timeEntries", decoded.timeEntries.size)
+    require(decoded.topics.map { it.id }.distinct().size == decoded.topics.size) {
+        "Planario contiene identificadores de temas repetidos."
+    }
+    require(decoded.fixedObjectives.map { it.id }.distinct().size ==
+        decoded.fixedObjectives.size) {
+        "Planario contiene identificadores de objetivos repetidos."
+    }
+    require(decoded.timeEntries.map { it.id }.distinct().size ==
+        decoded.timeEntries.size) {
+        "Planario contiene identificadores de registros de tiempo repetidos."
+    }
+    return decoded
 }
