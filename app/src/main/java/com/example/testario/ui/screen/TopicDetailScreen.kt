@@ -864,8 +864,10 @@ private fun TopicHeaderCard(questionCount: Int, failureCount: Int, answeredCount
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             TopicMiniStat("Preguntas", questionCount.toString(), Modifier.weight(1f))
-            TopicMiniStat("Fallos", failureCount.toString(), Modifier.weight(1f))
-            TopicMiniStat("Respondidas", answeredCount.toString(), Modifier.weight(1f))
+            TopicMiniStat("En fallos", failureCount.toString(), Modifier.weight(1f))
+            // timesAnswered counts repeated attempts, not unique questions;
+            // it can legitimately exceed the number of questions in the topic.
+            TopicMiniStat("Intentos test", answeredCount.toString(), Modifier.weight(1f))
         }
     }
 }
