@@ -634,9 +634,9 @@ fun HomeScreen(
                                                     slots.forEach { index ->
                                                         if (index == visibleWebLinks.size) {
                                                             Card(
-                                                                modifier = Modifier.weight(1f).clickable {
-                                                                    showManageWebLinks = true
-                                                                },
+                                                                modifier = Modifier.weight(1f).clickable(
+                                                                    onClickLabel = "Añadir enlace"
+                                                                ) { showManageWebLinks = true },
                                                                 shape = RoundedCornerShape(15.dp),
                                                                 colors = CardDefaults.cardColors(
                                                                     containerColor = TestarioSurfaceLight),
