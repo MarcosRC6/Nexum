@@ -128,7 +128,8 @@ internal fun EditableOcclusionImage(
                                                     if (it.id != mask.id) it else
                                                         OcclusionResize.apply(
                                                             it, handle,
-                                                            drag.x / fit.width, drag.y / fit.height
+                                                            (drag.x / fit.width).toDouble(),
+                                                            (drag.y / fit.height).toDouble()
                                                         )
                                                 })
                                             })
