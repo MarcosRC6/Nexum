@@ -144,6 +144,7 @@ class StudyTimerForegroundService : Service() {
     }
 
     private fun recoverPendingTimerIfNeeded() {
+        if (PlanarioDependencies.studyRepository.recoveryError.value != null) return
         val recoveredSession = PlanarioDependencies
             .studyTimerController
             .recoverPendingStudyTimerIfNeeded()
