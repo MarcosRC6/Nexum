@@ -100,11 +100,13 @@ class StudyLocalDataSource(
             .putString(KEY_DATA, body)
             .remove(KEY_RECOVERY_LOCKED)
             .commit()
-        if (restored) {
-            _recoveryError.value = null
-            PlanarioWidgetUpdater.updateTodayWidget(appContext)
-        }
+        if (restored) _recoveryError.value = null
         return restored
+    }
+
+    /** Update widgets only after StudyRepository publishes the restored state. */
+    fun refreshWidgetsAfterRestore() {
+        PlanarioWidgetUpdater.updateTodayWidget(appContext)
     }
 
     fun exportToJson(data: StoredStudyData): String {
