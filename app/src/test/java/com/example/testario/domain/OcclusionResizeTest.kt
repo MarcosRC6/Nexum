@@ -68,4 +68,12 @@ class OcclusionResizeTest {
         assertEquals(original, OcclusionResize.translate(original, Double.NaN, 0.0))
     }
 
+    @Test fun tinyLabelsCanBeCoveredWithMasksSmallerThanFourPercent() {
+        val tiny = OcclusionResize.apply(original, OcclusionHandle.BOTTOM_RIGHT, -0.39, -0.19)
+        assertTrue(tiny.width > 0.0 && tiny.width < 0.04)
+        assertTrue(tiny.height > 0.0 && tiny.height < 0.04)
+        assertTrue(tiny.x + tiny.width <= 1.0)
+        assertTrue(tiny.y + tiny.height <= 1.0)
+    }
+
 }
