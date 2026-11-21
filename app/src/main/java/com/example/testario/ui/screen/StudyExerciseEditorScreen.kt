@@ -315,36 +315,49 @@ fun StudyExerciseEditorScreen(
             }
 
             if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) {
-                OutlinedTextField(
-                    value = prompt, onValueChange = { prompt = it },
-                    label = { Text("Enunciado") }, modifier = Modifier.fillMaxWidth(), minLines = 2
-                )
-                Box {
-                    OutlinedButton(onClick = { showImageOptions = true },
-                        modifier = Modifier.fillMaxWidth()) { Text("Añadir imagen") }
-                    DropdownMenu(expanded = showImageOptions,
-                        onDismissRequest = { showImageOptions = false }) {
-                        DropdownMenuItem(text = { Text("Crear imagen") }, onClick = {
-                            showImageOptions = false
-                            if (imageUri != null && solutions.any { it.points.isNotEmpty() }) {
-                                error = "Borra los marcadores existentes antes de cambiar a un dibujo."
-                            } else {
-                                sketchEnabled = true; imageUri = null; sketchMode = SketchMode.DRAW
+                Column(
+                    Modifier.fillMaxWidth()
+                        .background(TestarioSurface, RoundedCornerShape(24.dp)).padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Enunciado", color = TestarioText,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f))
+                        Box {
+                            TextButton(onClick = { showImageOptions = true }) {
+                                Text("Añadir imagen", color = TestarioPrimary)
                             }
-                        })
-                        DropdownMenuItem(text = { Text("Importar imagen") }, onClick = {
-                            showImageOptions = false; chooseImage("written")
-                        })
+                            DropdownMenu(expanded = showImageOptions,
+                                onDismissRequest = { showImageOptions = false }) {
+                                DropdownMenuItem(text = { Text("Crear imagen") }, onClick = {
+                                    showImageOptions = false
+                                    if (imageUri != null && solutions.any { it.points.isNotEmpty() }) {
+                                        error = "Borra los marcadores existentes antes de cambiar a un dibujo."
+                                    } else {
+                                        sketchEnabled = true; imageUri = null; sketchMode = SketchMode.DRAW
+                                    }
+                                })
+                                DropdownMenuItem(text = { Text("Importar imagen") }, onClick = {
+                                    showImageOptions = false; chooseImage("written")
+                                })
+                            }
+                        }
                     }
+                    OutlinedTextField(
+                        value = prompt, onValueChange = { prompt = it },
+                        label = { Text("Texto del enunciado") },
+                        modifier = Modifier.fillMaxWidth(), minLines = 3,
+                        shape = RoundedCornerShape(18.dp)
+                    )
                 }
                 if (sketchEnabled) {
                     OutlinedButton(onClick = { sketchEnabled = false }, modifier = Modifier.fillMaxWidth()) {
                         Text("Cerrar creador de imagen")
                     }
                 }
-                if ((sketchEnabled && sketchMode == SketchMode.MARK) ||
-                    (imageUri != null && photoMarkerMode)) {
-                    Text("Selecciona la solución que vas a colocar", color = TestarioText,
+                if (sketchEnabled || imageUri != null) {
+                    Text("Número que quieres colocar (puedes escribir después)", color = TestarioText,
                         style = MaterialTheme.typography.titleSmall)
                     Row(Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -556,17 +569,17 @@ fun StudyExerciseEditorScreen(
 
 
             } else {
-                val simpleAnki = flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)
-                Text(
-                    if (simpleAnki) "Tarjeta · pregunta y respuestas ocultables"
-                    else "Tarjeta heredada · ${flashKind.name}",
-                    color = TestarioText, style = MaterialTheme.typography.titleMedium
-                )
-                if (!simpleAnki) {
-                    Text("Este formato antiguo se conserva por compatibilidad. Las tarjetas nuevas usan un editor simplificado.",
-                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                val simpleAnki = flashKind in setOf(
+                    FlashcardKind.BASIC, FlashcardKind.CLOZE, FlashcardKind.IMAGE_OCCLUSION)
+                Column(
+                    Modifier.fillMaxWidth()
+                        .background(TestarioSurface, RoundedCornerShape(24.dp)).padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tarjeta", color = TestarioText,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f))
                     Box {
                         TextButton(onClick = { showAnkiImageOptions = true }) {
                             Text("Añadir imagen", color = TestarioPrimary)
@@ -578,7 +591,7 @@ fun StudyExerciseEditorScreen(
                                 ankiImageSlot = "front"
                                 showAnkiImageSourceOptions = true
                             })
-                            DropdownMenuItem(text = { Text("Imagen de respuesta") }, onClick = {
+                            DropdownMenuItem(text = { Text("Imagen de explicación") }, onClick = {
                                 showAnkiImageOptions = false
                                 ankiImageSlot = "back"
                                 showAnkiImageSourceOptions = true
@@ -611,10 +624,16 @@ fun StudyExerciseEditorScreen(
                 }
                 OutlinedTextField(
                     value = front, onValueChange = { front = it; error = null },
-                    label = { Text("Pregunta o texto de la tarjeta") },
-                    modifier = Modifier.fillMaxWidth(), minLines = 3
+                    label = { Text("Texto de la tarjeta") },
+                    modifier = Modifier.fillMaxWidth(), minLines = 3,
+                    shape = RoundedCornerShape(18.dp)
                 )
-                if (simpleAnki) {
+                }
+                if (!simpleAnki) {
+                    Text("Formato histórico conservado por compatibilidad.",
+                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                }
+                if (simpleAnki && flashKind != FlashcardKind.IMAGE_OCCLUSION) {
                     TextButton(onClick = { ankiHelpExpanded = !ankiHelpExpanded }) {
                         Text(if (ankiHelpExpanded) "Cómo funciona  ▴" else "Cómo funciona  ▾")
                     }
@@ -666,12 +685,9 @@ fun StudyExerciseEditorScreen(
                 }
                 OutlinedTextField(
                     value = back, onValueChange = { back = it },
-                    label = { Text(if (flashKind == FlashcardKind.CLOZE ||
-                        (flashKind == FlashcardKind.BASIC &&
-                            runCatching { ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty() }
-                                .getOrDefault(false))) "Explicación (opcional)"
+                    label = { Text(if (simpleAnki) "Explicación (opcional)"
                         else "Respuesta") },
-                    modifier = Modifier.fillMaxWidth(), minLines = 2
+                    modifier = Modifier.fillMaxWidth(), minLines = 1
                 )
                 if (flashKind == FlashcardKind.TYPE_ANSWER) {
                     OutlinedTextField(
