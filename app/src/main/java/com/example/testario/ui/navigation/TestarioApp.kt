@@ -83,7 +83,13 @@ fun TestarioApp(
     val context = LocalContext.current
     val timerState by PlanarioDependencies.studyTimerController.state.collectAsState()
     val recoveryError by libraryViewModel.recoveryError.collectAsState()
+    val planningRecoveryError by PlanarioDependencies.studyRepository.recoveryError.collectAsState()
+    val activeRecoveryWarning = listOfNotNull(recoveryError, planningRecoveryError)
+        .joinToString("\n\n")
     var recoveryNoticeDismissed by remember { mutableStateOf(false) }
+    LaunchedEffect(activeRecoveryWarning) {
+        if (activeRecoveryWarning.isNotBlank()) recoveryNoticeDismissed = false
+    }
     var showTimerExitDialog by remember { mutableStateOf(false) }
     var announcedRelease by remember { mutableStateOf<NexumRelease?>(null) }
     var dismissedUpdateNotice by remember { mutableStateOf(false) }
@@ -448,14 +454,16 @@ fun TestarioApp(
             }
         }
 
-        if (recoveryError != null && !recoveryNoticeDismissed) {
+        if (activeRecoveryWarning.isNotBlank() && !recoveryNoticeDismissed) {
             AlertDialog(
                 onDismissRequest = {},
-                title = { Text("Biblioteca protegida") },
+                title = { Text("Datos protegidos: revisa el almacenamiento") },
                 text = {
-                    Text(recoveryError.orEmpty() +
-                        "\n\nLa base original se conserva. En Ajustes puedes restaurar una copia global ZIP compatible. " +
-                        "No crees temas ni realices sincronizaciones hasta recuperar los datos.")
+                    Text(activeRecoveryWarning +
+                        "\n\nNo desinstales ni borres datos. Si tienes cambios recientes " +
+                        "todavía visibles, exporta primero una copia GLOBAL COMPLETA " +
+                        "ZIP fuera del móvil. Si necesitas restaurar datos, usa únicamente " +
+                        "una copia verificada en Ajustes.")
                 },
                 confirmButton = {
                     com.example.testario.ui.theme.NeonButton(onClick = {
