@@ -4,9 +4,15 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.clip
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.material3.Text
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -98,9 +104,11 @@ internal fun StudyVisualImage(
     showCorrection: Boolean = false,
     showMarkerNumbers: Boolean = false,
     markerStatuses: Map<String, Boolean> = emptyMap(),
-    onTapImage: ((Double, Double) -> Unit)? = null
+    onTapImage: ((Double, Double) -> Unit)? = null,
+    enableFullscreen: Boolean = true
 ) {
     val context = LocalContext.current
+    var fullScreen by remember(imageUri) { mutableStateOf(false) }
     var intrinsic by remember(imageUri) { mutableStateOf<Pair<Int, Int>?>(null) }
     LaunchedEffect(imageUri) {
         intrinsic = withContext(Dispatchers.IO) {
@@ -117,6 +125,10 @@ internal fun StudyVisualImage(
                 detectTapGestures { p ->
                     fit.toImage(p.x, p.y)?.let { (x,y) -> onTapImage(x,y) }
                 }
+            }
+        } else if (enableFullscreen) {
+            Modifier.pointerInput(imageUri) {
+                detectTapGestures(onTap = { fullScreen = true })
             }
         } else Modifier
         Box(Modifier.fillMaxSize().then(touch)) {
@@ -161,6 +173,55 @@ internal fun StudyVisualImage(
                             y = with(density) { at.y.toDp() } - 13.dp
                         )
                     )
+                }
+            }
+        }
+    }
+    if (fullScreen && enableFullscreen) {
+        var scale by remember(imageUri) { mutableFloatStateOf(1f) }
+        var offset by remember(imageUri) { mutableStateOf(Offset.Zero) }
+        Dialog(
+            onDismissRequest = { fullScreen = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(Modifier.fillMaxSize().background(Color(0xFF090C15))) {
+                Box(
+                    Modifier.fillMaxSize().clipToBounds()
+                        .pointerInput(imageUri) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                val next = (scale * zoom).coerceIn(1f, 6f)
+                                val horizontal = (size.width * (next - 1f) / 2f).coerceAtLeast(0f)
+                                val vertical = (size.height * (next - 1f) / 2f).coerceAtLeast(0f)
+                                scale = next
+                                offset = if (next <= 1.01f) Offset.Zero else Offset(
+                                    (offset.x + pan.x).coerceIn(-horizontal, horizontal),
+                                    (offset.y + pan.y).coerceIn(-vertical, vertical)
+                                )
+                            }
+                        }
+                ) {
+                    StudyVisualImage(
+                        imageUri = imageUri, modifier = Modifier.fillMaxSize().graphicsLayer {
+                            scaleX = scale; scaleY = scale
+                            translationX = offset.x; translationY = offset.y
+                        },
+                        masks = masks, markers = markers,
+                        annotations = annotations, showCorrection = showCorrection,
+                        showMarkerNumbers = showMarkerNumbers,
+                        markerStatuses = markerStatuses,
+                        enableFullscreen = false
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().background(Color(0xD9090C15))
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Pellizca para ampliar · arrastra con dos dedos",
+                        color = Color.White, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { fullScreen = false }) {
+                        Text("✕", color = Color.White)
+                    }
                 }
             }
         }
