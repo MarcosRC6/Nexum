@@ -319,6 +319,24 @@ class StudyTimerController {
 
         val minutes = (elapsedSeconds / 60L).toInt()
 
+        // The foreground service normally collects this SharedFlow. If Android
+        // has stopped that collector, replay=0 would silently discard the
+        // session AFTER resetStudyTimer erased the only recovery snapshot.
+        // Retain a PAUSED previous-day timer instead; restart or the user's
+        // explicit "stop and save" action can persist its time safely.
+        if (TimerAutoClosePolicy.preserveForRecovery(
+                minutes, _autoClosedStudyTimerSessions.subscriptionCount.value)) {
+            studyAccumulatedSecondsBeforeRun = elapsedSeconds
+            studyStartedAtElapsedRealtimeMillis = null
+            studyStartedAtWallMillis = null
+            _state.value = _state.value.copy(
+                studyElapsedSeconds = elapsedSeconds,
+                studyTimerState = StudyTimerState.PAUSED
+            )
+            persistStudyTimerNow(StudyTimerState.PAUSED, elapsedSeconds)
+            return true
+        }
+
         resetStudyTimer(clearPersistedState = true)
 
         return FinishedStudyTimerSession(
