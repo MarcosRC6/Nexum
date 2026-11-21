@@ -109,6 +109,24 @@ class ImportOrganizationMergeTest {
             updated.groups.first { it.name == "Sector" }.parentGroupId)
     }
 
+    @Test fun conflictingPersonalTemplateIsPreservedAndImportedCopyRemainsIdempotent() {
+        val personal = source.testTemplates.single().copy(
+            id = "personal-template", questionCount = 25
+        )
+        val initial = TestarioDatabase(testTemplates = listOf(personal))
+        val (firstChoices, firstPlan) = stage(initial, DuplicateTopicAction.RENAME_AUTO)
+        val first = ImportOrganizationMerge.merge(initial, source, firstChoices, firstPlan)
+        assertEquals(2, first.testTemplates.size)
+        assertEquals("Repaso callejero", first.testTemplates[0].name)
+        assertEquals(25, first.testTemplates[0].questionCount)
+        assertEquals("Repaso callejero (2)", first.testTemplates[1].name)
+
+        val (againChoices, againPlan) = stage(first, DuplicateTopicAction.MERGE)
+        val repeated = ImportOrganizationMerge.merge(first, source, againChoices, againPlan)
+        assertEquals(2, repeated.testTemplates.size)
+        assertEquals(first.testTemplates, repeated.testTemplates)
+    }
+
     @Test fun malformedHierarchyRejectsBeforeAnyCommit() {
         val invalid = source.copy(groups = listOf(
             TopicGroup(id = "orphan", name = "Orphan", parentGroupId = "absent")
