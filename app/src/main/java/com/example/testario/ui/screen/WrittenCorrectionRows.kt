@@ -22,7 +22,7 @@ internal fun WrittenCorrectionRows(
 ) {
     val numbered = exercise.solutions.any { it.points.isNotEmpty() }
     if (numbered) {
-        exercise.solutions.forEachIndexed { index, solution ->
+        StudyExerciseRules.positionalSolutions(exercise).forEachIndexed { index, solution ->
             val entry = answers.getOrNull(index).orEmpty()
             val accepted = solution.id in grade.correctIds
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
