@@ -228,7 +228,8 @@ fun StudyExerciseEditorScreen(
             diagram = null,
             sketch = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI && sketchEnabled)
                 SketchDrawing(strokes = sketchStrokes) else null,
-            revision = original?.revision ?: 1, draft = draft
+            revision = original?.revision ?: 1, draft = draft,
+            flagged = original?.flagged ?: false
         )
     }
 
