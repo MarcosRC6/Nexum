@@ -848,6 +848,7 @@ class StudyRepository(
         _studyDays.value = normalized.studyDays
         _timeEntries.value = normalized.timeEntries
         _settings.value = normalized.settings
+        localDataSource.refreshWidgetsAfterRestore()
         return true
     }
 
