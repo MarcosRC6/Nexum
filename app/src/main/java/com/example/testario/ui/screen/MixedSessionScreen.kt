@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.domain.ClozeMarkupEngine
+import com.example.testario.domain.OcclusionRevealRules
 import com.example.testario.domain.StudyExerciseRules
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.MixedSessionViewModel
@@ -404,8 +405,11 @@ fun MixedSessionScreen(
                             annotations = if (reverse) card.backAnnotations else card.frontAnnotations,
                             modifier = Modifier.fillMaxWidth().height(220.dp),
                             masks = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
-                                card.masks.filter { it.id == item.variant } else emptyList(),
-                            showCorrection = showAnswer)
+                                OcclusionRevealRules.covered(
+                                    card.masks, item.variant, showAnswer
+                                ) else emptyList(),
+                            showCorrection = showAnswer &&
+                                card.kind != FlashcardKind.IMAGE_OCCLUSION)
                     }
                     if (!showAnswer) {
                         Button(onClick = { session.revealAnki() },
