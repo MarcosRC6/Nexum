@@ -65,6 +65,8 @@ import com.example.testario.data.model.ImportPreview
 import com.example.testario.data.model.Topic
 import com.example.testario.domain.UnifiedDataManager
 import com.example.testario.domain.NexumExportNames
+import com.example.testario.domain.NexumNearbyArchive
+import com.example.testario.data.local.WebQuickLinkStore
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioGreenDark
@@ -78,6 +80,7 @@ import com.example.testario.ui.theme.TestarioSurfaceLight
 import com.example.testario.ui.theme.TestarioText
 import com.example.testario.viewmodel.BehaviorSettingsViewModel
 import com.example.testario.viewmodel.HomeSettingsViewModel
+import com.example.testario.domain.ImportBatchDecision
 import com.example.testario.viewmodel.ImportExportViewModel
 import com.example.testario.viewmodel.LibraryViewModel
 import com.example.testario.viewmodel.StatsViewModel
@@ -88,7 +91,6 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
-private enum class ExportMode { COMPLETE, SIMPLE }
 private enum class ExportScope { ALL, SINGLE, MULTIPLE }
 private enum class ExportTarget { LIBRARY, PLAN }
 
@@ -106,13 +108,17 @@ fun SettingsScreen(
     openHomeSettingsInitially: Boolean = false
 ) {
     val context = LocalContext.current
+    val webLinkStore = remember { WebQuickLinkStore.get(context.applicationContext) }
+    var showManageWebLinks by remember { mutableStateOf(false) }
+    if (showManageWebLinks) {
+        WebQuickLinksManagerDialog(store = webLinkStore, onDismiss = { showManageWebLinks = false })
+    }
     val database by libraryViewModel.database.collectAsState()
 
     val coroutineScope = rememberCoroutineScope()
     var isLoading by remember { mutableStateOf(false) }
     var uiScaleDraft by remember(themeViewModel.uiScale) { mutableStateOf(themeViewModel.uiScale) }
 
-    var exportMode by remember { mutableStateOf(ExportMode.COMPLETE) }
     var exportScope by remember { mutableStateOf(ExportScope.ALL) }
     var selectedSingleTopicId by remember { mutableStateOf<String?>(null) }
     var selectedMultipleTopicIds by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -120,13 +126,13 @@ fun SettingsScreen(
     var multiDropdownExpanded by remember { mutableStateOf(false) }
 
     var pendingExportTopicIds by remember { mutableStateOf<List<String>?>(null) }
-    var pendingExportText by remember { mutableStateOf<String?>(null) }
 
     var pendingImportText by remember { mutableStateOf<String?>(null) }
     var pendingImportFileName by remember { mutableStateOf<String?>(null) }
     var pendingImportPreview by remember { mutableStateOf(null as ImportPreview?) }
     var pendingRestoreText by remember { mutableStateOf<String?>(null) }
 
+    var pendingImportDecisions by remember { mutableStateOf<List<ImportBatchDecision>>(emptyList()) }
     var importedTopicsQueue by remember { mutableStateOf<List<Topic>>(emptyList()) }
     var currentImportTopic by remember { mutableStateOf<Topic?>(null) }
 
@@ -143,6 +149,7 @@ fun SettingsScreen(
     var customTopicName by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
     val unifiedDataManager = remember { UnifiedDataManager(context.applicationContext) }
+    val verifiedGlobalRestore = remember { NexumNearbyArchive(context.applicationContext) }
     val studySettings by PlanarioDependencies.studyRepository.settings.collectAsState()
     val studyTimerState by PlanarioDependencies.studyTimerController.state.collectAsState()
     val timerHasUnsavedTime = studyTimerState.studyTimerState != StudyTimerState.STOPPED
@@ -171,33 +178,65 @@ fun SettingsScreen(
         database.topics.sortedWith(Comparator { t1, t2 -> t1.name.naturalCompareTo(t2.name) })
     }
 
-    val startImportWorkflow: (List<Topic>) -> Unit = { topics ->
-        coroutineScope.launch {
-            var currentQueue = topics
-            val dbTopics = libraryViewModel.database.value.topics.toMutableList()
-            var conflictFound = false
+    val cancelImportWorkflow: () -> Unit = {
+        showPreviewDialog = false
+        showDuplicateDialog = false
+        showRenameDialog = false
+        pendingImportText = null
+        pendingImportFileName = null
+        pendingImportPreview = null
+        pendingImportDecisions = emptyList()
+        currentImportTopic = null
+        importedTopicsQueue = emptyList()
+        coroutineScope.launch { importExportViewModel.cancelPendingImport() }
+    }
 
-            while (currentQueue.isNotEmpty() && !conflictFound) {
-                val next = currentQueue.first()
-                val conflict = dbTopics.any { it.name.equals(next.name, true) }
-                if (conflict) {
-                    currentImportTopic = next
-                    importedTopicsQueue = currentQueue.drop(1)
-                    showDuplicateDialog = true
-                    conflictFound = true
-                } else {
-                    importExportViewModel.importSingleTopicProcessed(next, DuplicateTopicAction.RENAME_AUTO)
-                    dbTopics.add(next)
-                    currentQueue = currentQueue.drop(1)
-                }
+    // Nothing is saved while the user decides how to resolve duplicate names.
+    val startImportWorkflow: (List<Topic>) -> Unit = { incoming ->
+        coroutineScope.launch {
+            val choices = pendingImportDecisions.toMutableList()
+            val usedNames = libraryViewModel.database.value.topics
+                .map { it.name.trim() }.toMutableList()
+            choices.forEach { choice ->
+                if (choice.action != DuplicateTopicAction.MERGE)
+                    usedNames += (choice.customName ?: choice.topic.name).trim()
             }
-            if (currentQueue.isEmpty() && !conflictFound) {
-                message = "Temas importados correctamente."
+            var queue = incoming
+            while (queue.isNotEmpty()) {
+                val next = queue.first()
+                if (usedNames.any { it.equals(next.name.trim(), ignoreCase = true) }) {
+                    pendingImportDecisions = choices.toList()
+                    currentImportTopic = next
+                    importedTopicsQueue = queue.drop(1)
+                    showDuplicateDialog = true
+                    return@launch
+                }
+                choices += ImportBatchDecision(next, DuplicateTopicAction.RENAME_AUTO)
+                usedNames += next.name.trim()
+                queue = queue.drop(1)
+            }
+
+            isLoading = true
+            try {
+                val report = importExportViewModel.importBatchProcessed(choices)
+                message = "Importación completa: ${report.outcomes.size} temas analizados; " +
+                    "${report.created} nuevos, ${report.merged} fusionados, " +
+                    "${report.identical} idénticos. " +
+                    "${report.addedQuestions} preguntas y ${report.addedExercises} ejercicios nuevos; " +
+                    "${report.duplicatedQuestions} preguntas y ${report.duplicatedExercises} ejercicios duplicados."
                 pendingImportText = null
                 pendingImportFileName = null
                 pendingImportPreview = null
+                pendingImportDecisions = emptyList()
                 currentImportTopic = null
                 importedTopicsQueue = emptyList()
+            } catch (failure: Exception) {
+                message = "No se aplicó el lote: ${failure.message ?: "Error de importación."}"
+                pendingImportDecisions = emptyList()
+                currentImportTopic = null
+                importedTopicsQueue = emptyList()
+            } finally {
+                isLoading = false
             }
         }
     }
@@ -215,8 +254,11 @@ fun SettingsScreen(
                 val preview = importExportViewModel.previewImport(rawText, fileName)
 
                 if (!preview.canImport) {
-                    message = "Error al leer el archivo. Revisa el formato."
+                    message = "Error al leer el archivo: " +
+                        preview.errors.joinToString("; ").ifBlank { "No hay temas válidos." }
+                    importExportViewModel.cancelPendingImport()
                 } else {
+                    pendingImportDecisions = emptyList()
                     pendingImportText = rawText
                     pendingImportFileName = fileName
                     pendingImportPreview = preview
@@ -225,22 +267,6 @@ fun SettingsScreen(
                 }
             } catch (_: Exception) {
                 message = "Error al importar temas."
-            } finally {
-                isLoading = false
-            }
-        }
-    }
-
-    val exportJsonLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        isLoading = true
-        coroutineScope.launch {
-            try {
-                context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(pendingExportText ?: "") }
-                message = "Temas exportados correctamente."
-                pendingExportText = null
-            } catch (_: Exception) {
-                message = "Error al exportar temas."
             } finally {
                 isLoading = false
             }
@@ -322,13 +348,14 @@ fun SettingsScreen(
         }
     }
 
-    val exportPlanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri: Uri? ->
+    val exportPlanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         isLoading = true
         coroutineScope.launch {
             try {
-                val raw = PlanarioDependencies.studyRepository.exportBackupJson()
-                context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(raw) }
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    unifiedDataManager.exportPlanZip(output)
+                }
                 message = "Plan exportado correctamente."
             } catch (_: Exception) {
                 message = "Error al exportar el plan."
@@ -529,7 +556,7 @@ fun SettingsScreen(
 
                                 Spacer(Modifier.height(8.dp))
                                 Text("Accesos rápidos", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                                Text("Configura los cuatro accesos del bloque de Inicio.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                Text("Configura los accesos de Inicio y tus propios enlaces web.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                                 HomeSettingToggle(
                                     title = "Biblioteca",
                                     checked = homeSettingsViewModel.showLibraryShortcut,
@@ -550,6 +577,10 @@ fun SettingsScreen(
                                     checked = homeSettingsViewModel.showStatsShortcut,
                                     onCheckedChange = homeSettingsViewModel::changeShowStatsShortcut
                                 )
+                                OutlinedButton(
+                                    onClick = { showManageWebLinks = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("Gestionar enlaces web") }
 
                                 if (!homeSettingsViewModel.isDefaultLayout()) {
                                     Spacer(Modifier.height(6.dp))
@@ -575,8 +606,8 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("Comportamiento de los tests", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                                Text("Prioridad de Fallos y reglas de salida del repaso.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                Text("Comportamiento de los ejercicios", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                Text("Preguntas falladas, repaso y tarjetas Anki.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
                             Text(if (showBehaviorSettings) "▲" else "▼", color = TestarioPrimary)
                         }
@@ -606,6 +637,23 @@ fun SettingsScreen(
                                     }
                                     Spacer(Modifier.width(10.dp))
                                     Checkbox(checked = behaviorSettingsViewModel.prioritizeFailuresInNormalTests, onCheckedChange = null)
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable {
+                                            libraryViewModel.setAnkiReviewEnabled(!database.ankiReviewEnabled)
+                                        }.padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("Repetición espaciada Anki",
+                                            style = MaterialTheme.typography.titleMedium, color = TestarioText)
+                                        Text("Opcional. Programa las tarjetas para repasarlas en intervalos crecientes según tu valoración (Otra vez, Difícil, Bien o Fácil). Nunca altera la nota de un examen y el estudio libre no modifica fechas.",
+                                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                    Checkbox(checked = database.ankiReviewEnabled, onCheckedChange = null)
                                 }
 
                                 Text("Salir de Fallos", style = MaterialTheme.typography.titleMedium, color = TestarioText)
@@ -882,11 +930,8 @@ fun SettingsScreen(
                                         }
 
                                         if (exportTarget == ExportTarget.LIBRARY) {
-                                            Text("Formato", style = MaterialTheme.typography.titleMedium, color = TestarioText)
-                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                JsonModeButton("Completo (ZIP)", exportMode == ExportMode.COMPLETE, Modifier.weight(1f)) { exportMode = ExportMode.COMPLETE }
-                                                JsonModeButton("Simple (JSON)", exportMode == ExportMode.SIMPLE, Modifier.weight(1f)) { exportMode = ExportMode.SIMPLE }
-                                            }
+                                            Text("Formato: ZIP de NEXUM (incluye recursos y nuevos ejercicios)",
+                                                style = MaterialTheme.typography.bodyMedium, color = TestarioMutedText)
 
                                             Text("Temas", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                                             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -934,21 +979,9 @@ fun SettingsScreen(
                                                         return@Button
                                                     }
                                                     pendingExportTopicIds = ids
-                                                    if (exportMode == ExportMode.COMPLETE) {
-                                                        exportZipLauncher.launch(NexumExportNames.library(zip = true, partial = ids != null))
-                                                    } else {
-                                                        isLoading = true
-                                                        coroutineScope.launch {
-                                                            try {
-                                                                pendingExportText = importExportViewModel.exportSimpleJson(ids)
-                                                                isLoading = false
-                                                                exportJsonLauncher.launch(NexumExportNames.library(zip = false, partial = ids != null))
-                                                            } catch (_: Exception) {
-                                                                message = "Error al exportar la Biblioteca."
-                                                                isLoading = false
-                                                            }
-                                                        }
-                                                    }
+                                                    exportZipLauncher.launch(
+                                                        NexumExportNames.library(zip = true, partial = ids != null)
+                                                    )
                                                 },
                                                 modifier = Modifier.fillMaxWidth().height(50.dp),
                                                 shape = RoundedCornerShape(16.dp)
@@ -1127,7 +1160,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showUnifiedRestoreConfirm = false; pendingUnifiedBytes = null },
             title = { Text("Restaurar copia completa") },
-            text = { Text("Se sustituirán Biblioteca, estadísticas, planificación, objetivos, ajustes y vínculos de test rápido por los de la copia seleccionada. Los tiempos registrados en la copia reemplazarán los actuales." +
+            text = { Text("Se sustituirán Biblioteca, estadísticas, planificación, objetivos, ajustes y vínculos de test rápido. Antes de cambiar nada, NEXUM guardará una copia completa verificable del estado anterior. Si la sustitución falla, intentará recuperarlo y conservará el respaldo." +
                 if (timerHasUnsavedTime) "\n\nGuarda y termina el cronómetro antes de restaurar: nunca se descartará automáticamente." else "") },
             confirmButton = {
                 Button(
@@ -1137,12 +1170,16 @@ fun SettingsScreen(
                         if (bytes != null) {
                             isLoading = true
                             coroutineScope.launch {
-                                val ok = runCatching { unifiedDataManager.restoreGlobalBackup(bytes) }.getOrDefault(false)
-                                if (ok) {
+                                val result = runCatching {
+                                    verifiedGlobalRestore.applyUserSelectedGlobalBackup(bytes)
+                                }
+                                result.onSuccess { recoveryName ->
                                     PlanarioDependencies.schedulePlanarioNotifications()
-                                    message = "Copia completa restaurada. Cierra y abre la app para recargar también todos los ajustes visuales."
-                                } else {
-                                    message = "Error: la copia completa no es válida."
+                                    message = "Copia global restaurada. Se ha conservado el estado previo en " +
+                                        "$recoveryName. Reinicia NEXUM para recargar todos los ajustes."
+                                }.onFailure { failure ->
+                                    message = "Restauración cancelada o fallida: " +
+                                        (failure.message ?: "Se ha conservado una copia de recuperación.")
                                 }
                                 pendingUnifiedBytes = null
                                 showUnifiedRestoreConfirm = false
@@ -1161,16 +1198,26 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showTestarioBackupRestoreConfirm = false; pendingTestarioBackupBytes = null },
             title = { Text("Copia anterior de Biblioteca detectada") },
-            text = { Text("El archivo corresponde a una copia completa de Testario. Restaurará Biblioteca, preguntas, imágenes, grupos, plantillas y estadísticas de test; tu Plan, tiempos y objetivos de estudio no se tocarán.") },
+            text = { Text("Esta copia sustituye Biblioteca, preguntas, imágenes, grupos, plantillas y estadísticas de test. NEXUM guardará antes una copia completa verificable para recuperar los datos anteriores ante un fallo. El Plan no se cambia si la operación termina bien.") },
             confirmButton = {
                 Button(
+                    enabled = !timerHasUnsavedTime,
                     onClick = {
                         val bytes = pendingTestarioBackupBytes
                         if (bytes != null) {
                             isLoading = true
                             coroutineScope.launch {
-                                val ok = runCatching { unifiedDataManager.restoreTestarioBackup(bytes) }.getOrDefault(false)
-                                message = if (ok) "Copia de Biblioteca restaurada correctamente." else "Error: la copia de Biblioteca no es válida."
+                                val restore = runCatching {
+                                    verifiedGlobalRestore.applyUserSelectedTestarioBackup(bytes)
+                                }
+                                message = restore.fold(
+                                    onSuccess = { backupName ->
+                                        "Biblioteca restaurada. Copia del estado anterior: $backupName."
+                                    },
+                                    onFailure = { failure ->
+                                        "No se restauró la Biblioteca: ${failure.message ?: "Error de integridad."}"
+                                    }
+                                )
                                 pendingTestarioBackupBytes = null
                                 showTestarioBackupRestoreConfirm = false
                                 isLoading = false
@@ -1237,24 +1284,44 @@ fun SettingsScreen(
 
     if (showPreviewDialog) {
         val prev = pendingImportPreview
-        AlertDialog(onDismissRequest = { showPreviewDialog = false }, title = { Text("Previsualizar importación") }, text = { Text("Temas hallados: ${prev?.topicCount}\nPreguntas válidas: ${prev?.questionCount}") }, confirmButton = {
-            Button(onClick = {
-                isLoading = true
-                coroutineScope.launch {
-                    val topics = importExportViewModel.getTopicsFromRawText(pendingImportText!!, pendingImportFileName)
-                    showPreviewDialog = false
-                    isLoading = false
-                    startImportWorkflow(topics)
-                }
-            }) { Text("Aceptar") }
-        }, dismissButton = { OutlinedButton(onClick = { showPreviewDialog = false }) { Text("Cancelar") } })
+        AlertDialog(
+            onDismissRequest = cancelImportWorkflow,
+            title = { Text("Previsualizar importación") },
+            text = { Text(
+                "Temas encontrados: ${prev?.topicCount}\nElementos válidos: ${prev?.questionCount}\n" +
+                "Se resolverán los conflictos antes de importar y ningún tema se guardará por separado."
+            ) },
+            confirmButton = {
+                Button(onClick = {
+                    isLoading = true
+                    coroutineScope.launch {
+                        try {
+                            val topics = importExportViewModel.getTopicsFromRawText(
+                                requireNotNull(pendingImportText), pendingImportFileName
+                            )
+                            showPreviewDialog = false
+                            pendingImportDecisions = emptyList()
+                            isLoading = false
+                            startImportWorkflow(topics)
+                        } catch (failure: Exception) {
+                            message = "Lote inválido: ${failure.message}"
+                            cancelImportWorkflow()
+                        } finally {
+                            isLoading = false
+                        }
+                    }
+                }) { Text("Continuar") }
+            },
+            dismissButton = { OutlinedButton(onClick = cancelImportWorkflow) { Text("Cancelar") } }
+        )
     }
 
     if (showDuplicateDialog) {
         AlertDialog(
-            onDismissRequest = { showDuplicateDialog = false },
+            onDismissRequest = cancelImportWorkflow,
             title = { Text("Tema duplicado") },
-            text = { Text("Ya existe el tema \"${currentImportTopic?.name}\"") },
+            text = { Text("Ya existe el tema \"${currentImportTopic?.name}\". " +
+                "No se aplicará nada hasta confirmar todas las decisiones.") },
             confirmButton = {
                 Button(onClick = {
                     customTopicName = currentImportTopic?.name.orEmpty()
@@ -1263,31 +1330,48 @@ fun SettingsScreen(
                 }) { Text("Renombrar") }
             },
             dismissButton = {
-                OutlinedButton(onClick = {
-                    coroutineScope.launch {
-                        currentImportTopic?.let { importExportViewModel.importSingleTopicProcessed(it, DuplicateTopicAction.MERGE) }
+                Row {
+                    TextButton(onClick = cancelImportWorkflow) { Text("Cancelar lote") }
+                    OutlinedButton(onClick = {
+                        currentImportTopic?.let { topic ->
+                            pendingImportDecisions = pendingImportDecisions +
+                                ImportBatchDecision(topic, DuplicateTopicAction.MERGE)
+                        }
                         showDuplicateDialog = false
                         startImportWorkflow(importedTopicsQueue)
-                    }
-                }) { Text("Fusionar") }
+                    }) { Text("Fusionar") }
+                }
             }
         )
     }
 
     if (showRenameDialog) {
-        AlertDialog(onDismissRequest = { showRenameDialog = false }, title = { Text("Renombrar") }, text = { OutlinedTextField(value = customTopicName, onValueChange = { customTopicName = it }, label = { Text("Nombre") }) }, confirmButton = {
-            Button(onClick = {
-                if (customTopicName.trim().isNotBlank()) {
-                    coroutineScope.launch {
-                        currentImportTopic?.let { importExportViewModel.importSingleTopicProcessed(it, DuplicateTopicAction.RENAME, customTopicName.trim()) }
+        AlertDialog(
+            onDismissRequest = cancelImportWorkflow,
+            title = { Text("Renombrar") },
+            text = {
+                OutlinedTextField(
+                    value = customTopicName, onValueChange = { customTopicName = it },
+                    label = { Text("Nuevo nombre del tema") }
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (customTopicName.trim().isNotBlank()) {
+                        currentImportTopic?.let { topic ->
+                            pendingImportDecisions = pendingImportDecisions +
+                                ImportBatchDecision(topic, DuplicateTopicAction.RENAME, customTopicName.trim())
+                        }
                         showRenameDialog = false
                         customTopicName = ""
                         startImportWorkflow(importedTopicsQueue)
                     }
-                }
-            }) { Text("Guardar") }
-        })
+                }) { Text("Continuar") }
+            },
+            dismissButton = { OutlinedButton(onClick = cancelImportWorkflow) { Text("Cancelar lote") } }
+        )
     }
+
 }
 
 
