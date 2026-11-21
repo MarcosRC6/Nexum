@@ -51,8 +51,11 @@ class ImportExportViewModel(application: Application) : AndroidViewModel(applica
         importManager.importSingleTopicProcessed(topic, action, customName)
     }
 
-    suspend fun importBatchProcessed(decisions: List<ImportBatchDecision>) = withContext(Dispatchers.IO) {
-        importManager.importBatchProcessed(decisions)
+    suspend fun importBatchProcessed(
+        decisions: List<ImportBatchDecision>,
+        importedRawJson: String? = null
+    ) = withContext(Dispatchers.IO) {
+        importManager.importBatchProcessed(decisions, importedRawJson)
     }
 
     suspend fun cancelPendingImport() = withContext(Dispatchers.IO) {
