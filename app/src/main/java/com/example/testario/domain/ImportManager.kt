@@ -343,7 +343,10 @@ class ImportManager(private val context: Context, private val localStore: Testar
     }
 
     /** Preview and conflict decisions have NO side effects. Only this call commits the full batch. */
-    suspend fun importBatchProcessed(decisions: List<ImportBatchDecision>): ImportBatchPlan {
+    suspend fun importBatchProcessed(
+        decisions: List<ImportBatchDecision>,
+        importedRawJson: String? = null
+    ): ImportBatchPlan {
         val before = localStore.database.value
         require(before.version == DatabaseSchema.CURRENT_VERSION) {
             "Base de datos incompatible: no se puede importar."
@@ -354,7 +357,19 @@ class ImportManager(private val context: Context, private val localStore: Testar
         val plan = ImportBatchPlanner.prepare(before.topics, decisions) { topic ->
             resolveTopicImagePaths(regenerateTopicIds(topic))
         }
-        val replacement = before.copy(topics = plan.topics)
+        val importedDatabase = importedRawJson?.let { raw ->
+            runCatching {
+                json.decodeFromString<TestarioDatabase>(MigrationManager.migrate(raw))
+            }.getOrNull()
+        }
+        // An export includes groups and saved test templates. Keep them in the
+        // SAME atomic library commit, remapping all references to imported/merged
+        // topic IDs. Older text/simple formats still import topics alone.
+        val replacement = if (importedDatabase != null &&
+            (importedDatabase.groups.isNotEmpty() ||
+                importedDatabase.testTemplates.isNotEmpty())) {
+            ImportOrganizationMerge.merge(before, importedDatabase, decisions, plan)
+        } else before.copy(topics = plan.topics)
         commitBatchAndImages(before, replacement)
         return plan
     }
