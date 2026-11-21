@@ -138,7 +138,13 @@ object StudyExerciseRules {
             else {
                 if (card.front.isBlank() && card.frontImageUri.isNullOrBlank())
                     errors += "Falta pregunta o imagen."
+                // A photo with a written front can be saved as an ordinary
+                // study note; covering parts of the photo is OPTIONAL.
+                // Typed-answer cards still require an actual answer.
+                val frontOnlyImageNote = card.kind == FlashcardKind.BASIC &&
+                    card.front.isNotBlank() && !card.frontImageUri.isNullOrBlank()
                 if (card.back.isBlank() && card.backImageUri.isNullOrBlank() &&
+                    !frontOnlyImageNote &&
                     card.kind !in setOf(FlashcardKind.CLOZE, FlashcardKind.IMAGE_OCCLUSION))
                     errors += "Falta respuesta o imagen."
                 val ids = hashSetOf<String>()
