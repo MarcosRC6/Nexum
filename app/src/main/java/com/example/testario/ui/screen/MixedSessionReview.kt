@@ -91,19 +91,7 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
                             mode = SketchMode.PREVIEW, showMarkers = true,
                             markerStatuses = statuses)
                     }
-                    exercise.solutions.forEachIndexed { position, sol ->
-                        val text = response.writtenAnswers.getOrNull(position).orEmpty()
-                        val accepted = if (exercise.solutions.any { it.points.isNotEmpty() }) {
-                            sol.id in grade.correctIds
-                        } else {
-                            StudyExerciseRules.findAcceptedSolution(exercise, text) != null
-                        }
-                        Text("${position + 1}. ${text.ifBlank { "Sin responder" }} " +
-                            if (accepted) "✓" else "✗",
-                            color = if (accepted) TestarioGreen else TestarioRed)
-                        if (!accepted) Text("Solución: ${sol.text}", color = TestarioGreen,
-                            style = MaterialTheme.typography.bodySmall)
-                    }
+                    WrittenCorrectionRows(exercise, response.writtenAnswers, grade)
                     Text("Nota: ${"%.2f".format(grade.scoreOutOfTen)} / 10",
                         color = if (grade.scoreOutOfTen >= 5) TestarioGreen else TestarioRed)
                 }
@@ -125,7 +113,13 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
                             modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true
                         )
                     }
-                    Text(answer.ifBlank { question }, color = TestarioGreen)
+                    val revealedText = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
+                        card.back else answer
+                    if (revealedText.isNotBlank()) {
+                        Text(if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
+                            "Explicación" else "Respuesta", color = TestarioGreen)
+                        Text(revealedText, color = TestarioText)
+                    }
                 }
             }
         }
