@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.domain.ClozeMarkupEngine
+import com.example.testario.domain.OcclusionRevealRules
 import com.example.testario.domain.StudyExerciseRules
 import com.example.testario.ui.theme.*
 
@@ -109,8 +110,10 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
                             imageUri = it,
                             annotations = if (reverse) card.backAnnotations else card.frontAnnotations,
                             masks = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
-                                card.masks.filter { mask -> mask.id == item.variant } else emptyList(),
-                            modifier = Modifier.fillMaxWidth().height(220.dp), showCorrection = true
+                                OcclusionRevealRules.covered(card.masks, item.variant, true)
+                                else emptyList(),
+                            modifier = Modifier.fillMaxWidth().height(220.dp),
+                            showCorrection = card.kind != FlashcardKind.IMAGE_OCCLUSION
                         )
                     }
                     val revealedText = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
