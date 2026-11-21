@@ -98,7 +98,8 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
                     elapsedSeconds = newElapsed, remainingSeconds = remaining,
                     responses = active.responses.mapIndexed { idx, response ->
                         if (idx == active.currentIndex)
-                            response.copy(timeSpentSeconds = response.timeSpentSeconds + 1)
+                            response.copy(timeSpentSeconds = response.timeSpentSeconds +
+                                (newElapsed - active.elapsedSeconds).coerceAtLeast(0L))
                         else response
                     }
                 )
@@ -230,21 +231,25 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun saveAndLeave(): Boolean {
+        // If storage is full or unavailable, keep the live timer/session running.
+        if (!checkpoint()) return false
         ticker?.cancel()
-        return checkpoint()
+        ticker = null
+        return true
     }
 
     suspend fun finish(): Boolean {
-        ticker?.cancel()
         val current = _snapshot.value ?: return false
         return runCatching {
             val finished = current.copy(completed = true)
             check(store.save(finished)) { "No se pudo proteger el examen antes de finalizarlo." }
+            ticker?.cancel()
+            ticker = null
             _snapshot.value = finished
             _pending.value = finished
             repo.registerCompletion(finished)
             _result.value = MixedSessionEngine.finish(finished)
-            store.clear()
+            check(store.clear()) { "No se pudo eliminar la sesión pendiente tras guardar el resultado." }
             _pending.value = null
             _error.value = null
             true
@@ -255,8 +260,13 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun discardSaved(): Boolean {
+        // Never tell the UI that an exam was discarded while its durable slot survives.
+        if (!store.clear()) {
+            _error.value = "No se pudo eliminar la sesión guardada; inténtalo de nuevo."
+            return false
+        }
         ticker?.cancel()
-        store.clear()
+        ticker = null
         _pending.value = null
         _snapshot.value = null
         _result.value = null
