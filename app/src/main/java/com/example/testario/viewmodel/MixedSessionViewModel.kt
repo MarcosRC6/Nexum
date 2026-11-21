@@ -9,6 +9,7 @@ import com.example.testario.data.local.SavedMixedSessionStore
 import com.example.testario.data.local.TestarioLocalStore
 import com.example.testario.data.model.*
 import com.example.testario.domain.MixedSessionEngine
+import com.example.testario.domain.MixedSessionClock
 import com.example.testario.domain.MixedSessionRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -94,15 +95,7 @@ class MixedSessionViewModel(application: Application) : AndroidViewModel(applica
                 val delta = ((SystemClock.elapsedRealtime() - began) / 1000L).coerceAtLeast(0)
                 val newElapsed = startElapsed + delta
                 val remaining = startRemaining?.let { (it.toLong() - delta).coerceAtLeast(0).toInt() }
-                _snapshot.value = active.copy(
-                    elapsedSeconds = newElapsed, remainingSeconds = remaining,
-                    responses = active.responses.mapIndexed { idx, response ->
-                        if (idx == active.currentIndex)
-                            response.copy(timeSpentSeconds = response.timeSpentSeconds +
-                                (newElapsed - active.elapsedSeconds).coerceAtLeast(0L))
-                        else response
-                    }
-                )
+                _snapshot.value = MixedSessionClock.advance(active, newElapsed, remaining)
                 if (newElapsed - lastCheckpointSeconds >= 5L) {
                     checkpoint()
                     lastCheckpointSeconds = newElapsed
