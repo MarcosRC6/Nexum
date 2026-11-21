@@ -42,7 +42,7 @@ class TopicRepository(
             ?.questions
             .orEmpty()
             .mapTo(hashSetOf()) { it.id }
-        val referencedElsewhere = db.topics
+        val referencedElsewhere = (db.topics
             .asSequence()
             .flatMap { it.questions.asSequence() }
             .filterNot { it.id in deletedQuestionIds }
@@ -50,7 +50,11 @@ class TopicRepository(
                 sequenceOf(question.explanationImageUri, question.correctionImageUri)
             }
             .filterNotNull()
-            .toSet()
+            .toSet() + db.topics.asSequence()
+                .filterNot { it.id == topicId }
+                .flatMap { it.exercises.asSequence() }
+                .flatMap { it.referencedImageUris().asSequence() }
+                .toSet())
 
         topicToDelete?.questions?.forEach { question ->
             if (question.explanationImageUri !in referencedElsewhere) {
@@ -139,10 +143,14 @@ class TopicRepository(
             )
         }
 
+        val copiedExercises = sourceTopics.flatMap { it.exercises }
+            .map(com.example.testario.domain.StudyExerciseMerge::duplicate)
+
         val newTopic = Topic(
             id = UUID.randomUUID().toString(),
             name = cleanName,
-            questions = finalQuestions
+            questions = finalQuestions,
+            exercises = copiedExercises
         )
 
         localStore.saveDatabase(db.copy(topics = db.topics + newTopic))
