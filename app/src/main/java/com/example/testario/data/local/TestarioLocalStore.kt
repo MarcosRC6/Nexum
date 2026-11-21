@@ -91,7 +91,12 @@ class TestarioLocalStore private constructor(context: Context) {
         check(_recoveryError.value == null) {
             "La base está en modo recuperación. Restaura un backup válido desde Ajustes."
         }
-        synchronized(databaseStateGuard) { _database.value = newDb }
+        synchronized(databaseStateGuard) {
+            check(_recoveryError.value == null) {
+                "La base está en modo recuperación; escritura de Biblioteca bloqueada."
+            }
+            _database.value = newDb
+        }
         ioScope.launch {
             mutex.withLock {
                 try {
