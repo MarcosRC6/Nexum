@@ -101,7 +101,7 @@ internal fun OcclusionTouchEditor(
                 }
             }
             Text(if (drawing) "Arrastra un dedo sobre lo que quieres tapar."
-                else "Arrastra el centro para mover o tira de las cuatro esquinas para redimensionar. Pellizca para ampliar.",
+                else "Arrastra el centro para mover o tira de las cuatro esquinas para redimensionar.",
                 color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
 
             BoxWithConstraints(
