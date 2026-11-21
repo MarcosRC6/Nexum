@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +45,7 @@ internal fun EditableOcclusionImage(
     val context = LocalContext.current
     var intrinsic by remember(imageUri) { mutableStateOf<Pair<Int, Int>?>(null) }
     var selectedId by remember(imageUri) { mutableStateOf<String?>(null) }
+    var precisionExpanded by remember(imageUri) { mutableStateOf(false) }
     val latestMasks by rememberUpdatedState(masks)
     LaunchedEffect(imageUri) {
         intrinsic = withContext(Dispatchers.IO) { orientedImageSize(context, imageUri) }
@@ -65,7 +67,7 @@ internal fun EditableOcclusionImage(
                 Text("+ Añadir bloque")
             }
         }
-        Text("Arrastra el bloque para moverlo. Estira sus esquinas o bordes para ajustar el tamaño.",
+        Text("Arrastra el centro para mover; ajusta las esquinas o usa «Ajuste fino» para zonas pequeñas.",
             color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
         BoxWithConstraints(Modifier.fillMaxWidth().height(270.dp)) {
             val density = LocalDensity.current
@@ -108,18 +110,29 @@ internal fun EditableOcclusionImage(
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.align(Alignment.Center))
                         if (selected) {
-                            listOf(
-                                Triple(OcclusionHandle.TOP_LEFT, Alignment.TopStart, "↖"),
-                                Triple(OcclusionHandle.TOP, Alignment.TopCenter, "↑"),
-                                Triple(OcclusionHandle.TOP_RIGHT, Alignment.TopEnd, "↗"),
-                                Triple(OcclusionHandle.LEFT, Alignment.CenterStart, "←"),
-                                Triple(OcclusionHandle.RIGHT, Alignment.CenterEnd, "→"),
-                                Triple(OcclusionHandle.BOTTOM_LEFT, Alignment.BottomStart, "↙"),
-                                Triple(OcclusionHandle.BOTTOM, Alignment.BottomCenter, "↓"),
-                                Triple(OcclusionHandle.BOTTOM_RIGHT, Alignment.BottomEnd, "↘")
-                            ).forEach { (handle, alignment, symbol) ->
+                            val compact = widthPx < 90f || heightPx < 90f
+                            val verySmall = widthPx < 45f || heightPx < 45f
+                            val handles = when {
+                                verySmall -> listOf(Triple(
+                                    OcclusionHandle.BOTTOM_RIGHT, Alignment.BottomEnd, "↘"))
+                                compact -> listOf(
+                                    Triple(OcclusionHandle.TOP_LEFT, Alignment.TopStart, "↖"),
+                                    Triple(OcclusionHandle.TOP_RIGHT, Alignment.TopEnd, "↗"),
+                                    Triple(OcclusionHandle.BOTTOM_LEFT, Alignment.BottomStart, "↙"),
+                                    Triple(OcclusionHandle.BOTTOM_RIGHT, Alignment.BottomEnd, "↘"))
+                                else -> listOf(
+                                    Triple(OcclusionHandle.TOP_LEFT, Alignment.TopStart, "↖"),
+                                    Triple(OcclusionHandle.TOP, Alignment.TopCenter, "↑"),
+                                    Triple(OcclusionHandle.TOP_RIGHT, Alignment.TopEnd, "↗"),
+                                    Triple(OcclusionHandle.LEFT, Alignment.CenterStart, "←"),
+                                    Triple(OcclusionHandle.RIGHT, Alignment.CenterEnd, "→"),
+                                    Triple(OcclusionHandle.BOTTOM_LEFT, Alignment.BottomStart, "↙"),
+                                    Triple(OcclusionHandle.BOTTOM, Alignment.BottomCenter, "↓"),
+                                    Triple(OcclusionHandle.BOTTOM_RIGHT, Alignment.BottomEnd, "↘"))
+                            }
+                            handles.forEach { (handle, alignment, symbol) ->
                                 Box(
-                                    Modifier.align(alignment).size(20.dp)
+                                    Modifier.align(alignment).size(if (compact) 12.dp else 14.dp)
                                         .background(TestarioPrimary, RoundedCornerShape(5.dp))
                                         .pointerInput(mask.id, fit, handle) {
                                             detectDragGestures(onDrag = { change, drag ->
@@ -141,6 +154,48 @@ internal fun EditableOcclusionImage(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+        val selectedMask = masks.firstOrNull { it.id == selectedId }
+        if (selectedMask != null) {
+            TextButton(onClick = { precisionExpanded = !precisionExpanded }) {
+                Text(if (precisionExpanded) "Ocultar ajuste fino" else "Ajuste fino del bloque seleccionado",
+                    color = TestarioPrimary)
+            }
+            if (precisionExpanded) {
+                // The existing geometry/IDs are preserved; only normalized bounds change.
+                listOf("Horizontal", "Vertical", "Anchura", "Altura").forEach { axis ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(axis, modifier = Modifier.width(90.dp), color = TestarioText)
+                        val value = when (axis) {
+                            "Horizontal" -> selectedMask.x
+                            "Vertical" -> selectedMask.y
+                            "Anchura" -> selectedMask.width
+                            else -> selectedMask.height
+                        }
+                        val upper = when (axis) {
+                            "Horizontal" -> 1.0 - selectedMask.width
+                            "Vertical" -> 1.0 - selectedMask.height
+                            "Anchura" -> 1.0 - selectedMask.x
+                            else -> 1.0 - selectedMask.y
+                        }.coerceAtLeast(0.001)
+                        Slider(
+                            value = value.toFloat().coerceIn(0f, upper.toFloat()),
+                            onValueChange = { v ->
+                                onMasksChanged(latestMasks.map { mask ->
+                                    if (mask.id != selectedMask.id) mask else when (axis) {
+                                        "Horizontal" -> mask.copy(x = v.toDouble())
+                                        "Vertical" -> mask.copy(y = v.toDouble())
+                                        "Anchura" -> mask.copy(width = v.toDouble().coerceAtLeast(0.001))
+                                        else -> mask.copy(height = v.toDouble().coerceAtLeast(0.001))
+                                    }
+                                })
+                            },
+                            valueRange = 0f..upper.toFloat(),
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
             }
