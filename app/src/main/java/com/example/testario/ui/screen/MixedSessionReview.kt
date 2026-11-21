@@ -101,10 +101,12 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
                     val reverse = item.variant == "reverse"
                     val question = if (reverse) card.back else card.front
                     val answer = if (reverse) card.front else card.back
-                    Text(if (!reverse && card.kind == FlashcardKind.CLOZE)
-                        ClozeMarkupEngine.mask(question, card.gaps, item.clozeCursor)
+                    if (question.isNotBlank()) Text(
+                        if (!reverse && card.kind == FlashcardKind.CLOZE)
+                            ClozeMarkupEngine.mask(question, card.gaps, item.clozeCursor)
                         else question, color = TestarioText,
-                        style = MaterialTheme.typography.titleLarge)
+                        style = MaterialTheme.typography.titleLarge
+                    )
                     (if (reverse) card.backImageUri else card.frontImageUri)?.let {
                         StudyVisualImage(
                             imageUri = it,
