@@ -24,6 +24,9 @@ class StudyRepository(
 
     private val storedData = localDataSource.load()
 
+    /** Surface corrupt or unwritable planning storage; do not hide the failure. */
+    val recoveryError: StateFlow<String?> = localDataSource.recoveryError
+
     private val _topics = MutableStateFlow(storedData.topics)
     val topics: StateFlow<List<StudyTopic>> = _topics.asStateFlow()
 
@@ -834,15 +837,18 @@ class StudyRepository(
 
     fun importBackupJson(json: String): Boolean {
         val importedData = localDataSource.importFromJson(json) ?: return false
+        val normalized = importedData.copy(topics = normalizeTopicQueue(importedData.topics))
 
-        _topics.value = normalizeTopicQueue(importedData.topics)
-        _fixedObjectives.value = importedData.fixedObjectives
-        _studyDays.value = importedData.studyDays
-        _timeEntries.value = importedData.timeEntries
-        _settings.value = importedData.settings
+        // Write the replacement FIRST. If storage is unavailable, do not
+        // advertise the backup as restored or replace the current in-memory plan.
+        if (!localDataSource.restoreValidatedBackup(normalized)) return false
 
-        // A parsed backup is not restored until SharedPreferences confirms disk write.
-        return persist()
+        _topics.value = normalized.topics
+        _fixedObjectives.value = normalized.fixedObjectives
+        _studyDays.value = normalized.studyDays
+        _timeEntries.value = normalized.timeEntries
+        _settings.value = normalized.settings
+        return true
     }
 
     private fun refreshedDay(
