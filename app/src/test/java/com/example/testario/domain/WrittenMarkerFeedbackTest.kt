@@ -24,6 +24,14 @@ class WrittenMarkerFeedbackTest {
             WrittenMarkerFeedback.statusByMarker(exercise, listOf("b", "a", "c")))
     }
 
+    @Test fun numericalGradingMatchesMarkerColorsOnSwappedAnswers() {
+        val result = StudyExerciseRules.gradeWrittenInSession(
+            exercise, listOf("a", "c", "b"), 1.0, -0.25)
+        assertEquals(1, result.correct)
+        assertEquals(2, result.incorrect)
+        assertEquals(setOf("s1"), result.correctIds)
+    }
+
     @Test fun omissionIsRedAndMarkerIdsNeverChange() {
         assertEquals(mapOf("p1" to true, "p2" to false, "p3" to false),
             WrittenMarkerFeedback.statusByMarker(exercise, listOf("a")))
