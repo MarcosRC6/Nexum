@@ -406,7 +406,7 @@ fun StudyExerciseEditorScreen(
                     }
                 }
                 if (sketchEnabled) {
-                    Text("Dibuja o borra con un dedo. Usa dos dedos para ampliar o mover el lienzo.",
+                    Text("Dibuja o borra con un dedo.",
                         color = TestarioMutedText,
                         style = MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
