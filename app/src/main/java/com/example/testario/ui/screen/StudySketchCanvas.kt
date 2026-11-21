@@ -88,6 +88,7 @@ internal fun StudySketchCanvas(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     var multiTouch = false
                     var tapCandidate = true
+                    var tapDistance = 0f
                     var gesturePoints = if (mode == SketchMode.ERASE)
                         listOf(coordinates(down.position.x, down.position.y, size.width, size.height))
                         else emptyList()
@@ -124,7 +125,8 @@ internal fun StudySketchCanvas(
                                 }
                                 SketchMode.MARK -> {
                                     // Only a tap places a number; drags do not create points.
-                                    if (change.positionChange().getDistance() > 2f)
+                                    tapDistance += change.positionChange().getDistance()
+                                    if (tapDistance > viewConfiguration.touchSlop)
                                         tapCandidate = false
                                 }
                                 SketchMode.PAN -> {
