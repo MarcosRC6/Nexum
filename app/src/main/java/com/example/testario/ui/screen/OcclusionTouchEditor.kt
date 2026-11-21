@@ -114,9 +114,11 @@ internal fun OcclusionTouchEditor(
                 Box(Modifier.fillMaxSize().pointerInput(imageUri) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
+                        var stillPressed: Boolean
                         do {
                             val event = awaitPointerEvent()
                             val pressed = event.changes.filter { it.pressed }
+                            stillPressed = pressed.isNotEmpty()
                             if (pressed.size >= 2) {
                                 interrupted = true
                                 start = null
@@ -132,7 +134,7 @@ internal fun OcclusionTouchEditor(
                                 )
                                 event.changes.forEach { if (it.pressed) it.consume() }
                             }
-                        } while (pressed.isNotEmpty())
+                        } while (stillPressed)
                     }
                 }) {
                     val drawGesture = if (drawing && fit != null) {
@@ -272,6 +274,9 @@ internal fun OcclusionTouchEditor(
                                 })
                             }) { Text(symbol, color = TestarioPrimary) }
                         }
+                    }
+                    Row(Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly) {
                         TextButton(onClick = {
                             onMasksChanged(latestMasks.map { old ->
                                 if (old.id == selected.id) OcclusionResize.apply(old,
