@@ -14,6 +14,24 @@ class WrittenMarkerFeedbackTest {
             CanonicalSolution(id = "s3", text = "c", points = listOf(ImagePoint(id = "p3", x = .3, y = .3, order = 3)))
         ))
 
+    @Test fun pinColorUsesSameScoreResultShownToUser() {
+        val submitted = listOf("a", "b", "d")
+        val graded = StudyExerciseRules.gradeWrittenInSession(
+            exercise, submitted, 1.0, -0.25)
+        assertEquals(2, graded.correct)
+        assertEquals(1, graded.incorrect)
+        assertEquals(5.833333333333333, graded.scoreOutOfTen, 0.001)
+        assertEquals(mapOf("p1" to true, "p2" to true, "p3" to false),
+            WrittenMarkerFeedback.fromGradedResult(exercise, graded))
+    }
+
+    @Test fun redPinAlsoMatchesOmittedThirdPosition() {
+        val graded = StudyExerciseRules.gradeWrittenInSession(
+            exercise, listOf("a", "b", ""), 1.0, -0.25)
+        assertEquals(mapOf("p1" to true, "p2" to true, "p3" to false),
+            WrittenMarkerFeedback.fromGradedResult(exercise, graded))
+    }
+
     @Test fun thirdWrongAnswerColorsThirdPinRedEvenIfFirstTwoCorrect() {
         assertEquals(mapOf("p1" to true, "p2" to true, "p3" to false),
             WrittenMarkerFeedback.statusByMarker(exercise, listOf("a", "b", "d")))
