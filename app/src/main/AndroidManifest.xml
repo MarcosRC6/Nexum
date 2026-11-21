@@ -109,6 +109,20 @@
             android:name="com.example.planario.app.widget.PlanarioTodayWidgetConfigurationActivity"
             android:exported="true" />
 
+        <!-- Las alarmas de cambio de día y los cambios de hora se procesan
+             sin exponer comandos de actualización a otras aplicaciones. -->
+        <receiver
+            android:name="com.example.planario.app.widget.TodayRolloverReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <receiver
             android:name="com.example.planario.app.widget.PlanarioTodayWidgetReceiver"
             android:label="@string/nexum_today_widget_title"

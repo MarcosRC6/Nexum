@@ -1,0 +1,154 @@
+# One-time signed NEXUM 2.0 Beta 6, explicitly authorized by the owner on 2026-11-21.
+# Runs ONLY when this workflow is added atop the pinned, already-reviewed beta3 code.
+name: NEXUM - signed 2.0 Beta 6 prerelease
+
+on:
+  push:
+    branches:
+      - release/nexum-v2.0-beta.6-20261121
+    paths:
+      - '.github/workflows/nexum-beta-2-0-6-publish.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexum-signed-beta-2-0-6
+  cancel-in-progress: false
+
+jobs:
+  signed-prerelease:
+    if: github.ref == 'refs/heads/release/nexum-v2.0-beta.6-20261121'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout exact authorized beta source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 3
+
+      - name: Enforce reviewed source and one-time version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "f499514167ffdbf1ca44102feaebcaba3cd2fdbd"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/nexum-beta-2-0-6-publish.yml"
+          test "$(git rev-parse HEAD^^)" = "bcf22badb61f83ef81ce9901e9253d2474f02665"
+          test "$(git diff --name-only HEAD^^ HEAD^)" = "app/build.gradle.kts"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          grep -Eq '^[[:space:]]*versionCode = 20[[:space:]]*$' app/build.gradle.kts
+          grep -Eq '^[[:space:]]*versionName = "2.0-beta.6"[[:space:]]*$' app/build.gradle.kts
+          grep -Fq 'applicationId = "com.example.estudario"' app/build.gradle.kts
+          if gh release view v2.0-beta.6 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Beta release already exists; refusing to overwrite"; exit 1
+          fi
+          if git ls-remote --tags origin refs/tags/v2.0-beta.6 | grep -q .; then
+            echo "Beta tag already exists; refusing to overwrite"; exit 1
+          fi
+
+      - name: Require exact feature and version CI plus independent security audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/44903894694" --jq '.head_sha + " " + .conclusion')" = "bcf22badb61f83ef81ce9901e9253d2474f02665 success"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/44903894697" --jq '.head_sha + " " + .conclusion')" = "bcf22badb61f83ef81ce9901e9253d2474f02665 success"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/44903909048" --jq '.head_sha + " " + .conclusion')" = "f499514167ffdbf1ca44102feaebcaba3cd2fdbd success"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/44903909078" --jq '.head_sha + " " + .conclusion')" = "f499514167ffdbf1ca44102feaebcaba3cd2fdbd success"
+          echo "Exact source/version Android CI and independent security: PASS"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Load official signing key privately
+        env:
+          SIGNING_BASE64: ${{ secrets.NEXUM_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASS: ${{ secrets.NEXUM_KEYSTORE_PASSWORD }}
+          SIGNING_ALIAS: ${{ secrets.NEXUM_KEY_ALIAS }}
+          SIGNING_KEY_PASS: ${{ secrets.NEXUM_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SIGNING_BASE64"
+          test -n "$SIGNING_STORE_PASS"
+          test -n "$SIGNING_ALIAS"
+          test -n "$SIGNING_KEY_PASS"
+          umask 077
+          printf '%s' "$SIGNING_BASE64" | base64 --decode > "$RUNNER_TEMP/nexum-official.p12"
+          test -s "$RUNNER_TEMP/nexum-official.p12"
+          echo "NEXUM_SIGNING_STORE_FILE=$RUNNER_TEMP/nexum-official.p12" >> "$GITHUB_ENV"
+
+      - name: Build, test and lint signed beta
+        env:
+          NEXUM_KEYSTORE_PASSWORD: ${{ secrets.NEXUM_KEYSTORE_PASSWORD }}
+          NEXUM_KEY_ALIAS: ${{ secrets.NEXUM_KEY_ALIAS }}
+          NEXUM_KEY_PASSWORD: ${{ secrets.NEXUM_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest lintDebug assembleRelease --no-daemon --stacktrace
+
+      - name: Verify same official certificate, package and upgrade version
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" > "$RUNNER_TEMP/certificate.txt"
+          grep -Fqi "2ba2c89de56e0fcfbc1a0b6df804800972d8bcd226b495b5d9628bcb4f2a2249" "$RUNNER_TEMP/certificate.txt"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.example.estudario' versionCode='20' versionName='2.0-beta.6'"
+          mkdir -p dist
+          cp "$APK" "dist/NEXUM-v2.0-beta.6.apk"
+          sha256sum "dist/NEXUM-v2.0-beta.6.apk" | tee dist/SHA256SUMS.txt
+
+      - name: Archive verified signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUM_2_0_BETA_6_OFFICIAL_SIGNATURE
+          path: |
+            dist/NEXUM-v2.0-beta.6.apk
+            dist/SHA256SUMS.txt
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish GitHub prerelease only after all checks passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/beta-notes.md" <<'NOTES'
+          # NEXUM 2.0 Beta 6 · Prueba oficial firmada
+          
+          Versión experimental para Android posterior a Beta 5. Se conservan la firma oficial, el identificador `com.example.estudario`, el esquema v7 y los bancos existentes.
+          
+          ## Cambios respecto a Beta 5
+          - Editor Test: «Añadir imagen» ahora es texto morado sin recuadro; permite elegir imagen de enunciado o explicación y después crear un lienzo o importar una fotografía.
+          - Preguntas escritas numeradas: botón «Comprobar» fuera de la lista desplazable, visible bajo las respuestas mientras la imagen sigue arriba.
+          - Marcadores de respuestas: corregidos por su posición. El punto 3 aparecerá rojo si la solución 3 es incorrecta, aunque las anteriores sean correctas; omisiones también en rojo una vez comprobadas.
+          - Puntuación de entrenamientos escritos numerados coherente con el color de sus marcadores y estadísticas guardadas, sin modificar las enumeraciones libres que no tienen números.
+          - Anki: nuevo editor de oclusiones táctil a pantalla completa. Arrastra el dedo para delimitar la zona; selecciona una zona para moverla, pellizca con dos dedos para ampliar y ajusta con botones amplios.
+          - Se conservan los IDs y coordenadas normalizadas de las máscaras anteriores. No se cambia el esquema de datos.
+          - Pruebas automatizadas adicionales de correspondencia posicional, errores cruzados y geometría de máscaras pequeñas.
+          
+          ## Instalación segura
+          **Exporta antes una COPIA GLOBAL COMPLETA ZIP de NEXUM, guárdala fuera del teléfono y verifica que se puede leer.**
+          Instala `NEXUM-v2.0-beta.6.apk` encima de la aplicación oficial. **No desinstales, no borres datos y no hagas downgrade a Beta 5** después de usar nuevos datos. Beta 6 usa `versionCode 20` (Beta 5 tenía 19).
+          
+          ## Revisión práctica en Android
+          Prueba primero con preguntas y fotos de ensayo: Test «Crear/Importar» enunciado/explicación; tres respuestas escritas con la tercera incorrecta; botón Comprobar visible; añadir oclusiones Anki pequeñas mediante dibujo directo, zoom y desplazamiento; editar y volver a guardar una tarjeta antigua. Comprueba también Biblioteca, Planario, estadísticas y cronómetro.
+          
+          Los Unit Tests, las compilaciones Android, Lint y seguridad han pasado sobre SHAs concretos. La firma oficial, paquete, versión y huella SHA-256 de esta APK se verifican durante su publicación. **Estos controles no sustituyen la validación táctil en un teléfono físico.**
+          
+          Las restauraciones globales multicomponente no son una transacción ACID. No las pruebes de forma destructiva con bancos personales; utiliza datos sintéticos. La importación/exportación real de Anki `.apkg` y la sincronización incremental entre dispositivos siguen pendientes. `main` permanece en NEXUM 1.8.
+          NOTES
+          gh release create v2.0-beta.6             "dist/NEXUM-v2.0-beta.6.apk#NEXUM-v2.0-beta.6.apk"             "dist/SHA256SUMS.txt#SHA256SUMS.txt"             --repo "$GITHUB_REPOSITORY"             --target "$GITHUB_SHA"             --title "NEXUM 2.0 Beta 6"             --prerelease             --notes-file "$RUNNER_TEMP/beta-notes.md"
+
+      - name: Delete temporary keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/nexum-official.p12"

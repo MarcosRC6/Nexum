@@ -47,6 +47,36 @@ class ImageManager(private val context: Context) {
         }
     }
 
+    /** New Anki canvas: a real, private PNG so the existing ZIP/backup image
+     * pipeline treats drawn and imported pictures identically. The bitmap
+     * stays unchanged; actual pen strokes remain in the editable vector layer.
+     */
+    fun createBlankImage(width: Int = 1280, height: Int = 720): String {
+        require(width in 64..4096 && height in 64..4096)
+        check(imagesDir.isDirectory || imagesDir.mkdirs()) {
+            "No se pudo preparar la carpeta privada de imágenes."
+        }
+        val output = File(imagesDir, "CANVAS_${UUID.randomUUID()}.png")
+        val bitmap = android.graphics.Bitmap.createBitmap(
+            width, height, android.graphics.Bitmap.Config.ARGB_8888
+        )
+        try {
+            bitmap.eraseColor(android.graphics.Color.WHITE)
+            output.outputStream().use { stream ->
+                check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)) {
+                    "No se pudo crear la imagen."
+                }
+                stream.flush()
+            }
+            return output.absolutePath
+        } catch (failure: Exception) {
+            output.delete()
+            throw failure
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
     fun deleteImage(pathString: String?) {
         if (pathString.isNullOrBlank()) return
         try {

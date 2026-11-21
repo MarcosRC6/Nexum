@@ -1,0 +1,161 @@
+# One-time signed NEXUM 2.0 Beta 4, explicitly authorized by the owner on 2026-11-21.
+# Runs ONLY when this workflow is added atop the pinned, already-reviewed beta3 code.
+name: NEXUM - signed 2.0 Beta 4 prerelease
+
+on:
+  push:
+    branches:
+      - release/nexum-v2.0-beta.4-20261121
+    paths:
+      - '.github/workflows/nexum-beta-2-0-4-publish.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexum-signed-beta-2-0-4
+  cancel-in-progress: false
+
+jobs:
+  signed-prerelease:
+    if: github.ref == 'refs/heads/release/nexum-v2.0-beta.4-20261121'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout exact authorized beta source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 3
+
+      - name: Enforce reviewed source and one-time version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "c54b13524f081275fb377b9e22f88c594466d5be"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/nexum-beta-2-0-4-publish.yml"
+          test "$(git rev-parse HEAD^^)" = "8475406113a6e15f214e35e5226625fbb1d7db6d"
+          test "$(git diff --name-only HEAD^^ HEAD^)" = "app/build.gradle.kts"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          grep -Eq '^[[:space:]]*versionCode = 18[[:space:]]*$' app/build.gradle.kts
+          grep -Eq '^[[:space:]]*versionName = "2.0-beta.4"[[:space:]]*$' app/build.gradle.kts
+          grep -Fq 'applicationId = "com.example.estudario"' app/build.gradle.kts
+          if gh release view v2.0-beta.4 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Beta release already exists; refusing to overwrite"; exit 1
+          fi
+          if git ls-remote --tags origin refs/tags/v2.0-beta.4 | grep -q .; then
+            echo "Beta tag already exists; refusing to overwrite"; exit 1
+          fi
+
+      - name: Require exact feature and version CI plus independent security audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/44891895459" --jq '.head_sha + " " + .conclusion')" = "8475406113a6e15f214e35e5226625fbb1d7db6d success"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/44891895453" --jq '.head_sha + " " + .conclusion')" = "8475406113a6e15f214e35e5226625fbb1d7db6d success"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/44891909845" --jq '.head_sha + " " + .conclusion')" = "c54b13524f081275fb377b9e22f88c594466d5be success"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/44891909847" --jq '.head_sha + " " + .conclusion')" = "c54b13524f081275fb377b9e22f88c594466d5be success"
+          echo "Exact source/version Android CI and independent security: PASS"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Load official signing key privately
+        env:
+          SIGNING_BASE64: ${{ secrets.NEXUM_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASS: ${{ secrets.NEXUM_KEYSTORE_PASSWORD }}
+          SIGNING_ALIAS: ${{ secrets.NEXUM_KEY_ALIAS }}
+          SIGNING_KEY_PASS: ${{ secrets.NEXUM_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SIGNING_BASE64"
+          test -n "$SIGNING_STORE_PASS"
+          test -n "$SIGNING_ALIAS"
+          test -n "$SIGNING_KEY_PASS"
+          umask 077
+          printf '%s' "$SIGNING_BASE64" | base64 --decode > "$RUNNER_TEMP/nexum-official.p12"
+          test -s "$RUNNER_TEMP/nexum-official.p12"
+          echo "NEXUM_SIGNING_STORE_FILE=$RUNNER_TEMP/nexum-official.p12" >> "$GITHUB_ENV"
+
+      - name: Build, test and lint signed beta
+        env:
+          NEXUM_KEYSTORE_PASSWORD: ${{ secrets.NEXUM_KEYSTORE_PASSWORD }}
+          NEXUM_KEY_ALIAS: ${{ secrets.NEXUM_KEY_ALIAS }}
+          NEXUM_KEY_PASSWORD: ${{ secrets.NEXUM_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest lintDebug assembleRelease --no-daemon --stacktrace
+
+      - name: Verify same official certificate, package and upgrade version
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" > "$RUNNER_TEMP/certificate.txt"
+          grep -Fqi "2ba2c89de56e0fcfbc1a0b6df804800972d8bcd226b495b5d9628bcb4f2a2249" "$RUNNER_TEMP/certificate.txt"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.example.estudario' versionCode='18' versionName='2.0-beta.4'"
+          mkdir -p dist
+          cp "$APK" "dist/NEXUM-v2.0-beta.4.apk"
+          sha256sum "dist/NEXUM-v2.0-beta.4.apk" | tee dist/SHA256SUMS.txt
+
+      - name: Archive verified signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUM_2_0_BETA_4_OFFICIAL_SIGNATURE
+          path: |
+            dist/NEXUM-v2.0-beta.4.apk
+            dist/SHA256SUMS.txt
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish GitHub prerelease only after all checks passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/beta-notes.md" <<'NOTES'
+          # NEXUM 2.0 Beta 4 · Prueba oficial firmada
+          
+          **Beta de pruebas** posterior a Beta 4. No es una versión estable y todavía necesita validación táctil y de datos en Android real.
+          
+          ## Correcciones desde Beta 4
+          - Nuevos ejercicios y exámenes con interfaz armonizada respecto a Testario 1.8: navegación numerada, revisión, colores de corrección, bandera y opciones contextuales.
+          - Respuestas escritas: marcadores numerados vinculados a soluciones y corrección posicional cuando existen números sobre la imagen; fallos en rojo y aciertos en verde.
+          - Editor unificado sin confirmación repetitiva al elegir Test, Escrita o Anki; explicación e imágenes reordenadas.
+          - Goma por arrastre y gestos con dos dedos en lienzos, más comportamiento de imágenes y zoom heredado de la PR de QA.
+          - Anki: máscaras movibles y redimensionables desde ocho tiradores; conservación de coordenadas y compatibilidad con tarjetas anteriores.
+          - Salir sin guardar de los nuevos exámenes; la eliminación del progreso pendiente ahora se comprueba en almacenamiento.
+          - Temporizador mixto: el tiempo retrasado por Android se contabiliza con delta monotónico; un fallo al guardar no detiene el reloj.
+          - Restauración de Testario con escritura durable confirmada y copia global preventiva privada antes de restauraciones destructivas. Si no hay espacio para esta copia, la restauración se rechaza.
+          - Accesos rápidos web con categoría «Otro» personalizable.
+          - Pruebas unitarias adicionales para el reloj y la geometría de máscaras.
+          
+          ## Protección obligatoria de los datos
+          **ANTES DE INSTALAR: exporta una copia GLOBAL COMPLETA ZIP desde NEXUM y guárdala fuera del teléfono, y verifica que se puede leer.**
+          Instala la APK encima de la versión oficial SIN DESINSTALAR. El paquete sigue siendo `com.example.estudario`, con la firma original y `versionCode 18`, superior a Beta 4 (17).
+          No retrocedas a Beta 4, Beta 2 o NEXUM 1.8 tras abrir la base v7 sin un procedimiento seguro y restauración comprobada.
+          
+          ## Validación
+          El CI comprueba pruebas unitarias, compilación Debug/Release, Lint y seguridad; el flujo de firma verifica certificado público SHA-256 y versión exacta. Esto NO demuestra gestos reales, fotografías EXIF, restauración tras interrupción eléctrica ni sesiones largas en un teléfono físico.
+          
+          Comprueba con datos de ensayo: crear Test/Escrita/Anki, arrastrar y redimensionar máscaras, colores y números de corrección, guardar/reanudar/salir sin guardar, cronómetro, Biblioteca y Planario. Solo realiza restauraciones destructivas sobre datos de prueba.
+          
+          ## Limitaciones abiertas
+          La restauración global multicomponente conserva un respaldo preventivo, pero **no es una transacción ACID**; siguen pendientes las pruebas de recuperación ante cortes bruscos. La importación/exportación nativa de Anki `.apkg` y la sincronización evolutiva multi-dispositivo siguen sin implementarse; no se afirma su disponibilidad. La Beta 4 no ha sido sometida a QA física exhaustiva y no reemplaza a una versión estable. `main` permanece en NEXUM 1.8.
+          
+          La página incluye `SHA256SUMS.txt` para verificar la APK.
+          NOTES
+          gh release create v2.0-beta.4             "dist/NEXUM-v2.0-beta.4.apk#NEXUM-v2.0-beta.4.apk"             "dist/SHA256SUMS.txt#SHA256SUMS.txt"             --repo "$GITHUB_REPOSITORY"             --target "$GITHUB_SHA"             --title "NEXUM 2.0 Beta 4"             --prerelease             --notes-file "$RUNNER_TEMP/beta-notes.md"
+
+      - name: Delete temporary keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/nexum-official.p12"
