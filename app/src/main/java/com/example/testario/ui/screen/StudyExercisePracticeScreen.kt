@@ -113,7 +113,7 @@ fun StudyExercisePracticeScreen(
                         correctPoints, wrongPoints)
                 }.getOrNull() else null
                 val statusByMarker = if (graded != null)
-                    WrittenMarkerFeedback.statusByMarker(exercise, answers)
+                    WrittenMarkerFeedback.fromGradedResult(exercise, graded)
                 else emptyMap()
                 Text("Ejercicio ${index + 1} de ${written.size}", color = TestarioMutedText)
                 Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
