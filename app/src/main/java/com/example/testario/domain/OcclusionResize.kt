@@ -10,6 +10,14 @@ enum class OcclusionHandle(val horizontal: Int, val vertical: Int) {
 }
 
 object OcclusionResize {
+    fun translate(mask: ImageOcclusionMask, dx: Double, dy: Double): ImageOcclusionMask {
+        if (!dx.isFinite() || !dy.isFinite()) return mask
+        return mask.copy(
+            x = (mask.x + dx).coerceIn(0.0, (1.0 - mask.width).coerceAtLeast(0.0)),
+            y = (mask.y + dy).coerceIn(0.0, (1.0 - mask.height).coerceAtLeast(0.0))
+        )
+    }
+
     fun apply(
         mask: ImageOcclusionMask,
         handle: OcclusionHandle,
