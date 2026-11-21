@@ -28,6 +28,39 @@ class TopicImportMatcherTest {
         assertEquals(1, TopicImportMatcher.uniqueQuestions(listOf(corrected), listOf(old)).size)
     }
 
+    @Test fun operatorSymbolsCannotSilentlyDeleteDistinctAnswers() {
+        val code = question().copy(answers = listOf(
+            Answer("a", "C++"), Answer("b", "C#"), Answer("c", "C")))
+        val changed = code.copy(answers = listOf(
+            Answer("a", "C"), Answer("b", "C#"), Answer("c", "C++")),
+            correctAnswerId = "a")
+        assertEquals(1, TopicImportMatcher.uniqueQuestions(listOf(changed), listOf(code)).size)
+    }
+
+    @Test fun decimalSeparatorCannotDisappearIntoInteger() {
+        val decimal = question().copy(answers = listOf(
+            Answer("a", "1,5"), Answer("b", "2"), Answer("c", "3")))
+        val integer = decimal.copy(answers = listOf(
+            Answer("a", "15"), Answer("b", "2"), Answer("c", "3")))
+        assertEquals(1, TopicImportMatcher.uniqueQuestions(listOf(integer), listOf(decimal)).size)
+    }
+
+    @Test fun commaAndDotDecimalEquivalenceStillDeduplicates() {
+        val decimal = question().copy(answers = listOf(
+            Answer("a", "1,5"), Answer("b", "2"), Answer("c", "3")))
+        val equivalent = decimal.copy(answers = listOf(
+            Answer("a", "1.5"), Answer("b", "2"), Answer("c", "3")))
+        assertEquals(0, TopicImportMatcher.uniqueQuestions(listOf(equivalent), listOf(decimal)).size)
+    }
+
+    @Test fun legacyDecorativePunctuationAndAccentsRemainDeduplicated() {
+        val original = question()
+        val equivalent = original.copy(
+            text = "Que elemento soporta la carga",
+            answers = listOf(Answer("a", "Pílar."), Answer("b", "Viga!"), Answer("c", "Zapata?")))
+        assertEquals(0, TopicImportMatcher.uniqueQuestions(listOf(equivalent), listOf(original)).size)
+    }
+
     @Test fun answerOrderDoesNotCreateDuplicate() {
         val q = question()
         val reordering = q.copy(answers = q.answers.reversed())
