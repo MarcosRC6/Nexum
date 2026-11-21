@@ -744,7 +744,11 @@ fun StudyExerciseEditorScreen(
                         selected = flashKind == FlashcardKind.IMAGE_OCCLUSION,
                         onClick = {
                             if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
-                                showOcclusionEditor = true
+                                // The chip is a real toggle: returning from the
+                                // editor keeps it selected, tapping it again
+                                // restores an ordinary image/front note.
+                                flashKind = FlashcardKind.BASIC
+                                showOcclusionEditor = false
                             } else if (runCatching {
                                     ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty()
                                 }.getOrDefault(false)) {
@@ -763,12 +767,15 @@ fun StudyExerciseEditorScreen(
                 }
                 if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
                     frontImageUri?.let { image ->
-                        // Read-only compact preview. The purple chip always opens full-screen editing.
+                        // After leaving full-screen edit, tapping the image
+                        // reopens that SAME editor as long as occlusion is active.
+                        // No intermediate preview dialog and no nested zoom.
                         StudyVisualImage(
                             imageUri = image,
                             annotations = frontAnnotations,
                             masks = masks,
                             modifier = Modifier.fillMaxWidth().height(210.dp),
+                            onTapImage = { _, _ -> showOcclusionEditor = true },
                             enableFullscreen = false
                         )
                         Text("${masks.size} ${if (masks.size == 1) "zona oculta" else "zonas ocultas"}",
@@ -777,11 +784,7 @@ fun StudyExerciseEditorScreen(
                             TextButton(onClick = { chooseImage("front") }) {
                                 Text("Cambiar fotografía")
                             }
-                            if (masks.isEmpty()) {
-                                TextButton(onClick = { flashKind = FlashcardKind.BASIC }) {
-                                    Text("Desactivar ocultación", color = TestarioMutedText)
-                                }
-                            }
+
                         }
                     }
                 }
