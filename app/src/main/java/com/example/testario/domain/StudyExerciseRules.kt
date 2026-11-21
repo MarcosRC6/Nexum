@@ -237,6 +237,21 @@ object StudyExerciseRules {
      * for grading. Without markers, legacy enumeration keeps order-independent scoring.
      * Empty slots are retained by MixedSessionViewModel so they cannot shift the answers.
      */
+    /**
+     * Numbered photographs can be edited after the answers have been created.
+     * When each solution has precisely one numbered marker with a complete
+     * 1..N sequence, presentation and grading must follow the visible numbers,
+     * not the historical insertion order. Ambiguous legacy layouts retain
+     * their existing insertion order without destructive rewriting.
+     */
+    fun positionalSolutions(exercise: StudyExercise): List<CanonicalSolution> {
+        val list = exercise.solutions
+        if (list.isEmpty() || list.any { it.points.size != 1 }) return list
+        val sorted = list.sortedBy { it.points.single().order }
+        return if (sorted.map { it.points.single().order } ==
+            (1..list.size).toList()) sorted else list
+    }
+
     fun gradeWrittenInSession(
         exercise: StudyExercise,
         submitted: List<String>,
@@ -251,7 +266,7 @@ object StudyExerciseRules {
         require(penaltyWrong.isFinite() && penaltyWrong <= 0.0)
         val accepted = linkedSetOf<String>()
         val wrong = mutableListOf<String>()
-        exercise.solutions.forEachIndexed { index, solution ->
+        positionalSolutions(exercise).forEachIndexed { index, solution ->
             val input = submitted.getOrNull(index)?.trim().orEmpty()
             if (input.isNotEmpty()) {
                 if (findAcceptedSolution(exercise, input)?.id == solution.id) accepted.add(solution.id)
