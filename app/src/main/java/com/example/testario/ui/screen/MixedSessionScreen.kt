@@ -207,7 +207,9 @@ fun MixedSessionScreen(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = TestarioSurface)
             ) {
-                Column(Modifier.fillMaxSize().padding(18.dp).verticalScroll(rememberScrollState()),
+                Column(Modifier.fillMaxSize().padding(18.dp).then(
+                    if (item.type == MixedItemType.WRITTEN) Modifier
+                    else Modifier.verticalScroll(rememberScrollState())),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (item.type != MixedItemType.TEST) {
                 Text(item.topicName.uppercase(), color = TestarioPrimary,
@@ -338,6 +340,8 @@ fun MixedSessionScreen(
                             }.toMap() else emptyMap()
                         )
                     }
+                    Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Responde las soluciones marcadas del 1 al ${exercise.solutions.size}.",
                         color = TestarioMutedText)
                     repeat(exercise.solutions.size) { index ->
@@ -373,18 +377,24 @@ fun MixedSessionScreen(
                             val accepted = if (numbered)
                                 exercise.solutions[index].id in graded.correctIds
                             else StudyExerciseRules.findAcceptedSolution(exercise, entry) != null
-                            Text("${index + 1}. ${entry.ifBlank { "Sin responder" }} " +
-                                if (accepted) "✓" else "✗",
-                                color = if (accepted) TestarioGreen else TestarioRed)
-                            if (!accepted && numbered) {
-                                Text("Correcta: ${exercise.solutions[index].text}",
-                                    color = TestarioGreen, style = MaterialTheme.typography.bodySmall)
+                            Row(verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("${index + 1}. ${entry.ifBlank { "Sin responder" }} " +
+                                    if (accepted) "✓" else "✗",
+                                    color = if (accepted) TestarioGreen else TestarioRed)
+                                if (!accepted && numbered) Text(
+                                    "${exercise.solutions[index].text} ✓",
+                                    color = TestarioGreen)
                             }
                         }
-                        val missing = exercise.solutions.filterNot { it.id in graded.correctIds }
-                        if (missing.isNotEmpty()) Text("Faltaban: " +
-                            missing.joinToString(" · ") { it.text }, color = TestarioRed)
+                        if (!numbered) {
+                            val missing = exercise.solutions.filterNot { it.id in graded.correctIds }
+                            if (missing.isNotEmpty()) Text(
+                                "Faltaban: " + missing.joinToString(" · ") { it.text },
+                                color = TestarioGreen)
+                        }
                     }
+                    } // Respuestas desplazables; el enunciado y la imagen permanecen visibles
                 }
                 MixedItemType.ANKI -> {
                     val exercise = requireNotNull(item.exercise)
@@ -411,7 +421,7 @@ fun MixedSessionScreen(
                             Text("Mostrar respuesta")
                         }
                     } else {
-                        Text(solutionText.ifBlank { questionText }, color = TestarioGreen)
+                        if (solutionText.isNotBlank()) Text(solutionText, color = TestarioGreen)
                         (if (reverse) card.frontImageUri else card.backImageUri)?.let { path ->
                             StudyVisualImage(imageUri = path,
                                 annotations = if (reverse) card.frontAnnotations else card.backAnnotations,
