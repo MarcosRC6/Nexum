@@ -577,6 +577,12 @@ fun SettingsScreen(
                                     checked = homeSettingsViewModel.showStatsShortcut,
                                     onCheckedChange = homeSettingsViewModel::changeShowStatsShortcut
                                 )
+                                HomeSettingToggle(
+                                    title = "Enlaces",
+                                    subtitle = "Muestra accesos web y permite tener este bloque sin otros botones.",
+                                    checked = homeSettingsViewModel.showWebLinksShortcut,
+                                    onCheckedChange = homeSettingsViewModel::changeShowWebLinksShortcut
+                                )
                                 OutlinedButton(
                                     onClick = { showManageWebLinks = true },
                                     modifier = Modifier.fillMaxWidth()
