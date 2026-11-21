@@ -320,9 +320,14 @@ fun MixedSessionScreen(
                 MixedItemType.WRITTEN -> {
                     val exercise = requireNotNull(item.exercise)
                     Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
-                    val pinStatuses = if (showAnswer)
-                        WrittenMarkerFeedback.statusByMarker(exercise, response.writtenAnswers)
-                    else emptyMap()
+                    val gradedWritten = if (showAnswer)
+                        StudyExerciseRules.gradeWrittenInSession(
+                            exercise, response.writtenAnswers,
+                            current.pointsCorrect, current.penaltyWrong)
+                    else null
+                    val pinStatuses = gradedWritten?.let {
+                        WrittenMarkerFeedback.fromGradedResult(exercise, it)
+                    } ?: emptyMap()
                     exercise.baseImageUri?.let { path ->
                         val statuses = pinStatuses
                         StudyVisualImage(imageUri = path, modifier = Modifier.fillMaxWidth().height(230.dp),
@@ -367,10 +372,7 @@ fun MixedSessionScreen(
                                 )
                             }
                         } else {
-                            val graded = StudyExerciseRules.gradeWrittenInSession(
-                                exercise, response.writtenAnswers,
-                                current.pointsCorrect, current.penaltyWrong
-                            )
+                            val graded = requireNotNull(gradedWritten)
                             Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
                                 color = if (graded.scoreOutOfTen >= 5)
                                     TestarioGreen else TestarioRed)
