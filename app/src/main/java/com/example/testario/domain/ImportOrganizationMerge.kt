@@ -123,8 +123,13 @@ object ImportOrganizationMerge {
                     allocation.copy(groupId = destination)
                 }
             )
+            // A conflicting personal template is imported as "Name (2)".
+            // On subsequent ZIP imports, recognize that unchanged suffixed copy
+            // instead of creating "Name (3)", "Name (4)", and so on.
+            val suffix = Regex("^" + Regex.escape(name) + " \\(\\d+\\)$",
+                RegexOption.IGNORE_CASE)
             val alreadyPresent = templates.any { old ->
-                old.name.trim().equals(name, true) &&
+                (old.name.trim().equals(name, true) || suffix.matches(old.name.trim())) &&
                     old.copy(id = remapped.id, name = remapped.name) == remapped
             }
             if (!alreadyPresent) {
