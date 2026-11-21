@@ -11,6 +11,7 @@ import com.example.testario.data.model.*
 import com.example.testario.domain.ClozeMarkupEngine
 import com.example.testario.domain.OcclusionRevealRules
 import com.example.testario.domain.StudyExerciseRules
+import com.example.testario.domain.WrittenMarkerFeedback
 import com.example.testario.ui.theme.*
 
 /** Post-exam review of frozen results; never changes grades or Anki scheduling. */
@@ -76,9 +77,8 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
                     )
                     Text(exercise.prompt, color = TestarioText,
                         style = MaterialTheme.typography.titleLarge)
-                    val statuses = exercise.solutions.flatMap { solution ->
-                        solution.points.map { it.id to (solution.id in grade.correctIds) }
-                    }.toMap()
+                    val statuses = WrittenMarkerFeedback.statusByMarker(
+                        exercise, response.writtenAnswers)
                     exercise.baseImageUri?.let {
                         StudyVisualImage(imageUri = it, annotations = exercise.baseAnnotations,
                             modifier = Modifier.fillMaxWidth().height(240.dp),
