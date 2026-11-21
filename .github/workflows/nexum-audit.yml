@@ -41,6 +41,11 @@ jobs:
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      # Compile device regression suites in CI; executing them still needs
+      # an instrumented Android device/emulator before the stable release gate.
+      - name: Compile Android instrumentation tests
+        run: ./gradlew assembleDebugAndroidTest --stacktrace
+
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --stacktrace
 
