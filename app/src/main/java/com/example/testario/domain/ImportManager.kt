@@ -267,7 +267,12 @@ class ImportManager(private val context: Context, private val localStore: Testar
         if (localStore.recoveryError.value != null) {
             localStore.restoreValidatedRecovery(restored)
         } else {
-            localStore.saveDatabase(restored)
+            // A restore must not report success until AtomicFile has committed.
+            // The normal saveDatabase() is fire-and-forget and can hide disk errors.
+            kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                val previous = localStore.database.value
+                localStore.saveDatabaseDurably(previous, restored)
+            }
         }
     }
 
