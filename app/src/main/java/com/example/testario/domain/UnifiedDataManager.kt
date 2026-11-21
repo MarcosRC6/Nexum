@@ -90,8 +90,10 @@ class UnifiedDataManager(private val context: Context) {
             readZipTextEntries(bytes, setOf("testario_database.json"))["testario_database.json"]
         }.getOrNull() ?: return false
 
-        // Validamos completamente la base antes de escribir una sola imagen o dato.
+        // Validate the actual backup shape BEFORE Kotlin's default values
+        // could turn an incomplete JSON into an empty replacement database.
         runCatching {
+            DatabaseBackupValidator.requireLibraryShape(raw)
             val migrated = MigrationManager.migrate(raw)
             json.decodeFromString<TestarioDatabase>(migrated)
         }.getOrElse { return false }
@@ -192,6 +194,7 @@ class UnifiedDataManager(private val context: Context) {
 
         val dbRaw = textEntries["testario_database.json"] ?: return false
         runCatching {
+            DatabaseBackupValidator.requireLibraryShape(dbRaw)
             val migrated = MigrationManager.migrate(dbRaw)
             json.decodeFromString<TestarioDatabase>(migrated)
         }.getOrElse { return false }
