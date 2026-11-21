@@ -63,6 +63,12 @@ internal fun StudySketchCanvas(
     val latestZoom by rememberUpdatedState(zoomFactor)
     val latestZoomChange by rememberUpdatedState(onZoomChange)
     val latestPen by rememberUpdatedState(Triple(penArgb, penWidthFraction, penOpacity))
+    LaunchedEffect(zoomFactor) {
+        if (zoomFactor <= 1.01f) {
+            panX = 0f
+            panY = 0f
+        }
+    }
     val purple = TestarioPrimary
     val green = TestarioGreen
     val red = TestarioRed
@@ -76,11 +82,12 @@ internal fun StudySketchCanvas(
             (y / h).toDouble().coerceIn(0.0, 1.0))
     }
     val gestures = when (mode) {
-        SketchMode.DRAW, SketchMode.ERASE, SketchMode.PAN ->
+        SketchMode.DRAW, SketchMode.ERASE, SketchMode.PAN, SketchMode.MARK ->
             Modifier.pointerInput(mode) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     var multiTouch = false
+                    var tapCandidate = true
                     var gesturePoints = if (mode == SketchMode.ERASE)
                         listOf(coordinates(down.position.x, down.position.y, size.width, size.height))
                         else emptyList()
@@ -96,8 +103,10 @@ internal fun StudySketchCanvas(
                             val newZoom = (oldZoom * event.calculateZoom()).coerceIn(1f, 5f)
                             latestZoomChange(newZoom)
                             val shift = event.calculatePan()
-                            panX += shift.x
-                            panY += shift.y
+                            val maxX = size.width * (newZoom - 1f) / 2f
+                            val maxY = size.height * (newZoom - 1f) / 2f
+                            panX = (panX + shift.x).coerceIn(-maxX, maxX)
+                            panY = (panY + shift.y).coerceIn(-maxY, maxY)
                         } else if (!multiTouch && touches.size == 1) {
                             val change = touches.first()
                             val at = coordinates(change.position.x, change.position.y,
@@ -112,6 +121,11 @@ internal fun StudySketchCanvas(
                                     if (gesturePoints.lastOrNull() != at && gesturePoints.size < 1200)
                                         gesturePoints = gesturePoints + at
                                     eraserPreview = gesturePoints
+                                }
+                                SketchMode.MARK -> {
+                                    // Only a tap places a number; drags do not create points.
+                                    if (change.positionChange().getDistance() > 2f)
+                                        tapCandidate = false
                                 }
                                 SketchMode.PAN -> {
                                     val displacement = change.positionChange()
@@ -139,18 +153,17 @@ internal fun StudySketchCanvas(
                             ))
                         } else if (mode == SketchMode.ERASE && gesturePoints.isNotEmpty()) {
                             latestErasePath(gesturePoints, size.width, size.height)
+                        } else if (mode == SketchMode.MARK && tapCandidate) {
+                            val position = coordinates(
+                                down.position.x, down.position.y, size.width, size.height
+                            )
+                            latestMark(position.x, position.y)
                         }
                     }
                     inProgress = emptyList()
                     eraserPreview = emptyList()
                 }
             }
-        SketchMode.MARK -> Modifier.pointerInput(mode, markers, zoomFactor) {
-            detectTapGestures { pos ->
-                val at = coordinates(pos.x, pos.y, size.width, size.height)
-                latestMark(at.x, at.y)
-            }
-        }
         SketchMode.PREVIEW -> if (enableFullscreen) Modifier.pointerInput(Unit) {
             detectTapGestures(onTap = { fullScreen = true })
         } else Modifier
