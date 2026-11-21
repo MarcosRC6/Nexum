@@ -38,6 +38,26 @@ class ImportBatchPlannerTest {
         assertEquals(20, source.size)
     }
 
+    @Test fun repeatedZipBatchesAccumulateUniqueQuestionsAndKeepOtherTopics() {
+        val first = topic("Tema 1")
+        val prior = topic("Tema 2")
+        val extra = question().copy(id = "new-q", text = "¿Pregunta acumulada?")
+        val merged = first.copy(questions = listOf(question(), extra))
+        val batchOne = plan(listOf(first, prior),
+            ImportBatchDecision(merged, DuplicateTopicAction.MERGE))
+        assertEquals(1, batchOne.merged)
+        assertEquals(1, batchOne.addedQuestions)
+        assertEquals(2, batchOne.topics.first().questions.size)
+        assertEquals(1, batchOne.topics.last().questions.size)
+
+        val batchTwo = plan(batchOne.topics,
+            ImportBatchDecision(merged, DuplicateTopicAction.MERGE))
+        assertEquals(1, batchTwo.identical)
+        assertEquals(2, batchTwo.duplicatedQuestions)
+        assertEquals(2, batchTwo.topics.first().questions.size)
+        assertEquals(1, batchTwo.topics.last().questions.size)
+    }
+
     @Test fun identicalMergeIsReportedAndNeverDuplicatesQuestions() {
         val existing = listOf(topic("Tema 1"))
         val result = plan(existing, ImportBatchDecision(topic("Tema 1"), DuplicateTopicAction.MERGE))
