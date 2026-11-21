@@ -805,7 +805,19 @@ class StudyRepository(
         return getStudiedMinutesForDate(date) >= _settings.value.dailyGoalMinutes
     }
 
-    fun exportBackupJson(): String {
+    val hasCorruptPlanningData: Boolean
+        get() = localDataSource.isCorruptRecoveryLocked()
+
+    fun exportBackupJson(forPrivateRescueOnly: Boolean = false): String {
+        if (localDataSource.isCorruptRecoveryLocked()) {
+            check(forPrivateRescueOnly) {
+                "Planario contiene datos ilegibles. No se puede generar una copia " +
+                    "GLOBAL COMPLETA válida con una planificación vacía. Conserva " +
+                    "la instalación y restaura una copia anterior verificada."
+            }
+            return localDataSource.originalCorruptJsonForRecovery()
+                ?: error("No se ha podido localizar el JSON original de Planario.")
+        }
         val activeTimer = localDataSource.loadActiveStudyTimerSnapshot()
         val activeTimerMinutes = activeTimer.elapsedMinutes()
 
