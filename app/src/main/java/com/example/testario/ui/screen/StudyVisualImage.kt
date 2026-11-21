@@ -8,6 +8,9 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.graphics.graphicsLayer
@@ -152,27 +155,38 @@ internal fun StudyVisualImage(
                             )
                         }
                     }
-                    if (showCorrection || showMarkerNumbers) {
-                        markers.forEach { p ->
-                            drawCircle(color = when (markerStatuses[p.id]) {
-                                true -> Color(0xFF51D79D)
-                                false -> Color(0xFFEA6877)
-                                null -> Color(0xFFA85AFF)
-                            }, radius = 14.dp.toPx(), center = fit.locate(p.x,p.y))
-                        }
-                    }
+                    // Colored pins are Compose elements below. A separately composed
+                    // overlay prevents stale draw state when answers are revealed.
                 }
                 if (showCorrection || showMarkerNumbers) markers.forEach { p ->
                     val at = fit.locate(p.x, p.y)
-                    Text(
-                        text = p.order.toString(),
-                        // Label must contrast with the green/red/purple filled pin.
-                        color = Color.White,
+                    val state = markerStatuses[p.id]
+                    val pinColor = when (state) {
+                        true -> Color(0xFF239A65)
+                        false -> Color(0xFFE43F59)
+                        null -> Color(0xFFA85AFF)
+                    }
+                    Box(
                         modifier = Modifier.offset(
-                            x = with(density) { at.x.toDp() } - 8.dp,
-                            y = with(density) { at.y.toDp() } - 13.dp
-                        )
-                    )
+                            x = with(density) { at.x.toDp() } - 18.dp,
+                            y = with(density) { at.y.toDp() } - 18.dp
+                        ).size(36.dp)
+                            .background(pinColor, CircleShape)
+                            .border(2.dp, Color.White, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(p.order.toString(), color = Color.White,
+                            style = MaterialTheme.typography.titleMedium)
+                    }
+                    // Do not rely on hue alone: show a small cross for wrong/omitted
+                    // answers, including photographs with older colored pins baked in.
+                    if (state == false) Text("✕", color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.offset(
+                            x = with(density) { at.x.toDp() } + 13.dp,
+                            y = with(density) { at.y.toDp() } - 25.dp
+                        ).background(Color(0xFFE43F59), CircleShape)
+                            .padding(horizontal = 4.dp, vertical = 1.dp))
                 }
             }
         }
