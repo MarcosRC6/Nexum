@@ -692,6 +692,9 @@ fun StudyExerciseEditorScreen(
                             style = MaterialTheme.typography.bodySmall)
                     }
                 }
+                val canRevealWithoutText = flashKind == FlashcardKind.IMAGE_OCCLUSION ||
+                    runCatching { ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty() }
+                        .getOrDefault(false)
                 Column(
                     Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(18.dp))
                         .padding(16.dp),
@@ -703,13 +706,18 @@ fun StudyExerciseEditorScreen(
                         style = MaterialTheme.typography.titleMedium)
                     OutlinedTextField(
                         value = back, onValueChange = { back = it },
-                        label = { Text(if (simpleAnki ||
-                            flashKind == FlashcardKind.IMAGE_OCCLUSION)
-                            "Texto opcional (se muestra después de destapar)"
+                        label = { Text(if (canRevealWithoutText)
+                            "Texto de explicación (opcional)"
+                            else if (simpleAnki) "Texto de explicación"
                             else "Respuesta") },
                         modifier = Modifier.fillMaxWidth(), minLines = 2,
                         shape = RoundedCornerShape(18.dp)
                     )
+                    if (simpleAnki && !canRevealWithoutText) {
+                        Text("Sin texto oculto ni máscara, completa este campo para que la tarjeta tenga solución.",
+                            color = TestarioMutedText,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
                 }
                 if (flashKind == FlashcardKind.TYPE_ANSWER) {
                     OutlinedTextField(
