@@ -74,6 +74,35 @@ class WrittenMarkerFeedbackTest {
             StudyExerciseRules.positionalSolutions(legacy))
     }
 
+    @Test fun thirdMarkerIsRedEvenIfLegacyMetadataAttachedItToFirstCorrectSolution() {
+        // Legacy photo: visible point 3 was incorrectly attached to solution 1.
+        // The correction row 3 is wrong; its visible point MUST be red too.
+        val first = exercise.solutions[0].copy(points = listOf(
+            exercise.solutions[0].points.single(),
+            exercise.solutions[2].points.single()
+        ))
+        val third = exercise.solutions[2].copy(points = emptyList())
+        val legacy = exercise.copy(solutions = listOf(first, exercise.solutions[1], third))
+        val result = StudyExerciseRules.gradeWrittenInSession(
+            legacy, listOf("a", "b", "d"), 1.0, -0.25
+        )
+        assertEquals(setOf("s1", "s2"), result.correctIds)
+        val expected = mapOf("p1" to true, "p2" to true, "p3" to false)
+        assertEquals(expected, WrittenMarkerFeedback.fromGradedResult(legacy, result))
+        assertEquals(expected,
+            WrittenMarkerFeedback.statusByMarker(legacy, listOf("a", "b", "d")))
+    }
+
+    @Test fun legacyMarkerSlotThreeAlsoTurnsRedWhenOmitted() {
+        val first = exercise.solutions[0].copy(points =
+            exercise.solutions[0].points + exercise.solutions[2].points)
+        val legacy = exercise.copy(solutions = listOf(
+            first, exercise.solutions[1], exercise.solutions[2].copy(points = emptyList())
+        ))
+        val grade = StudyExerciseRules.gradeWrittenInSession(legacy, listOf("a", "b", ""))
+        assertEquals(false, WrittenMarkerFeedback.fromGradedResult(legacy, grade)["p3"])
+    }
+
     @Test fun omissionIsRedAndMarkerIdsNeverChange() {
         assertEquals(mapOf("p1" to true, "p2" to false, "p3" to false),
             WrittenMarkerFeedback.statusByMarker(exercise, listOf("a")))
