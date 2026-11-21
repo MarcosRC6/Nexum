@@ -579,62 +579,68 @@ fun StudyExerciseEditorScreen(
 
             } else {
                 val simpleAnki = flashKind in setOf(FlashcardKind.BASIC, FlashcardKind.CLOZE)
-                Text(
-                    if (simpleAnki) "Tarjeta · pregunta y respuestas ocultables"
-                    else "Tarjeta heredada · ${flashKind.name}",
-                    color = TestarioText, style = MaterialTheme.typography.titleMedium
-                )
-                if (!simpleAnki) {
-                    Text("Este formato antiguo se conserva por compatibilidad. Las tarjetas nuevas usan un editor simplificado.",
-                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    Box {
-                        TextButton(onClick = { showAnkiImageOptions = true }) {
-                            Text("Añadir imagen", color = TestarioPrimary)
-                        }
-                        DropdownMenu(expanded = showAnkiImageOptions,
-                            onDismissRequest = { showAnkiImageOptions = false }) {
-                            DropdownMenuItem(text = { Text("Imagen de pregunta") }, onClick = {
-                                showAnkiImageOptions = false
-                                ankiImageSlot = "front"
-                                showAnkiImageSourceOptions = true
-                            })
-                            DropdownMenuItem(text = { Text("Imagen de respuesta") }, onClick = {
-                                showAnkiImageOptions = false
-                                ankiImageSlot = "back"
-                                showAnkiImageSourceOptions = true
-                            })
-                        }
-                        DropdownMenu(expanded = showAnkiImageSourceOptions,
-                            onDismissRequest = { showAnkiImageSourceOptions = false }) {
-                            DropdownMenuItem(text = { Text("Crear imagen") }, onClick = {
-                                showAnkiImageSourceOptions = false
-                                if (ankiImageSlot == "front" && masks.isNotEmpty()) {
-                                    error = "Elimina las máscaras actuales antes de cambiar la imagen."
-                                } else runCatching {
-                                    imageManager.createBlankImage()
-                                }.onSuccess { path ->
-                                    if (ankiImageSlot == "front") {
-                                        frontImageUri = path
-                                        frontAnnotations = ImageAnnotations()
-                                    } else {
-                                        backImageUri = path
-                                        backAnnotations = ImageAnnotations()
-                                    }
-                                }.onFailure { error = it.message }
-                            })
-                            DropdownMenuItem(text = { Text("Importar imagen") }, onClick = {
-                                showAnkiImageSourceOptions = false
-                                chooseImage(ankiImageSlot)
-                            })
+                Column(
+                    Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(18.dp))
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Tarjeta", color = TestarioText,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f))
+                        Box {
+                            TextButton(onClick = { showAnkiImageOptions = true }) {
+                                Text("Añadir imagen", color = TestarioPrimary)
+                            }
+                            DropdownMenu(expanded = showAnkiImageOptions,
+                                onDismissRequest = { showAnkiImageOptions = false }) {
+                                DropdownMenuItem(text = { Text("Imagen del enunciado") }, onClick = {
+                                    showAnkiImageOptions = false
+                                    ankiImageSlot = "front"
+                                    showAnkiImageSourceOptions = true
+                                })
+                                DropdownMenuItem(text = { Text("Imagen de explicación") }, onClick = {
+                                    showAnkiImageOptions = false
+                                    ankiImageSlot = "back"
+                                    showAnkiImageSourceOptions = true
+                                })
+                            }
+                            DropdownMenu(expanded = showAnkiImageSourceOptions,
+                                onDismissRequest = { showAnkiImageSourceOptions = false }) {
+                                DropdownMenuItem(text = { Text("Crear imagen") }, onClick = {
+                                    showAnkiImageSourceOptions = false
+                                    if (ankiImageSlot == "front" && masks.isNotEmpty()) {
+                                        error = "Elimina las máscaras antes de cambiar la imagen."
+                                    } else runCatching {
+                                        imageManager.createBlankImage()
+                                    }.onSuccess { path ->
+                                        if (ankiImageSlot == "front") {
+                                            frontImageUri = path
+                                            frontAnnotations = ImageAnnotations()
+                                        } else {
+                                            backImageUri = path
+                                            backAnnotations = ImageAnnotations()
+                                        }
+                                    }.onFailure { error = it.message }
+                                })
+                                DropdownMenuItem(text = { Text("Importar imagen") }, onClick = {
+                                    showAnkiImageSourceOptions = false
+                                    chooseImage(ankiImageSlot)
+                                })
+                            }
                         }
                     }
+                    OutlinedTextField(
+                        value = front, onValueChange = { front = it; error = null },
+                        label = { Text("Texto de la tarjeta") },
+                        modifier = Modifier.fillMaxWidth(), minLines = 3,
+                        shape = RoundedCornerShape(18.dp)
+                    )
                 }
-                OutlinedTextField(
-                    value = front, onValueChange = { front = it; error = null },
-                    label = { Text("Pregunta o texto de la tarjeta") },
-                    modifier = Modifier.fillMaxWidth(), minLines = 3
+                if (!simpleAnki) Text(
+                    "Formato heredado: se mantiene su comportamiento y sus respuestas.",
+                    color = TestarioMutedText,
+                    style = MaterialTheme.typography.bodySmall
                 )
                 if (simpleAnki) {
                     TextButton(onClick = { ankiHelpExpanded = !ankiHelpExpanded }) {
@@ -686,15 +692,25 @@ fun StudyExerciseEditorScreen(
                             style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                OutlinedTextField(
-                    value = back, onValueChange = { back = it },
-                    label = { Text(if (flashKind == FlashcardKind.CLOZE ||
-                        (flashKind == FlashcardKind.BASIC &&
-                            runCatching { ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty() }
-                                .getOrDefault(false))) "Explicación (opcional)"
-                        else "Respuesta") },
-                    modifier = Modifier.fillMaxWidth(), minLines = 2
-                )
+                Column(
+                    Modifier.fillMaxWidth().background(TestarioSurface, RoundedCornerShape(18.dp))
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(if (simpleAnki || flashKind == FlashcardKind.IMAGE_OCCLUSION)
+                        "Explicación" else "Respuesta",
+                        color = TestarioText,
+                        style = MaterialTheme.typography.titleMedium)
+                    OutlinedTextField(
+                        value = back, onValueChange = { back = it },
+                        label = { Text(if (simpleAnki ||
+                            flashKind == FlashcardKind.IMAGE_OCCLUSION)
+                            "Texto opcional (se muestra después de destapar)"
+                            else "Respuesta") },
+                        modifier = Modifier.fillMaxWidth(), minLines = 2,
+                        shape = RoundedCornerShape(18.dp)
+                    )
+                }
                 if (flashKind == FlashcardKind.TYPE_ANSWER) {
                     OutlinedTextField(
                         value = aliasesText, onValueChange = { aliasesText = it },
@@ -815,10 +831,10 @@ fun StudyExerciseEditorScreen(
                                         showCorrection = previewRevealed)
                                 }
                                 if (previewRevealed) {
-                                    Divider()
-                                    Text("Respuesta", color = TestarioGreen)
-                                    Text(card.back.ifBlank { card.gaps.joinToString(", ") { g ->
-                                        card.front.substring(g.start, g.end) } }, color = TestarioText)
+                                    if (card.back.isNotBlank()) {
+                                        Text("Explicación", color = TestarioGreen)
+                                        Text(card.back, color = TestarioText)
+                                    }
                                 }
                             }
                         }
