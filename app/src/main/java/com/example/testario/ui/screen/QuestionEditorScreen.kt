@@ -172,7 +172,9 @@ fun QuestionEditorScreen(
                         Text("Pregunta", style = MaterialTheme.typography.titleMedium,
                             color = TestarioText, modifier = Modifier.weight(1f))
                         Box {
-                            TextButton(onClick = { imageMenu = true }) {
+                            // Plain Material 3 text action, unlike the NeonTextButton
+                            // alias used for other accented actions in this editor.
+                            androidx.compose.material3.TextButton(onClick = { imageMenu = true }) {
                                 Text("Añadir imagen", color = TestarioPrimary)
                             }
                             DropdownMenu(expanded = imageMenu,
