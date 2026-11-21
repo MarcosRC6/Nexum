@@ -9,9 +9,9 @@ object WrittenMarkerRules {
         List<CanonicalSolution> {
         require(x.isFinite() && y.isFinite() && x in 0.0..1.0 && y in 0.0..1.0)
         val target = solutions.indexOfFirst { it.id == solutionId }
-        require(target >= 0 && solutions[target].text.isNotBlank()) {
-            "Escribe primero la solución correspondiente."
-        }
+        // Placement is allowed while the solution text is still empty.
+        // Final publication validation still rejects unfilled solutions.
+        require(target >= 0) { "La solución seleccionada ya no existe." }
         return solutions.mapIndexed { index, solution ->
             if (solution.id == solutionId)
                 solution.copy(points = listOf(ImagePoint(x = x, y = y, order = index + 1)))
