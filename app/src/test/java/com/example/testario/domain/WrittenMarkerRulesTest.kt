@@ -38,10 +38,13 @@ class WrittenMarkerRulesTest {
         assertEquals(3, stripped.last().points.single().order)
     }
 
-    @Test fun blankAndUnknownSolutionsCannotBePlaced() {
+    @Test fun markersCanBePlacedBeforeTextButUnknownIdsAreRejected() {
         assertTrue(runCatching { WrittenMarkerRules.place(original, "missing", .1, .1) }.isFailure)
-        assertTrue(runCatching { WrittenMarkerRules.place(
-            listOf(CanonicalSolution(id = "blank", text = "")), "blank", .2, .3
-        ) }.isFailure)
+        val blank = CanonicalSolution(id = "blank", text = "")
+        val placed = WrittenMarkerRules.place(listOf(blank), "blank", .2, .3)
+        assertEquals("", placed.single().text)
+        assertEquals(1, placed.single().points.single().order)
+        val filled = placed.map { it.copy(text = "Escrita después") }
+        assertEquals(placed.single().points.single().id, filled.single().points.single().id)
     }
 }
