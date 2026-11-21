@@ -9,6 +9,20 @@ import com.example.testario.data.model.StudyExercise
  * Empty or incorrect positions are red only after the answer is revealed.
  */
 object WrittenMarkerFeedback {
+    /**
+     * Use the SAME graded result as the score and the correction rows. This
+     * prevents a green image marker when its corresponding numbered answer
+     * is red in the result list (including restored/legacy sessions).
+     */
+    fun fromGradedResult(
+        exercise: StudyExercise,
+        grade: StudyExerciseRules.WrittenResult
+    ): Map<String, Boolean> =
+        exercise.solutions.flatMap { solution ->
+            solution.points.map { point -> point.id to (solution.id in grade.correctIds) }
+        }.toMap()
+
+
     fun statusByMarker(exercise: StudyExercise, submitted: List<String>): Map<String, Boolean> =
         StudyExerciseRules.positionalSolutions(exercise).flatMapIndexed { index, solution ->
             val submittedText = submitted.getOrNull(index).orEmpty()
