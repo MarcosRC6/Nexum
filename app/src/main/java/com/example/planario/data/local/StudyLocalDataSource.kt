@@ -38,6 +38,19 @@ class StudyLocalDataSource(
     private val _recoveryError = MutableStateFlow<String?>(null)
     val recoveryError: StateFlow<String?> = _recoveryError
 
+    /** Unlike a transient disk write failure, this means the original JSON
+     * cannot be decoded and normal backup exports must not pass as complete. */
+    fun isCorruptRecoveryLocked(): Boolean =
+        preferences.getBoolean(KEY_RECOVERY_LOCKED, false)
+
+    /** For a private, NON-RESTORABLE rescue archive only. Never pretend this
+     * corrupt JSON is an ordinary Planario database. */
+    fun originalCorruptJsonForRecovery(): String? =
+        if (isCorruptRecoveryLocked()) {
+            preferences.getString(KEY_RECOVERY_DATA, null)
+                ?: preferences.getString(KEY_DATA, null)
+        } else null
+
     private fun recoveryNotice(): String =
         "No se puede abrir la planificación guardada. NEXUM ha bloqueado " +
         "los cambios de Planario para conservar el archivo original y su " +
@@ -72,8 +85,11 @@ class StudyLocalDataSource(
     }
 
     fun save(data: StoredStudyData): Boolean {
-        if (preferences.getBoolean(KEY_RECOVERY_LOCKED, false) ||
-            _recoveryError.value != null) return false
+        if (preferences.getBoolean(KEY_RECOVERY_LOCKED, false)) {
+            _recoveryError.value = recoveryNotice()
+            return false
+        }
+        if (_recoveryError.value != null) return false
         val root = storedStudyDataToJsonObject(data)
 
         val saved = preferences.edit()
