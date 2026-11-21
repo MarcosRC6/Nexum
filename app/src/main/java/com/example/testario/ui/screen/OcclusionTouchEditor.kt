@@ -87,7 +87,7 @@ internal fun OcclusionTouchEditor(
                 FilterChip(selected = drawing, onClick = { drawing = true },
                     label = { Text("Dibujar zona") })
                 FilterChip(selected = !drawing, onClick = { drawing = false },
-                    label = { Text("Seleccionar / mover") })
+                    label = { Text("Mover") })
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = {
                     val next = (scale / 1.4f).coerceAtLeast(1f)
