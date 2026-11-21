@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/nexum-2-0-stable-data-safety-20261121
       - feature/beta8-pre2-integrity-ux-audit-20261121
       - feature/home-daily-objective-test-launch-20261108
       - feature/nexum-1-1-updater-objective-tests-20261107
