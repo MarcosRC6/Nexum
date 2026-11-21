@@ -3,6 +3,15 @@ package com.example.testario.ui.screen
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
@@ -98,9 +107,47 @@ internal fun StudyVisualImage(
     showCorrection: Boolean = false,
     showMarkerNumbers: Boolean = false,
     markerStatuses: Map<String, Boolean> = emptyMap(),
-    onTapImage: ((Double, Double) -> Unit)? = null
+    onTapImage: ((Double, Double) -> Unit)? = null,
+    allowFullscreen: Boolean = true
 ) {
     val context = LocalContext.current
+    var fullscreen by remember(imageUri) { mutableStateOf(false) }
+    if (fullscreen && allowFullscreen) {
+        Dialog(onDismissRequest = { fullscreen = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            var zoom by remember(imageUri) { mutableFloatStateOf(1f) }
+            var offset by remember(imageUri) { mutableStateOf(Offset.Zero) }
+            val transforms = rememberTransformableState { scale, pan, _ ->
+                val next = (zoom * scale).coerceIn(1f, 6f)
+                zoom = next
+                offset = if (next == 1f) Offset.Zero else offset + pan
+            }
+            Column(Modifier.fillMaxSize().background(Color(0xFF080B15))) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { fullscreen = false }) {
+                        Text("Cerrar ✕", color = Color.White)
+                    }
+                }
+                Box(Modifier.fillMaxWidth().weight(1f).clipToBounds()
+                    .transformable(transforms)) {
+                    StudyVisualImage(
+                        imageUri = imageUri,
+                        modifier = Modifier.fillMaxSize().graphicsLayer {
+                            scaleX = zoom; scaleY = zoom
+                            translationX = offset.x; translationY = offset.y
+                        },
+                        masks = masks, markers = markers, annotations = annotations,
+                        showCorrection = showCorrection,
+                        showMarkerNumbers = showMarkerNumbers,
+                        markerStatuses = markerStatuses, allowFullscreen = false
+                    )
+                }
+                Text("Pellizca para ampliar y arrastra con dos dedos para desplazarte.",
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp))
+            }
+        }
+    }
     var intrinsic by remember(imageUri) { mutableStateOf<Pair<Int, Int>?>(null) }
     LaunchedEffect(imageUri) {
         intrinsic = withContext(Dispatchers.IO) {
@@ -118,6 +165,8 @@ internal fun StudyVisualImage(
                     fit.toImage(p.x, p.y)?.let { (x,y) -> onTapImage(x,y) }
                 }
             }
+        } else if (allowFullscreen) {
+            Modifier.clickable { fullscreen = true }
         } else Modifier
         Box(Modifier.fillMaxSize().then(touch)) {
             AsyncImage(
