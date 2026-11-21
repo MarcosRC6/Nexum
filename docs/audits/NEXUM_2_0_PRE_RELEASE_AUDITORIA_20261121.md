@@ -47,3 +47,24 @@
 `app/src/main/java/com/example/testario/ui/screen/{StudyExerciseEditorScreen,StudyExercisePracticeScreen,MixedSessionScreen,SettingsScreen,OcclusionTouchEditor,StudySketchCanvas,StudyVisualImage,WrittenCorrectionRows}.kt`;
 `app/src/main/java/com/example/testario/data/local/{TestarioLocalStore,SavedTestSessionStore,SavedMixedSessionStore,WebQuickLinkStore}.kt`;
 `app/src/main/java/com/example/planario/{data/local/StudyLocalDataSource,domain/timer/StudyTimerController,domain/timer/StudyTimerForegroundService}.kt`.
+
+## Segunda pasada pre-Beta 9 — fuente real del repositorio (21/11/2026)
+
+**Se revisaron** importación ZIP/JSON y detección de duplicados, organización de temas/grupos/plantillas, backup global/solo Testario, imágenes clásicas y Anki, sesion de exámenes mixtos, estados del cronómetro/Pomodoro, notificación de primer plano, Nearby host/join, widgets y accesos rápidos, revisión Anki, editor/oclusiones, actualización y firma del APK. Se contrastaron pruebas JVM y GitHub CI; esta auditoría no tiene acceso al teléfono del propietario.
+
+| Área | Resultado de código | Riesgo residual / prueba necesaria |
+| --- | --- | --- |
+| Importador multi-JSON | Lotes preparados con preview, tratamiento de nombres duplicados, huellas que conservan decimales y operadores, commit DB durable | Importar, repetir e interrumpir ZIP de 1/2/5/20/40 temas con fotografías reales |
+| Grupos / plantillas | Fusión por ruta padre/nombre y remapeo de IDs sin duplicar plantillas idénticas | Plantillas con grupos de contenido parcial o nombres iguales en jerarquías distintas |
+| Fotografías Test + Anki | **CORREGIDO EN BETA 9**: inventario común de todas las referencias de fotos; un ZIP incompleto se rechaza sin importar parcialmente y un export no puede omitir fotos clásicas silenciosamente | Bibliotecas históricas con URI externa rota requieren corregir desde el editor; validar ZIP en dispositivo |
+| Restauraciones | Copia preventiva en almacenamiento privado, esquema v7/migración validada y fases de imágenes | **P0 RESIDUAL**: la restauración global modifica varias tiendas y no es ACID; probar cortes y rollback antes de estable |
+| Sesiones | Snapshot de examen clásico/mixto, commit durable con idempotencia por sesión al terminar, histórico acotado | Forzar cierre/reanudación, respuesta mal guardada, historial y estadísticas |
+| Cronómetro/Pomodoro | Recuperación monotónica con protección de reinicio/reloj, notificación con guardar/pausar/reanudar | Incidencia de cronómetro #19: ensayo Android con importación, bloqueo, cambio de fecha |
+| Anki | Selector de ocultación reversible, edición fullscreen, imagen frontal sin máscara válida, corrección posicional | Taps con máscaras muy pequeñas, zoom, visualización cuando la foto contiene puntos verdes incrustados |
+| Widgets / accesos | «Enlaces» funciona sin otras cuatro categorías, botón cuadrado + neón accesible, Today rollover scheduler | Redimensionar widget, giro de día, ajustes y backup en dispositivo |
+| Nearby | Intercambio bajo consentimiento, SHA/longitud, archivo de recuperación, host/join manual | Dos teléfonos reales y fallo durante transferencia/restauración |
+| Actualización | Comparación de versiones y verificación digest SHA256 de APK, firma oficial en release CI | Ensayo actualización in-place sin pérdida de datos desde Beta 8 |
+| Rendimiento | ZIP JSON e imágenes tienen límites al extraer, CLI CI compila | **P1 RESIDUAL**: el selector de restauración unificada todavía usa `readBytes()` sin streaming; probar backups grandes. No declarar soporte de archivos arbitrarios |
+| Compatibilidad externa | ZIP JSON y TXT/CSV; cloze + Anki internos | `.apkg` interoperable y sincronización incremental aún no implementados, NO presentar como completos |
+
+**Criterio:** la Beta 9 es exclusivamente una prerelease de comprobación de las correcciones y controles estructurales; aprobar GitHub CI no equivale a validar todos los caminos de UI/almacenamiento. La Release 2.0 estable NO debe publicarse sin un ciclo en teléfono real con respaldo global previo y sin problemas graves de integridad.
