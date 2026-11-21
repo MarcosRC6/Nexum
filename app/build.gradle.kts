@@ -25,8 +25,8 @@ android {
         applicationId = "com.example.estudario"
         minSdk = 26
         targetSdk = 35
-        versionCode = 18
-        versionName = "2.0-beta.4"
+        versionCode = 19
+        versionName = "2.0-beta.5"
         manifestPlaceholders["nexumAppLabel"] = "@string/app_name"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
