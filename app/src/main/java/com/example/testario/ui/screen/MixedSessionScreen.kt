@@ -221,8 +221,17 @@ fun MixedSessionScreen(
                     )
                 ) {
             if (item.type != MixedItemType.TEST) {
-                Text(item.topicName.uppercase(), color = TestarioPrimary,
-                    style = MaterialTheme.typography.labelLarge)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(item.topicName.uppercase(), color = TestarioPrimary,
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.weight(1f))
+                    val marked = item.exercise?.flagged == true
+                    IconButton(onClick = { session.toggleExerciseFlag() }) {
+                        Text(if (marked) "🚩" else "⚑",
+                            color = if (marked) TestarioPrimary else TestarioMutedText,
+                            style = MaterialTheme.typography.titleLarge)
+                    }
+                }
             }
             when (item.type) {
                 MixedItemType.TEST -> {
