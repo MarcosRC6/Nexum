@@ -705,6 +705,8 @@ fun StudyExerciseEditorScreen(
                     }
                 }
                 val canRevealWithoutText = flashKind == FlashcardKind.IMAGE_OCCLUSION ||
+                    (flashKind == FlashcardKind.BASIC && frontImageUri != null &&
+                        front.text.isNotBlank()) ||
                     runCatching { ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty() }
                         .getOrDefault(false)
                 Column(
