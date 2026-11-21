@@ -112,7 +112,7 @@ fun StudyExerciseEditorScreen(
     var backAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.backAnnotations ?: ImageAnnotations()) }
     var photoMarkerMode by remember(exerciseId) { mutableStateOf(false) }
     var showImageOptions by remember { mutableStateOf(false) }
-    var occlusionMarkMode by remember(exerciseId) { mutableStateOf(true) }
+    var showOcclusionEditor by remember(exerciseId) { mutableStateOf(false) }
     var pickerTarget by remember { mutableStateOf("written") }
     LaunchedEffect(exerciseId, solutions.size) {
         if (selectedSolutionId == null || solutions.none { it.id == selectedSolutionId }) {
@@ -247,6 +247,18 @@ fun StudyExerciseEditorScreen(
                 TextButton(onClick = { pendingMarkerId = null }) { Text("Cancelar") }
             }
         )
+    }
+    // Edit masks only on the dedicated full-screen canvas; never in the small preview.
+    if (showOcclusionEditor && flashKind == FlashcardKind.IMAGE_OCCLUSION) {
+        frontImageUri?.let { image ->
+            OcclusionTouchEditor(
+                imageUri = image,
+                annotations = frontAnnotations,
+                masks = masks,
+                onMasksChanged = { masks = it },
+                onDismiss = { showOcclusionEditor = false }
+            )
+        }
     }
     if (showClozeMarkerDialog) {
         AlertDialog(
@@ -732,32 +744,44 @@ fun StudyExerciseEditorScreen(
                         selected = flashKind == FlashcardKind.IMAGE_OCCLUSION,
                         onClick = {
                             if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
-                                if (masks.isNotEmpty()) error =
-                                    "Elimina primero las zonas ocultas para desactivar este modo."
-                                else flashKind = FlashcardKind.BASIC
+                                showOcclusionEditor = true
                             } else if (runCatching {
                                     ClozeMarkupEngine.parse(front.text).gaps.isNotEmpty()
                                 }.getOrDefault(false)) {
                                 error = "Para ocultar zonas en la imagen, elimina primero los huecos de texto. Puedes conservar esta tarjeta y crear otra para la imagen."
                             } else {
                                 flashKind = FlashcardKind.IMAGE_OCCLUSION
-                                occlusionMarkMode = true
+                                showOcclusionEditor = true
                             }
                         },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = TestarioPrimary,
+                            selectedLabelColor = TestarioBackground
+                        ),
                         label = { Text("Ocultar partes de la imagen") }
                     )
                 }
                 if (flashKind == FlashcardKind.IMAGE_OCCLUSION) {
                     frontImageUri?.let { image ->
-                        EditableOcclusionImage(
+                        // Read-only compact preview. The purple chip always opens full-screen editing.
+                        StudyVisualImage(
                             imageUri = image,
                             annotations = frontAnnotations,
                             masks = masks,
-                            onMasksChanged = { masks = it },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().height(210.dp),
+                            enableFullscreen = false
                         )
-                        TextButton(onClick = { chooseImage("front") }) {
-                            Text("Cambiar fotografía")
+                        Text("${masks.size} ${if (masks.size == 1) "zona oculta" else "zonas ocultas"}",
+                            color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = { chooseImage("front") }) {
+                                Text("Cambiar fotografía")
+                            }
+                            if (masks.isEmpty()) {
+                                TextButton(onClick = { flashKind = FlashcardKind.BASIC }) {
+                                    Text("Desactivar ocultación", color = TestarioMutedText)
+                                }
+                            }
                         }
                     }
                 }
