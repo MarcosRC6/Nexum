@@ -54,4 +54,18 @@ class OcclusionResizeTest {
     @Test fun nonFiniteDeltaCannotCorruptStoredGeometry() {
         assertEquals(original, OcclusionResize.apply(original, OcclusionHandle.BOTTOM, 0.0, Double.NaN))
     }
+    @Test fun precisionNudgesPreserveDimensionsAndNeverEscapeImage() {
+        val moved = OcclusionResize.translate(original, 10.0, -10.0)
+        assertEquals(0.6, moved.x, 1e-9)
+        assertEquals(0.0, moved.y, 1e-9)
+        assertEquals(original.width, moved.width, 0.0)
+        assertEquals(original.height, moved.height, 0.0)
+        assertEquals(original.id, moved.id)
+        assertEquals(original.answer, moved.answer)
+    }
+
+    @Test fun precisionNudgesRejectNonFiniteValues() {
+        assertEquals(original, OcclusionResize.translate(original, Double.NaN, 0.0))
+    }
+
 }
