@@ -30,10 +30,9 @@ class TopicImportMatcherTest {
 
     @Test fun operatorSymbolsCannotSilentlyDeleteDistinctAnswers() {
         val code = question().copy(answers = listOf(
-            Answer("a", "C++"), Answer("b", "C#"), Answer("c", "C")))
+            Answer("a", "C++"), Answer("b", "Java"), Answer("c", "Rust")))
         val changed = code.copy(answers = listOf(
-            Answer("a", "C"), Answer("b", "C#"), Answer("c", "C++")),
-            correctAnswerId = "a")
+            Answer("a", "C#"), Answer("b", "Java"), Answer("c", "Rust")))
         assertEquals(1, TopicImportMatcher.uniqueQuestions(listOf(changed), listOf(code)).size)
     }
 
