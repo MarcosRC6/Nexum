@@ -283,7 +283,7 @@ fun StudyExercisePracticeScreen(
                 val maskedQuestion = if (card.kind == FlashcardKind.CLOZE)
                     ClozeMarkupEngine.mask(question, card.gaps, cursor) else question
                 Text("Tarjeta ${index + 1} de ${cards.size}", color = TestarioMutedText)
-                Text(if (revealed) question else maskedQuestion,
+                if (question.isNotBlank()) Text(if (revealed) question else maskedQuestion,
                     color = TestarioText, style = MaterialTheme.typography.titleLarge)
                 if (card.kind == FlashcardKind.CLOZE && currentGroup != null) {
                     Text("Turno ${currentGroup} · los fragmentos sin número se preguntan siempre",
