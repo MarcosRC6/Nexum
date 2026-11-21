@@ -131,6 +131,12 @@ object PlanarioDependencies {
 
     fun finishStudyTimerAndSave() {
         if (!::appContext.isInitialized) return
+        // Never consume a study timer when the target planning database is
+        // locked or unwritable. Preserve the timer snapshot for recovery.
+        if (studyRepository.recoveryError.value != null) {
+            studyTimerController.persistCurrentStudyTimerNow()
+            return
+        }
         if (studyTimerController.state.value.studyTimerState == StudyTimerState.STOPPED) return
 
         val finished = studyTimerController.finishStudyTimerAndReturnSession()
