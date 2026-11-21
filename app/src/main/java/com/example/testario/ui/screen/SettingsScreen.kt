@@ -218,7 +218,7 @@ fun SettingsScreen(
 
             isLoading = true
             try {
-                val report = importExportViewModel.importBatchProcessed(choices)
+                val report = importExportViewModel.importBatchProcessed(choices, pendingImportText)
                 message = "Importación completa: ${report.outcomes.size} temas analizados; " +
                     "${report.created} nuevos, ${report.merged} fusionados, " +
                     "${report.identical} idénticos. " +
