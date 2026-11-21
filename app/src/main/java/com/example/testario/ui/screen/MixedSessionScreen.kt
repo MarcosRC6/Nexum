@@ -401,8 +401,10 @@ fun MixedSessionScreen(
                     val maskedQuestion = if (!reverse && card.kind == FlashcardKind.CLOZE)
                         ClozeMarkupEngine.mask(questionText, card.gaps, item.clozeCursor)
                         else questionText
-                    Text(if (showAnswer) questionText else maskedQuestion,
-                        color = TestarioText, style = MaterialTheme.typography.titleLarge)
+                    if (questionText.isNotBlank()) Text(
+                        if (showAnswer) questionText else maskedQuestion,
+                        color = TestarioText, style = MaterialTheme.typography.titleLarge
+                    )
                     (if (reverse) card.backImageUri else card.frontImageUri)?.let { path ->
                         StudyVisualImage(imageUri = path,
                             annotations = if (reverse) card.backAnnotations else card.frontAnnotations,
