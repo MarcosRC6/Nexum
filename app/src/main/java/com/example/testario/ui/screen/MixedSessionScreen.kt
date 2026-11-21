@@ -207,8 +207,14 @@ fun MixedSessionScreen(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = TestarioSurface)
             ) {
-                Column(Modifier.fillMaxSize().padding(18.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    Modifier.fillMaxSize().padding(18.dp).then(
+                        if (item.type == MixedItemType.WRITTEN) Modifier
+                        else Modifier.verticalScroll(rememberScrollState())
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(12.dp
+                    )
+                ) {
             if (item.type != MixedItemType.TEST) {
                 Text(item.topicName.uppercase(), color = TestarioPrimary,
                     style = MaterialTheme.typography.labelLarge)
@@ -338,52 +344,48 @@ fun MixedSessionScreen(
                             }.toMap() else emptyMap()
                         )
                     }
-                    Text("Responde las soluciones marcadas del 1 al ${exercise.solutions.size}.",
-                        color = TestarioMutedText)
-                    repeat(exercise.solutions.size) { index ->
-                        val inputParts = writtenInput.split("\n")
-                        OutlinedTextField(
-                            value = inputParts.getOrElse(index) { "" },
-                            onValueChange = { newValue ->
-                                val parts = writtenInput.split("\n").toMutableList()
-                                while (parts.size <= index) parts.add("")
-                                parts[index] = newValue.replace("\n", " ")
-                                writtenInput = parts.joinToString("\n")
-                            },
-                            label = { Text("Respuesta ${index + 1}") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            enabled = !locked && !showAnswer
-                        )
-                    }
-                    if (!showAnswer) {
-                        Button(onClick = { session.submitWritten(writtenInput) },
-                            enabled = !locked, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (current.mode == TestMode.EXAM) "Guardar respuestas" else "Comprobar")
-                        }
-                    } else {
-                        val graded = StudyExerciseRules.gradeWrittenInSession(
-                            exercise, response.writtenAnswers, current.pointsCorrect, current.penaltyWrong
-                        )
-                        Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
-                            color = if (graded.scoreOutOfTen >= 5) TestarioGreen else TestarioRed)
-                        val numbered = exercise.solutions.any { it.points.isNotEmpty() }
-                        repeat(exercise.solutions.size) { index ->
-                            val entry = response.writtenAnswers.getOrNull(index).orEmpty()
-                            val accepted = if (numbered)
-                                exercise.solutions[index].id in graded.correctIds
-                            else StudyExerciseRules.findAcceptedSolution(exercise, entry) != null
-                            Text("${index + 1}. ${entry.ifBlank { "Sin responder" }} " +
-                                if (accepted) "✓" else "✗",
-                                color = if (accepted) TestarioGreen else TestarioRed)
-                            if (!accepted && numbered) {
-                                Text("Correcta: ${exercise.solutions[index].text}",
-                                    color = TestarioGreen, style = MaterialTheme.typography.bodySmall)
+                    // The photograph/sketch stays visible; only the answer fields scroll.
+                    // This also prevents very long enumerations from pushing the image away.
+                    Column(
+                        Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (!showAnswer) {
+                            Text(if (exercise.solutions.any { it.points.isNotEmpty() })
+                                "Responde las soluciones marcadas del 1 al ${exercise.solutions.size}."
+                                else "Escribe las ${exercise.solutions.size} soluciones.",
+                                color = TestarioMutedText)
+                            repeat(exercise.solutions.size) { index ->
+                                val inputParts = writtenInput.split("\n")
+                                OutlinedTextField(
+                                    value = inputParts.getOrElse(index) { "" },
+                                    onValueChange = { newValue ->
+                                        val parts = writtenInput.split("\n").toMutableList()
+                                        while (parts.size <= index) parts.add("")
+                                        parts[index] = newValue.replace("\n", " ")
+                                        writtenInput = parts.joinToString("\n")
+                                    },
+                                    label = { Text("Respuesta ${index + 1}") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true,
+                                    enabled = !locked
+                                )
                             }
+                            Button(onClick = { session.submitWritten(writtenInput) },
+                                enabled = !locked, modifier = Modifier.fillMaxWidth()) {
+                                Text(if (current.mode == TestMode.EXAM)
+                                    "Guardar respuestas" else "Comprobar")
+                            }
+                        } else {
+                            val graded = StudyExerciseRules.gradeWrittenInSession(
+                                exercise, response.writtenAnswers,
+                                current.pointsCorrect, current.penaltyWrong
+                            )
+                            Text("Nota: ${"%.2f".format(graded.scoreOutOfTen)} / 10",
+                                color = if (graded.scoreOutOfTen >= 5)
+                                    TestarioGreen else TestarioRed)
+                            WrittenCorrectionRows(exercise, response.writtenAnswers, graded)
                         }
-                        val missing = exercise.solutions.filterNot { it.id in graded.correctIds }
-                        if (missing.isNotEmpty()) Text("Faltaban: " +
-                            missing.joinToString(" · ") { it.text }, color = TestarioRed)
                     }
                 }
                 MixedItemType.ANKI -> {
@@ -411,7 +413,15 @@ fun MixedSessionScreen(
                             Text("Mostrar respuesta")
                         }
                     } else {
-                        Text(solutionText.ifBlank { questionText }, color = TestarioGreen)
+                        // The image itself is the answer for image-occlusion cards.
+                        // A blank explanation must not repeat the question below it.
+                        val revealedText = if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
+                            card.back else solutionText
+                        if (revealedText.isNotBlank()) {
+                            Text(if (card.kind == FlashcardKind.IMAGE_OCCLUSION)
+                                "Explicación" else "Respuesta", color = TestarioGreen)
+                            Text(revealedText, color = TestarioText)
+                        }
                         (if (reverse) card.frontImageUri else card.backImageUri)?.let { path ->
                             StudyVisualImage(imageUri = path,
                                 annotations = if (reverse) card.frontAnnotations else card.backAnnotations,
