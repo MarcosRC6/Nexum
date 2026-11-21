@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.domain.StudyExerciseRules
+import com.example.testario.domain.WrittenMarkerFeedback
 import com.example.testario.domain.ClozeMarkupEngine
 import com.example.testario.domain.OcclusionRevealRules
 import com.example.testario.ui.theme.*
@@ -107,11 +108,9 @@ fun StudyExercisePracticeScreen(
                         points.replace(",", ".").toDouble(),
                         penalty.replace(",", ".").toDouble())
                 }.getOrNull() else null
-                val statusByMarker = if (graded != null) {
-                    exercise.solutions.flatMap { solution ->
-                        solution.points.map { it.id to (solution.id in graded.correctIds) }
-                    }.toMap()
-                } else emptyMap()
+                val statusByMarker = if (graded != null)
+                    WrittenMarkerFeedback.statusByMarker(exercise, answers)
+                else emptyMap()
                 Text("Ejercicio ${index + 1} de ${written.size}", color = TestarioMutedText)
                 Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
                 exercise.diagram?.let { diagram ->
