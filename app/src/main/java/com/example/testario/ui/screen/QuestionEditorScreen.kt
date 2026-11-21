@@ -82,6 +82,7 @@ import com.example.testario.ui.theme.TestarioSurfaceLight
 import com.example.testario.ui.theme.TestarioText
 import com.example.testario.ui.theme.TestarioYellow
 import com.example.testario.viewmodel.LibraryViewModel
+import com.example.testario.domain.ImageManager
 import java.io.File
 import java.util.UUID
 
@@ -99,6 +100,7 @@ fun QuestionEditorScreen(
 
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
+    val imageManager = remember(context) { ImageManager(context.applicationContext) }
 
     var questionText by remember { mutableStateOf(existingQuestion?.text ?: "") }
     var answers by remember {
@@ -122,6 +124,8 @@ fun QuestionEditorScreen(
     var flagged by remember { mutableStateOf(existingQuestion?.flagged ?: false) }
     var error by remember { mutableStateOf<String?>(null) }
     var imageMenu by remember { mutableStateOf(false) }
+    var imageSourceMenu by remember { mutableStateOf(false) }
+    var imageTarget by remember { mutableStateOf("statement") }
 
     // NUEVO: Estado para el diálogo de confirmación de borrado
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -174,12 +178,38 @@ fun QuestionEditorScreen(
                             DropdownMenu(expanded = imageMenu,
                                 onDismissRequest = { imageMenu = false }) {
                                 DropdownMenuItem(text = { Text("Imagen del enunciado") }, onClick = {
+                                    imageTarget = "statement"
                                     imageMenu = false
-                                    statementImagePicker.launch("image/*")
+                                    imageSourceMenu = true
                                 })
                                 DropdownMenuItem(text = { Text("Imagen de explicación") }, onClick = {
+                                    imageTarget = "correction"
                                     imageMenu = false
-                                    correctionImagePicker.launch("image/*")
+                                    imageSourceMenu = true
+                                })
+                            }
+                            DropdownMenu(expanded = imageSourceMenu,
+                                onDismissRequest = { imageSourceMenu = false }) {
+                                DropdownMenuItem(text = { Text("Crear imagen") }, onClick = {
+                                    imageSourceMenu = false
+                                    runCatching { imageManager.createBlankImage() }
+                                        .onSuccess { newPath ->
+                                            if (imageTarget == "statement") {
+                                                statementImageUri = newPath
+                                                statementAnnotations = ImageAnnotations()
+                                            } else {
+                                                correctionImageUri = newPath
+                                                correctionAnnotations = ImageAnnotations()
+                                            }
+                                            error = null
+                                        }.onFailure {
+                                            error = it.message ?: "No se pudo crear la imagen."
+                                        }
+                                })
+                                DropdownMenuItem(text = { Text("Importar imagen") }, onClick = {
+                                    imageSourceMenu = false
+                                    if (imageTarget == "statement") statementImagePicker.launch("image/*")
+                                    else correctionImagePicker.launch("image/*")
                                 })
                             }
                         }
