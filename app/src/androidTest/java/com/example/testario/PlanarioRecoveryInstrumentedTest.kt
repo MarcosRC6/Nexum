@@ -3,7 +3,13 @@ package com.example.testario
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.example.planario.app.PlanarioDependencies
 import com.example.planario.core.model.StudyTopic
+import com.example.testario.domain.UnifiedDataManager
+import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.io.ByteArrayInputStream
+import java.util.zip.ZipInputStream
 import com.example.planario.data.local.StudyLocalDataSource
 import com.example.planario.data.local.StoredStudyData
 import org.junit.Assert.*
@@ -27,6 +33,7 @@ class PlanarioRecoveryInstrumentedTest {
         try {
             assertTrue(prefs.edit()
                 .putString("study_data", "{invalid-json")
+                .remove("study_data_corrupt_recovery")
                 .remove("study_data_recovery_locked").commit())
 
             val store = StudyLocalDataSource(context)
@@ -40,6 +47,37 @@ class PlanarioRecoveryInstrumentedTest {
             assertEquals("{invalid-json", prefs.getString("study_data", null))
             assertEquals("{invalid-json",
                 prefs.getString("study_data_corrupt_recovery", null))
+
+            // A normal "complete" backup must fail closed: exporting an empty
+            // in-memory Planario would falsely claim all planning was saved.
+            PlanarioDependencies.init(context)
+            val unified = UnifiedDataManager(context)
+            val normal = runCatching {
+                unified.exportGlobalBackup(ByteArrayOutputStream())
+            }
+            assertTrue(normal.isFailure)
+
+            // A PRIVATE pre-restore rescue, in contrast, preserves the exact
+            // damaged bytes with a flag forbidding automatic re-import.
+            val rescue = ByteArrayOutputStream()
+            unified.exportGlobalBackup(rescue, privateRescueOnly = true)
+            var manifest: JSONObject? = null
+            var rescuedPlan: String? = null
+            ZipInputStream(ByteArrayInputStream(rescue.toByteArray())).use { zip ->
+                while (true) {
+                    val item = zip.nextEntry ?: break
+                    val bytes = zip.readBytes()
+                    when (item.name) {
+                        "manifest.json" -> manifest = JSONObject(bytes.toString(Charsets.UTF_8))
+                        "planario_backup.json" -> rescuedPlan = bytes.toString(Charsets.UTF_8)
+                    }
+                    zip.closeEntry()
+                }
+            }
+            assertTrue(manifest?.optBoolean("recoveryOnly", false) == true)
+            assertEquals("{invalid-json", rescuedPlan)
+            assertFalse(unified.restoreGlobalBackup(rescue.toByteArray()))
+            assertEquals("{invalid-json", prefs.getString("study_data", null))
 
             assertTrue(store.restoreValidatedBackup(replacement))
             assertNull(store.recoveryError.value)
