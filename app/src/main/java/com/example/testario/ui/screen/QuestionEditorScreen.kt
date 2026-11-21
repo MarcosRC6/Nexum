@@ -121,6 +121,7 @@ fun QuestionEditorScreen(
     var correctionAnnotations by remember { mutableStateOf(existingQuestion?.correctionAnnotations ?: ImageAnnotations()) }
     var flagged by remember { mutableStateOf(existingQuestion?.flagged ?: false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var imageMenu by remember { mutableStateOf(false) }
 
     // NUEVO: Estado para el diálogo de confirmación de borrado
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -162,7 +163,27 @@ fun QuestionEditorScreen(
 
             item {
                 EditorSectionCard {
-                    Text(text = "Pregunta", style = MaterialTheme.typography.titleMedium, color = TestarioText)
+                    Row(Modifier.fillMaxWidth(),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text("Pregunta", style = MaterialTheme.typography.titleMedium,
+                            color = TestarioText, modifier = Modifier.weight(1f))
+                        Box {
+                            TextButton(onClick = { imageMenu = true }) {
+                                Text("Añadir imagen", color = TestarioPrimary)
+                            }
+                            DropdownMenu(expanded = imageMenu,
+                                onDismissRequest = { imageMenu = false }) {
+                                DropdownMenuItem(text = { Text("Imagen del enunciado") }, onClick = {
+                                    imageMenu = false
+                                    statementImagePicker.launch("image/*")
+                                })
+                                DropdownMenuItem(text = { Text("Imagen de explicación") }, onClick = {
+                                    imageMenu = false
+                                    correctionImagePicker.launch("image/*")
+                                })
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(10.dp))
                     OutlinedTextField(
                         value = questionText,
@@ -224,23 +245,6 @@ fun QuestionEditorScreen(
             }
             item {
                 EditorSectionCard {
-                    Text("Añadir imagen", style = MaterialTheme.typography.titleMedium,
-                        color = TestarioText)
-                    var imageMenu by remember { mutableStateOf(false) }
-                    Box {
-                        OutlinedButton(onClick = { imageMenu = true },
-                            modifier = Modifier.fillMaxWidth()) { Text("Añadir imagen") }
-                        DropdownMenu(expanded = imageMenu, onDismissRequest = { imageMenu = false }) {
-                            DropdownMenuItem(text = { Text("Imagen del enunciado") }, onClick = {
-                                imageMenu = false
-                                statementImagePicker.launch("image/*")
-                            })
-                            DropdownMenuItem(text = { Text("Imagen de la explicación") }, onClick = {
-                                imageMenu = false
-                                correctionImagePicker.launch("image/*")
-                            })
-                        }
-                    }
                     if (statementImageUri != null) {
                         Text("Imagen del enunciado", color = TestarioMutedText)
                         EditableAnnotationImage(
