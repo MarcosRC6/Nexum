@@ -131,9 +131,13 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         require(attemptId.isNotBlank())
         val db = localStore.database.value
         if (db.exerciseAttempts.any { it.id == attemptId }) return false
-        val result = com.example.testario.domain.StudyExerciseRules.gradeWritten(
-            exercise, submitted, pointsCorrect, penaltyWrong
-        )
+        // Numbered image positions are graded positionally, matching their pin colors.
+        // Legacy free enumerations remain order-independent.
+        val result = if (exercise.solutions.any { it.points.isNotEmpty() })
+            com.example.testario.domain.StudyExerciseRules.gradeWrittenInSession(
+                exercise, submitted, pointsCorrect, penaltyWrong)
+        else com.example.testario.domain.StudyExerciseRules.gradeWritten(
+            exercise, submitted, pointsCorrect, penaltyWrong)
         val attempt = com.example.testario.data.model.ExerciseAttempt(
             id = attemptId, exerciseId = exercise.id, topicId = topicId, kind = exercise.kind,
             timestampMillis = System.currentTimeMillis(),
