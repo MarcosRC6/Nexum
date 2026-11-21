@@ -104,7 +104,9 @@ internal fun EditableAnnotationImage(
             annotations = annotations,
             markers = markers, masks = masks, showCorrection = showCorrection,
             modifier = Modifier.fillMaxSize(),
-            onTapImage = if (onMarkerTap != null) onMarkerTap else { _, _ -> viewing = true }
+            onTapImage = if (onMarkerTap != null) onMarkerTap else { _, _ -> viewing = true },
+            externalFullscreen = viewing,
+            onExternalFullscreenDismiss = { viewing = false }
         )
         IconButton(
             onClick = { showActions = true },
@@ -134,23 +136,6 @@ internal fun EditableAnnotationImage(
             },
             confirmButton = { TextButton(onClick = { showActions = false }) { Text("Cerrar") } }
         )
-    }
-    if (viewing) {
-        Dialog(
-            onDismissRequest = { viewing = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Column(
-                Modifier.fillMaxSize().background(TestarioBackground.copy(alpha = 1f)).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                TextButton(onClick = { viewing = false }) { Text("Volver") }
-                StudyVisualImage(
-                    imageUri = imageUri, annotations = annotations,
-                    modifier = Modifier.fillMaxWidth().weight(1f)
-                )
-            }
-        }
     }
     if (editing) {
         ImageAnnotationEditorDialog(
