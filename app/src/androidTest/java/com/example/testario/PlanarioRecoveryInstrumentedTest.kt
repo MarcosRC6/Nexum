@@ -24,6 +24,24 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PlanarioRecoveryInstrumentedTest {
     @Test
+    fun incompleteAndFuturePlanarioJsonMustNeverOverwriteValidPlanning() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = StudyLocalDataSource(context)
+        for (broken in listOf(
+            "{}",
+            """{"version":2}""",
+            """{"version":2,"topics":null}""",
+            """{"version":3,"topics":[]}""",
+            """{"version":2,"topics":{}}""",
+            """{"version":2,"settings":[]}"""
+        )) {
+            assertNull("Invalid backup must reject: $broken", store.importFromJson(broken))
+        }
+        assertNotNull(store.importFromJson("""{"version":1,"topics":[]}"""))
+        assertNotNull(store.importFromJson("""{"settings":{}}"""))
+    }
+
+    @Test
     fun corruptPlanningBlocksNormalSavesUntilExplicitValidatedRestore() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val prefs = context.getSharedPreferences("planario_study_data", Context.MODE_PRIVATE)
