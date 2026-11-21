@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.*
 import com.example.testario.domain.StudyExerciseRules
 import com.example.testario.domain.ClozeMarkupEngine
+import com.example.testario.domain.OcclusionRevealRules
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.LibraryViewModel
 import coil.compose.AsyncImage
@@ -292,7 +293,7 @@ fun StudyExercisePracticeScreen(
                 promptImage?.let { path ->
                     if (card.kind == FlashcardKind.IMAGE_OCCLUSION) {
                         // Hide every other mask even after revealing the selected one.
-                        val covered = if (!revealed) card.masks else card.masks.filterNot { it.id == variant }
+                        val covered = OcclusionRevealRules.covered(card.masks, variant, revealed)
                         StudyVisualImage(
                             imageUri = path,
                             modifier = Modifier.fillMaxWidth().height(240.dp),
