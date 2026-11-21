@@ -604,10 +604,10 @@ class ImportManager(private val context: Context, private val localStore: Testar
         return false
     }
 
-    private fun normalizeText(text: String): String =
-        java.text.Normalizer.normalize(text.lowercase(), java.text.Normalizer.Form.NFD)
-            .replace(Regex("\\p{Mn}+"), "")
-            .replace(Regex("[^a-z0-9]"), "")
+    // The legacy sync also groups by question statement and compares correct answers.
+    // Preserve mathematical symbols and decimal separators here as well; otherwise
+    // distinct questions could be treated as the same editable record.
+    private fun normalizeText(text: String): String = TopicImportMatcher.normalize(text)
 
     private fun detectImportFileType(rawText: String, fileName: String?): ImportFileType {
         val extension = fileName?.substringAfterLast('.', missingDelimiterValue = "")?.lowercase()?.trim().orEmpty()
