@@ -125,6 +125,7 @@ class TimerViewModel(
     }
 
     private fun recoverPendingStudyTimerIfNeeded() {
+        if (repository.recoveryError.value != null) return
         val recoveredSession = studyTimerController.recoverPendingStudyTimerIfNeeded()
             ?: return
 
