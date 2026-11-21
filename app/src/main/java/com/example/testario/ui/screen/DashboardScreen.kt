@@ -146,7 +146,7 @@ fun HomeScreen(
                 homeSettingsViewModel.showTestShortcut ||
                 homeSettingsViewModel.showPlanShortcut ||
                 homeSettingsViewModel.showStatsShortcut ||
-                webQuickLinks.any { !it.hidden }
+                homeSettingsViewModel.showWebLinksShortcut
         else -> false
     }
 
@@ -616,7 +616,14 @@ fun HomeScreen(
                                             }
                                         }
                                     }
-                                    val visibleWebLinks = webQuickLinks.filterNot { it.hidden }
+                                    val visibleWebLinks = if (homeSettingsViewModel.showWebLinksShortcut)
+                                        webQuickLinks.filterNot { it.hidden } else emptyList()
+                                    if (homeSettingsViewModel.showWebLinksShortcut &&
+                                        visibleWebLinks.isEmpty()) {
+                                        TextButton(onClick = { showManageWebLinks = true }) {
+                                            Text("Añadir mi primer enlace", color = TestarioPrimary)
+                                        }
+                                    }
                                     if (visibleWebLinks.isNotEmpty()) {
                                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                             visibleWebLinks.chunked(3).forEach { linksRow ->
