@@ -25,8 +25,10 @@ object OcclusionResize {
         deltaY: Double
     ): ImageOcclusionMask {
         if (!deltaX.isFinite() || !deltaY.isFinite()) return mask
-        val minimumWidth = minOf(0.04, mask.width)
-        val minimumHeight = minOf(0.04, mask.height)
+        // A 4% minimum made small map labels impossible to cover precisely.
+        // Preserve even smaller legacy masks without enlarging them.
+        val minimumWidth = minOf(0.008, mask.width)
+        val minimumHeight = minOf(0.008, mask.height)
         var left = mask.x
         var right = mask.x + mask.width
         var top = mask.y
