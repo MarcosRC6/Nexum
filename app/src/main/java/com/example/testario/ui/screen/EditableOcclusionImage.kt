@@ -3,10 +3,13 @@ package com.example.testario.ui.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
@@ -65,7 +68,7 @@ internal fun EditableOcclusionImage(
                 Text("+ Añadir bloque")
             }
         }
-        Text("Arrastra el bloque para moverlo. Estira sus esquinas o bordes para ajustar el tamaño.",
+        Text("Toca una zona para seleccionarla. Para zonas pequeñas, usa las flechas y el ajuste de tamaño.",
             color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
         BoxWithConstraints(Modifier.fillMaxWidth().height(270.dp)) {
             val density = LocalDensity.current
@@ -104,11 +107,17 @@ internal fun EditableOcclusionImage(
                                 )
                             }
                     ) {
-                        Text("Oculto", color = Color.White,
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.align(Alignment.Center))
-                        if (selected) {
-                            listOf(
+                        if (widthPx >= with(density) { 68.dp.toPx() } &&
+                            heightPx >= with(density) { 34.dp.toPx() }) {
+                            Text("Oculto", color = Color.White,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.align(Alignment.Center))
+                        }
+                        // Handles must not cover a tiny mask: its center stays draggable.
+                        // A selected tiny mask is resized via precision controls below.
+                        if (selected && widthPx >= with(density) { 56.dp.toPx() } &&
+                            heightPx >= with(density) { 48.dp.toPx() }) {
+                            val availableHandles = listOf(
                                 Triple(OcclusionHandle.TOP_LEFT, Alignment.TopStart, "↖"),
                                 Triple(OcclusionHandle.TOP, Alignment.TopCenter, "↑"),
                                 Triple(OcclusionHandle.TOP_RIGHT, Alignment.TopEnd, "↗"),
@@ -117,9 +126,16 @@ internal fun EditableOcclusionImage(
                                 Triple(OcclusionHandle.BOTTOM_LEFT, Alignment.BottomStart, "↙"),
                                 Triple(OcclusionHandle.BOTTOM, Alignment.BottomCenter, "↓"),
                                 Triple(OcclusionHandle.BOTTOM_RIGHT, Alignment.BottomEnd, "↘")
-                            ).forEach { (handle, alignment, symbol) ->
+                            )
+                            val handles = if (widthPx < with(density) { 112.dp.toPx() } ||
+                                heightPx < with(density) { 90.dp.toPx() }) {
+                                availableHandles.filter {
+                                    it.first.horizontal != 0 && it.first.vertical != 0
+                                }
+                            } else availableHandles
+                            handles.forEach { (handle, alignment, symbol) ->
                                 Box(
-                                    Modifier.align(alignment).size(20.dp)
+                                    Modifier.align(alignment).size(14.dp)
                                         .background(TestarioPrimary, RoundedCornerShape(5.dp))
                                         .pointerInput(mask.id, fit, handle) {
                                             detectDragGestures(onDrag = { change, drag ->
@@ -146,6 +162,48 @@ internal fun EditableOcclusionImage(
             }
         }
         if (masks.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                masks.forEachIndexed { index, mask ->
+                    FilterChip(selected = selectedId == mask.id,
+                        onClick = { selectedId = mask.id },
+                        label = { Text("Zona ${index + 1}") })
+                }
+            }
+            masks.firstOrNull { it.id == selectedId }?.let { selectedMask ->
+                Text("Ajuste preciso · zona ${masks.indexOf(selectedMask) + 1}",
+                    color = TestarioMutedText,
+                    style = MaterialTheme.typography.bodySmall)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    listOf(
+                        Triple("←", -0.008, 0.0), Triple("→", 0.008, 0.0),
+                        Triple("↑", 0.0, -0.008), Triple("↓", 0.0, 0.008)
+                    ).forEach { (label, dx, dy) ->
+                        TextButton(onClick = {
+                            onMasksChanged(masks.map { m ->
+                                if (m.id == selectedMask.id)
+                                    OcclusionResize.translate(m, dx, dy) else m
+                            })
+                        }) { Text(label, color = TestarioPrimary) }
+                    }
+                    TextButton(onClick = {
+                        onMasksChanged(masks.map { m ->
+                            if (m.id == selectedMask.id)
+                                OcclusionResize.apply(m, OcclusionHandle.BOTTOM_RIGHT, -.008, -.008)
+                            else m
+                        })
+                    }) { Text("− tamaño", color = TestarioPrimary) }
+                    TextButton(onClick = {
+                        onMasksChanged(masks.map { m ->
+                            if (m.id == selectedMask.id)
+                                OcclusionResize.apply(m, OcclusionHandle.BOTTOM_RIGHT, .008, .008)
+                            else m
+                        })
+                    }) { Text("+ tamaño", color = TestarioPrimary) }
+                }
+            }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("${masks.size} ${if (masks.size == 1) "zona oculta" else "zonas ocultas"}",
                     color = TestarioMutedText, modifier = Modifier.weight(1f))
