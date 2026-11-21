@@ -118,9 +118,18 @@ class UnifiedDataManager(private val context: Context) {
         }
     }
 
-    fun exportGlobalBackup(outputStream: OutputStream, syncDeviceId: String? = null) {
+    fun exportGlobalBackup(
+        outputStream: OutputStream,
+        syncDeviceId: String? = null,
+        privateRescueOnly: Boolean = false
+    ) {
+        val corruptPlanning = PlanarioDependencies.studyRepository.hasCorruptPlanningData
         val databaseJson = json.encodeToString(localStore.database.value)
-        val planJson = PlanarioDependencies.studyRepository.exportBackupJson()
+        // Public exports fail closed if Planario is unreadable; only our
+        // private pre-restore rescue archive may carry the original corrupt
+        // bytes, explicitly marked NON-RESTORABLE in its manifest.
+        val planJson = PlanarioDependencies.studyRepository.exportBackupJson(
+            forPrivateRescueOnly = privateRescueOnly)
         val quickLinksJson = QuickTestLinkManager(context).exportJson()
         val webQuickLinksJson = WebQuickLinkStore.get(context).exportJson()
         val settingsJson = exportTestarioSettings()
@@ -132,6 +141,10 @@ class UnifiedDataManager(private val context: Context) {
                 put("format", GLOBAL_FORMAT)
                 put("version", 1)
                 put("createdAt", System.currentTimeMillis())
+                if (privateRescueOnly && corruptPlanning) {
+                    put("recoveryOnly", true)
+                    put("recoveryReason", "corrupt-planario-json")
+                }
                 if (syncDeviceId != null) put("syncDeviceId", syncDeviceId)
             }.toString(2))
             writeText(zos, "testario_database.json", databaseJson)
@@ -173,6 +186,9 @@ class UnifiedDataManager(private val context: Context) {
         val manifestJson = runCatching { JSONObject(manifest) }.getOrNull() ?: return false
         if (manifestJson.optString("format") != GLOBAL_FORMAT) return false
         if (manifestJson.optInt("version", 0) !in 1..1) return false
+        // An emergency snapshot of corrupt Planario raw JSON is valuable for
+        // forensics, but it MUST NOT be accepted as a restorable global ZIP.
+        if (manifestJson.optBoolean("recoveryOnly", false)) return false
 
         val dbRaw = textEntries["testario_database.json"] ?: return false
         runCatching {
@@ -261,7 +277,7 @@ class UnifiedDataManager(private val context: Context) {
         val protected = File(recoveryDir, name)
         try {
             FileOutputStream(staging).use { output ->
-                exportGlobalBackup(output)
+                exportGlobalBackup(output, privateRescueOnly = true)
                 output.fd.sync()
             }
             check(staging.isFile && staging.length() > 0L) {
