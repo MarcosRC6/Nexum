@@ -10,7 +10,7 @@ import com.example.testario.data.model.StudyExercise
  */
 object WrittenMarkerFeedback {
     fun statusByMarker(exercise: StudyExercise, submitted: List<String>): Map<String, Boolean> =
-        exercise.solutions.flatMapIndexed { index, solution ->
+        StudyExerciseRules.positionalSolutions(exercise).flatMapIndexed { index, solution ->
             val submittedText = submitted.getOrNull(index).orEmpty()
             val matched = StudyExerciseRules.findAcceptedSolution(exercise, submittedText)
             solution.points.map { marker -> marker.id to (matched?.id == solution.id) }
