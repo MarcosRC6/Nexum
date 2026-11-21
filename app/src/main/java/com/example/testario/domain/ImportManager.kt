@@ -169,19 +169,16 @@ class ImportManager(private val context: Context, private val localStore: Testar
                 validateStudyExercises(topics)
                 json.encodeToString(TestarioDatabase(topics = topics))
             }
-            // New exercises must carry every referenced asset in the SAME archive.
-            // Reject broken archives before any image or topic is committed.
+            // Classic question photos also matter: an archive without them
+            // must fail before the preview, rather than import broken image URIs.
             val validated = json.decodeFromString<TestarioDatabase>(
                 MigrationManager.migrate(validJson)
             )
-            val missing = validated.topics.asSequence()
-                .flatMap { it.exercises.asSequence() }
-                .flatMap { it.referencedImageUris().asSequence() }
+            val missing = LibraryMediaReferences.paths(validated.topics)
                 .map { File(it).name }
                 .filterNot { it in names }
-                .toList()
             require(missing.isEmpty()) {
-                "El ZIP no contiene ${missing.size} imágenes necesarias para los ejercicios."
+                "El ZIP no contiene ${missing.size} fotografías necesarias para las preguntas o ejercicios."
             }
             pendingImageStage = stage
             validJson
@@ -575,13 +572,12 @@ class ImportManager(private val context: Context, private val localStore: Testar
         val stagedNames = pendingImageStage?.listFiles()?.mapTo(hashSetOf()) { it.name }
             ?: emptySet()
         val safeRoot = imagesDir.canonicalPath + File.separator
-        topics.asSequence().flatMap { it.exercises.asSequence() }
-            .flatMap { it.referencedImageUris().asSequence() }.forEach { reference ->
+        LibraryMediaReferences.paths(topics).forEach { reference ->
                 val image = File(reference)
                 val isStaged = image.name in stagedNames
                 val isOwnFile = image.isFile && image.canonicalPath.startsWith(safeRoot)
                 require(isStaged || isOwnFile) {
-                    "El ejercicio necesita una imagen no incluida. Importa el ZIP con sus recursos."
+                    "La pregunta o ejercicio necesita una imagen no incluida. Importa el ZIP con sus recursos."
                 }
             }
     }
