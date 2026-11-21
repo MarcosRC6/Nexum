@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.ImageAnnotations
 import com.example.testario.data.model.ImageOcclusionMask
+import com.example.testario.domain.OcclusionHandle
+import com.example.testario.domain.OcclusionResize
 import com.example.testario.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -28,7 +30,7 @@ import kotlin.math.roundToInt
 
 /**
  * Word-like editable occlusion blocks. The original image is drawn beneath them.
- * A block can be moved by dragging its body and resized from the bottom-right handle.
+ * A block can be moved by dragging its body and resized from eight edge/corner handles.
  * All coordinates stay normalized so changing screen size never moves hidden content.
  */
 @Composable
@@ -63,7 +65,7 @@ internal fun EditableOcclusionImage(
                 Text("+ Añadir bloque")
             }
         }
-        Text("Arrastra el bloque para moverlo. Estira la esquina inferior derecha para cambiar su tamaño.",
+        Text("Arrastra el bloque para moverlo. Estira sus esquinas o bordes para ajustar el tamaño.",
             color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
         BoxWithConstraints(Modifier.fillMaxWidth().height(270.dp)) {
             val density = LocalDensity.current
@@ -105,28 +107,38 @@ internal fun EditableOcclusionImage(
                         Text("Oculto", color = Color.White,
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.align(Alignment.Center))
-                        Box(
-                            Modifier.align(Alignment.BottomEnd).size(26.dp)
-                                .background(TestarioPrimary, RoundedCornerShape(3.dp))
-                                .pointerInput(mask.id, fit) {
-                                    detectDragGestures(
-                                        onDragStart = { selectedId = mask.id },
-                                        onDrag = { change, drag ->
-                                            change.consume()
-                                            onMasksChanged(latestMasks.map {
-                                                if (it.id != mask.id) it else it.copy(
-                                                    width = (it.width + drag.x / fit.width)
-                                                        .coerceIn(minOf(.04, 1.0 - it.x), 1.0 - it.x),
-                                                    height = (it.height + drag.y / fit.height)
-                                                        .coerceIn(minOf(.04, 1.0 - it.y), 1.0 - it.y)
-                                                )
+                        if (selected) {
+                            listOf(
+                                Triple(OcclusionHandle.TOP_LEFT, Alignment.TopStart, "↖"),
+                                Triple(OcclusionHandle.TOP, Alignment.TopCenter, "↑"),
+                                Triple(OcclusionHandle.TOP_RIGHT, Alignment.TopEnd, "↗"),
+                                Triple(OcclusionHandle.LEFT, Alignment.CenterStart, "←"),
+                                Triple(OcclusionHandle.RIGHT, Alignment.CenterEnd, "→"),
+                                Triple(OcclusionHandle.BOTTOM_LEFT, Alignment.BottomStart, "↙"),
+                                Triple(OcclusionHandle.BOTTOM, Alignment.BottomCenter, "↓"),
+                                Triple(OcclusionHandle.BOTTOM_RIGHT, Alignment.BottomEnd, "↘")
+                            ).forEach { (handle, alignment, symbol) ->
+                                Box(
+                                    Modifier.align(alignment).size(20.dp)
+                                        .background(TestarioPrimary, RoundedCornerShape(5.dp))
+                                        .pointerInput(mask.id, fit, handle) {
+                                            detectDragGestures(onDrag = { change, drag ->
+                                                change.consume()
+                                                onMasksChanged(latestMasks.map {
+                                                    if (it.id != mask.id) it else
+                                                        OcclusionResize.apply(
+                                                            it, handle,
+                                                            drag.x / fit.width, drag.y / fit.height
+                                                        )
+                                                })
                                             })
-                                        }
-                                    )
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("↘", color = TestarioBackground)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(symbol, color = TestarioBackground,
+                                        style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
                         }
                     }
                 }
