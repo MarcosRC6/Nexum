@@ -7,12 +7,17 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material3.IconButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -44,8 +49,10 @@ internal fun StudySketchCanvas(
     penOpacity: Double = 1.0,
     onDrawStroke: (SketchStroke) -> Unit = {},
     onErasePath: (List<SketchPoint>, Int, Int) -> Unit = { _, _, _ -> },
-    onMarkTap: (Double, Double) -> Unit = { _, _ -> }
+    onMarkTap: (Double, Double) -> Unit = { _, _ -> },
+    enableFullscreen: Boolean = true
 ) {
+    var fullScreen by remember { mutableStateOf(false) }
     var inProgress by remember { mutableStateOf<List<SketchPoint>>(emptyList()) }
     var eraserPreview by remember { mutableStateOf<List<SketchPoint>>(emptyList()) }
     var panX by remember { mutableFloatStateOf(0f) }
@@ -144,7 +151,9 @@ internal fun StudySketchCanvas(
                 latestMark(at.x, at.y)
             }
         }
-        SketchMode.PREVIEW -> Modifier
+        SketchMode.PREVIEW -> if (enableFullscreen) Modifier.pointerInput(Unit) {
+            detectTapGestures(onTap = { fullScreen = true })
+        } else Modifier
     }
     BoxWithConstraints(modifier.background(TestarioSurface, RoundedCornerShape(14.dp)).then(gestures)) {
         val drawingWidth = maxWidth
@@ -222,4 +231,46 @@ internal fun StudySketchCanvas(
         }
         }
     }
+    if (fullScreen && enableFullscreen && mode == SketchMode.PREVIEW) {
+        var previewZoom by remember { mutableFloatStateOf(1f) }
+        var previewPan by remember { mutableStateOf(Offset.Zero) }
+        Dialog(
+            onDismissRequest = { fullScreen = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(Modifier.fillMaxSize().background(Color(0xFF090C15))) {
+                Box(Modifier.fillMaxSize().clipToBounds().pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        val next = (previewZoom * zoom).coerceIn(1f, 6f)
+                        val maxX = (size.width * (next - 1f) / 2f).coerceAtLeast(0f)
+                        val maxY = (size.height * (next - 1f) / 2f).coerceAtLeast(0f)
+                        previewZoom = next
+                        previewPan = if (next <= 1.01f) Offset.Zero else Offset(
+                            (previewPan.x + pan.x).coerceIn(-maxX, maxX),
+                            (previewPan.y + pan.y).coerceIn(-maxY, maxY)
+                        )
+                    }
+                }) {
+                    StudySketchCanvas(
+                        sketch = sketch, markers = markers, mode = SketchMode.PREVIEW,
+                        showMarkers = showMarkers, markerStatuses = markerStatuses,
+                        modifier = Modifier.fillMaxSize().graphicsLayer {
+                            scaleX = previewZoom; scaleY = previewZoom
+                            translationX = previewPan.x; translationY = previewPan.y
+                        },
+                        enableFullscreen = false
+                    )
+                }
+                Row(Modifier.fillMaxWidth().background(Color(0xD9090C15))
+                    .padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Pellizca para ampliar · arrastra con dos dedos",
+                        color = Color.White, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { fullScreen = false }) {
+                        Text("✕", color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+
 }
