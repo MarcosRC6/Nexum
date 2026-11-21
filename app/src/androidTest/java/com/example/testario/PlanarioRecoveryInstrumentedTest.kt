@@ -33,7 +33,12 @@ class PlanarioRecoveryInstrumentedTest {
             """{"version":2,"topics":null}""",
             """{"version":3,"topics":[]}""",
             """{"version":2,"topics":{}}""",
-            """{"version":2,"settings":[]}"""
+            """{"version":2,"settings":[]}""",
+            """{"version":2,"topics":[null]}""",
+            """{"version":2,"topics":[{"id":"","name":"Sin ID"}]}""",
+            """{"version":2,"fixedObjectives":[{"id":"dup","name":"A"},{"id":"dup","name":"B"}]}""",
+            """{"version":2,"studyDays":[{"date":"2026-11-21"},{"date":"2026-11-21"}]}""",
+            """{"version":2,"timeEntries":[{"id":"x","date":"fecha-incorrecta","minutes":5,"type":"TIMER"}]}"""
         )) {
             assertNull("Invalid backup must reject: $broken", store.importFromJson(broken))
         }
