@@ -19,6 +19,7 @@ import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -95,6 +96,8 @@ class UnifiedDataManager(private val context: Context) {
             json.decodeFromString<TestarioDatabase>(migrated)
         }.getOrElse { return false }
 
+        // Refuse destructive restore unless the COMPLETE previous state is safe on disk.
+        if (!protectBeforeRestore()) return false
         if (!extractQuestionImages(bytes)) return false
 
         return runCatching {
@@ -207,7 +210,9 @@ class UnifiedDataManager(private val context: Context) {
             runCatching { SavedMixedSessionStore(context).validate(pendingMixedRaw) }.isFailure
         ) return false
 
-        // Solo después de validar todos los componentes empezamos a modificar el estado.
+        // Preserve the old database, Planario, session slots and every photo before
+        // modifying anything. This is a durable recovery point, not an ACID guarantee.
+        if (!protectBeforeRestore()) return false
         if (!extractQuestionImages(bytes)) return false
 
         // Una sesión antigua no debe sobrevivir a una restauración de Planario.
@@ -235,6 +240,41 @@ class UnifiedDataManager(private val context: Context) {
         runCatching { SavedMixedSessionStore(context).importJson(pendingMixedRaw) }.getOrElse { return false }
         return true
     }
+
+
+    /**
+     * A restore spans several independent stores and cannot be committed atomically.
+     * Keep a complete private recovery ZIP on disk BEFORE the first image/database
+     * write. If there is not enough free space, stop rather than risk destroying
+     * the only existing copy. Never delete earlier recovery points automatically.
+     *
+     * Stored in noBackupFilesDir so Android cloud backup will not upload this
+     * extra copy of the user's private bank, photos and planning information.
+     */
+    private fun protectBeforeRestore(): Boolean = runCatching {
+        val recoveryDir = File(context.noBackupFilesDir, "nexum_restore_recovery")
+        check(recoveryDir.isDirectory || recoveryDir.mkdirs()) {
+            "No se puede preparar el directorio de recuperación."
+        }
+        val name = "pre_restore_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}.zip"
+        val staging = File(recoveryDir, "$name.partial")
+        val protected = File(recoveryDir, name)
+        try {
+            FileOutputStream(staging).use { output ->
+                exportGlobalBackup(output)
+                output.fd.sync()
+            }
+            check(staging.isFile && staging.length() > 0L) {
+                "La copia preventiva está vacía."
+            }
+            check(staging.renameTo(protected)) {
+                "No se pudo consolidar la copia preventiva."
+            }
+        } finally {
+            if (staging.exists()) staging.delete()
+        }
+        true
+    }.getOrDefault(false)
 
     /**
      * Extrae las imágenes en dos fases: primero valida y descomprime todo en
