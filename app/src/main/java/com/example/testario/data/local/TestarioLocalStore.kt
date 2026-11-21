@@ -101,7 +101,16 @@ class TestarioLocalStore private constructor(context: Context) {
                     val latestDb = _database.value
                     writeDatabaseAtomically(latestDb)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    // Never leave an apparently successful edit silently
+                    // unsaved after an AtomicFile failure. Keep the in-memory
+                    // state available for emergency ZIP export, block further
+                    // library mutations and show the existing recovery dialog.
+                    android.util.Log.e("NEXUM_Library", "Atomic database write failed", e)
+                    _recoveryError.value =
+                        "No se han podido guardar los últimos cambios de Biblioteca " +
+                        "en el almacenamiento. Algunos cambios solo existen en memoria. " +
+                        "No cierres NEXUM: desde Ajustes exporta una COPIA GLOBAL " +
+                        "COMPLETA ZIP a otro almacenamiento y comprueba que se ha creado."
                 }
             }
         }
