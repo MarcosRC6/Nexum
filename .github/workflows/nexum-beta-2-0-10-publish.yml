@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: nexum-signed-beta-2-0-9
+  group: nexum-signed-beta-2-0-10
   cancel-in-progress: false
 
 jobs:
@@ -28,19 +28,21 @@ jobs:
       - name: Checkout exact authorized beta source
         uses: actions/checkout@v4
         with:
-          fetch-depth: 3
+          fetch-depth: 0
 
       - name: Enforce reviewed source and one-time version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "569882dc022f572f16e11545e2f0c992500ac31f"
+          test "$(git rev-parse HEAD^)" = "bb1587682e38dc18aa4f5c3d20dba771c54a49e4"
           test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/nexum-beta-2-0-10-publish.yml"
-          test "$(git rev-parse HEAD^^)" = "e18c59573abdc86b5ee9c40c9f47369481a552e1"
-          test "$(git diff --name-only HEAD^^ HEAD^)" = ".github/workflows/nexum-beta9-regression-qa.yml"
-          test "$(git rev-parse HEAD^^^)" = "22a15fc872ba471da6bf9f9781b5971d1a9af1c9"
-          test "$(git diff --name-only HEAD^^^ HEAD^^)" = "app/build.gradle.kts"
+          test "$(git rev-parse HEAD^^)" = "569882dc022f572f16e11545e2f0c992500ac31f"
+          test "$(git diff --name-only HEAD^^ HEAD^)" = ".github/workflows/nexum-beta-2-0-10-publish.yml"
+          test "$(git rev-parse HEAD^^^)" = "e18c59573abdc86b5ee9c40c9f47369481a552e1"
+          test "$(git diff --name-only HEAD^^^ HEAD^^)" = ".github/workflows/nexum-beta9-regression-qa.yml"
+          test "$(git rev-parse HEAD^^^^)" = "22a15fc872ba471da6bf9f9781b5971d1a9af1c9"
+          test "$(git diff --name-only HEAD^^^^ HEAD^^^)" = "app/build.gradle.kts"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           grep -Eq '^[[:space:]]*versionCode = 24[[:space:]]*$' app/build.gradle.kts
           grep -Eq '^[[:space:]]*versionName = "2.0-beta.10"[[:space:]]*$' app/build.gradle.kts
