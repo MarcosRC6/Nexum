@@ -649,7 +649,7 @@ fun StudyExerciseEditorScreen(
                         shape = RoundedCornerShape(18.dp)
                     )
                 }
-                if (!simpleAnki) Text(
+                if (!simpleAnki && flashKind != FlashcardKind.IMAGE_OCCLUSION) Text(
                     "Formato heredado: se mantiene su comportamiento y sus respuestas.",
                     color = TestarioMutedText,
                     style = MaterialTheme.typography.bodySmall
