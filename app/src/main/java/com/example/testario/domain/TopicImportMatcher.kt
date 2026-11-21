@@ -9,7 +9,7 @@ object TopicImportMatcher {
     // Dropping ALL punctuation would silently merge C++, C# and C, or 1,5 and 15.
     // Ordinary question marks, accents, whitespace and decorative punctuation
     // are still ignored so a re-import remains idempotent.
-    private fun normalize(text: String): String {
+    internal fun normalize(text: String): String {
         val folded = Normalizer.normalize(text.lowercase(java.util.Locale.ROOT), Normalizer.Form.NFD)
             .replace(Regex("\\p{Mn}+"), "")
         return buildString {
