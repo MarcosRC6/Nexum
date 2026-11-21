@@ -308,7 +308,6 @@ fun StudyExerciseEditorScreen(
             Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Tema: ${topic.name}", color = TestarioMutedText)
             if (!embedded) {
                 Text("Tipo de contenido", color = TestarioText)
                 Text(if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI) "Respuesta escrita" else "Tarjeta Anki",
@@ -363,15 +362,20 @@ fun StudyExerciseEditorScreen(
                                     )
                                 },
                                 label = { Text("${index + 1}: ${solution.text.take(15).ifBlank { "Sin escribir" }}") },
-                                enabled = solution.text.isNotBlank()
+                                enabled = true
                             )
                         }
+                        TextButton(onClick = {
+                            val blank = CanonicalSolution(text = "")
+                            solutions = solutions + blank
+                            selectedSolutionId = blank.id
+                        }) { Text("+ Nuevo número sin escribir respuesta", color = TestarioPrimary) }
                     }
                 }
                 if (sketchEnabled) {
-                    Text("Dibuja con rotulador o subrayador y después utiliza «Colocar soluciones».",
+                    Text("Dibuja o coloca números primero; completa sus respuestas después.",
                         color = TestarioMutedText)
-                    if (sketchMode == SketchMode.DRAW) {
+                    run {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             FilterChip(selected = !sketchToolHighlighter,
                                 onClick = { sketchToolHighlighter = false },
@@ -388,7 +392,7 @@ fun StudyExerciseEditorScreen(
                                 onValueChange = { sketchWidthMultiplier = it },
                                 valueRange = .5f..2f, modifier = Modifier.weight(1f))
                         }
-                        if (sketchToolHighlighter) Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Opacidad", color = TestarioMutedText)
                             Slider(value = sketchOpacity,
                                 onValueChange = { sketchOpacity = it },
@@ -399,8 +403,7 @@ fun StudyExerciseEditorScreen(
                         listOf(
                             SketchMode.DRAW to "Dibujar",
                             SketchMode.ERASE to "Borrar",
-                            SketchMode.MARK to "Colocar soluciones",
-                            SketchMode.PAN to "Mover"
+                            SketchMode.MARK to "Colocar soluciones"
                         ).forEach { (mode, title) ->
                             FilterChip(selected = sketchMode == mode,
                                 onClick = { sketchMode = mode },
@@ -414,7 +417,7 @@ fun StudyExerciseEditorScreen(
                         Text("${"%.1f".format(sketchZoom)}×", color = TestarioText)
                     }
                     if (sketchZoom > 1f) Text(
-                        "Para desplazar la imagen ampliada, elige Mover.",
+                        "Desplaza la imagen ampliada con dos dedos.",
                         color = TestarioMutedText,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -489,9 +492,6 @@ fun StudyExerciseEditorScreen(
                     )
                 }
 
-                Text("Soluciones", color = TestarioText)
-                Text("NEXUM reconoce automáticamente variantes y abreviaturas inequívocas.",
-                    color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = { showOptionalAliases = !showOptionalAliases }) {
                     Text(if (showOptionalAliases) "Ocultar excepciones manuales"
                         else "Variantes especiales (opcional)")
@@ -523,6 +523,8 @@ fun StudyExerciseEditorScreen(
                                 } },
                                 label = { Text("Alias separados por comas") }, modifier = Modifier.fillMaxWidth()
                             )
+                            Text("Algunas variantes se reconocen automáticamente.",
+                                color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                         }
                         if (solution.points.isNotEmpty()) {
                             TextButton(onClick = {
