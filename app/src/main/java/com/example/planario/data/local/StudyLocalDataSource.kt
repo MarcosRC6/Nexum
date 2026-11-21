@@ -678,6 +678,30 @@ private fun storedStudyDataToJsonObject(data: StoredStudyData): JSONObject {
 }
 
 private fun jsonObjectToStoredStudyData(root: JSONObject): StoredStudyData {
+    // A syntactically valid but empty/truncated object MUST NOT silently
+    // replace a real planning database with five default empty collections.
+    // Be compatible with older partial Planario backups: at least one
+    // recognizable data field is required, not necessarily all modern fields.
+    val arrays = listOf("topics", "fixedObjectives", "studyDays", "timeEntries")
+    val recognized = arrays.any { root.has(it) } || root.has("settings")
+    require(recognized) {
+        "Planario no contiene campos de planificación reconocibles: copia incompleta."
+    }
+    arrays.forEach { key ->
+        if (root.has(key)) require(root.opt(key) is JSONArray) {
+            "El campo $key de Planario no contiene una lista válida."
+        }
+    }
+    if (root.has("settings")) require(root.opt("settings") is JSONObject) {
+        "Los ajustes de Planario no son un objeto válido."
+    }
+    if (root.has("version")) {
+        val version = root.opt("version")
+        require(version is Number && version.toInt() in 0..2 &&
+            version.toDouble() == version.toInt().toDouble()) {
+            "La planificación pertenece a una versión futura o incompatible."
+        }
+    }
     return StoredStudyData(
         topics = jsonArrayToStudyTopics(root.optJSONArray("topics")),
         fixedObjectives = jsonArrayToFixedObjectives(root.optJSONArray("fixedObjectives")),
