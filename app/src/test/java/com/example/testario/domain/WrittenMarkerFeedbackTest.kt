@@ -32,6 +32,30 @@ class WrittenMarkerFeedbackTest {
         assertEquals(setOf("s1"), result.correctIds)
     }
 
+    @Test fun visibleMarkerOrderWinsOverHistoricalSolutionInsertionOrder() {
+        val swapped = exercise.copy(solutions = listOf(
+            exercise.solutions[2], exercise.solutions[0], exercise.solutions[1]
+        ))
+        assertEquals(listOf("s1", "s2", "s3"),
+            StudyExerciseRules.positionalSolutions(swapped).map { it.id })
+        val answers = listOf("a", "b", "f")
+        assertEquals(mapOf("p1" to true, "p2" to true, "p3" to false),
+            WrittenMarkerFeedback.statusByMarker(swapped, answers))
+        val grade = StudyExerciseRules.gradeWrittenInSession(swapped, answers)
+        assertEquals(setOf("s1", "s2"), grade.correctIds)
+        assertEquals(1, grade.incorrect)
+    }
+
+    @Test fun ambiguousMultiPinLegacySolutionsKeepTheirInsertionOrder() {
+        val legacy = exercise.copy(solutions = listOf(
+            exercise.solutions[0].copy(points = exercise.solutions[0].points +
+                ImagePoint(id = "extra", x = .4, y = .4, order = 4)),
+            exercise.solutions[1], exercise.solutions[2]
+        ))
+        assertEquals(legacy.solutions,
+            StudyExerciseRules.positionalSolutions(legacy))
+    }
+
     @Test fun omissionIsRedAndMarkerIdsNeverChange() {
         assertEquals(mapOf("p1" to true, "p2" to false, "p3" to false),
             WrittenMarkerFeedback.statusByMarker(exercise, listOf("a")))
