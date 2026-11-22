@@ -171,7 +171,8 @@ class UnifiedDataManager(private val context: Context) {
         // Never throw away a running OR paused timer during an unrelated restore.
         // UI must ask the user to finish/save before starting destructive restore.
         if (PlanarioDependencies.studyTimerController.state.value.studyTimerState !=
-            StudyTimerState.STOPPED) return false
+            StudyTimerState.STOPPED ||
+            PlanarioDependencies.studyTimerController.hasPendingStudyTimerCompletion()) return false
         val wanted = setOf(
             "manifest.json",
             "testario_database.json",
