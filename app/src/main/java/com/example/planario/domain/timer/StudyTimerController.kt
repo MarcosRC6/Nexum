@@ -577,6 +577,13 @@ class StudyTimerController {
 
         val minutes = (elapsedSeconds / 60L).toInt()
 
+        if (minutes <= 0) {
+            // No time entry is needed. In particular, do not leave an
+            // unobserved zero-minute journal that could block the next day.
+            resetStudyTimer(clearPersistedState = true)
+            return true
+        }
+
         // SharedFlow(replay=0) discards a close event if the foreground
         // service has no active subscriber. Keep the previous day's PAUSED
         // snapshot instead of deleting the only copy of the study time.
