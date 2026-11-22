@@ -87,10 +87,10 @@ class StudyTimerForegroundService : Service() {
                 // A stop action must finish and save the clock, not merely hide
                 // its notification while the timer continues unobserved.
                 PlanarioDependencies.finishStudyTimerAndSave()
-                if (PlanarioDependencies.studyTimerController.state.value.pomodoroTimerState ==
-                    PomodoroTimerState.RUNNING ||
-                    PlanarioDependencies.studyTimerController.state.value.pomodoroTimerState ==
-                    PomodoroTimerState.PAUSED) {
+                val afterStop = PlanarioDependencies.studyTimerController.state.value
+                if (afterStop.studyTimerState != StudyTimerState.STOPPED ||
+                    afterStop.pomodoroTimerState == PomodoroTimerState.RUNNING ||
+                    afterStop.pomodoroTimerState == PomodoroTimerState.PAUSED) {
                     startForegroundNow()
                     NexumStudyClockWidgetReceiver.updateAllWidgets(applicationContext)
                     START_STICKY
@@ -144,22 +144,7 @@ class StudyTimerForegroundService : Service() {
     }
 
     private fun recoverPendingTimerIfNeeded() {
-        if (PlanarioDependencies.studyRepository.recoveryError.value != null) return
-        val recoveredSession = PlanarioDependencies
-            .studyTimerController
-            .recoverPendingStudyTimerIfNeeded()
-            ?: return
-
-        PlanarioDependencies.studyRepository.clearActiveStudyTimerTracking()
-
-        if (recoveredSession.minutes > 0) {
-            PlanarioDependencies.studyRepository.addTimerTime(
-                minutes = recoveredSession.minutes,
-                date = recoveredSession.date
-            )
-        }
-
-        PlanarioDependencies.stopStudyTimerForegroundService()
+        PlanarioDependencies.recoverPendingStudyTimerIfNeeded()
     }
 
     private fun startForegroundNow() {
@@ -213,17 +198,9 @@ class StudyTimerForegroundService : Service() {
 
         autoCloseObserverJob = serviceScope.launch {
             PlanarioDependencies.studyTimerController.autoClosedStudyTimerSessions.collectLatest { session ->
-                PlanarioDependencies.studyRepository.clearActiveStudyTimerTracking()
-
-                if (session.minutes > 0) {
-                    PlanarioDependencies.studyRepository.addTimerTime(
-                        minutes = session.minutes,
-                        date = session.date
-                    )
-                }
-
-                if (PlanarioDependencies.studyTimerController.state.value.pomodoroTimerState !=
-                    PomodoroTimerState.RUNNING) stopServiceSafely()
+                // Journal was persisted before this SharedFlow event. If a
+                // collector is cancelled, recovery replays the same UUID.
+                PlanarioDependencies.completeStagedStudyTimer(session)
             }
         }
     }
