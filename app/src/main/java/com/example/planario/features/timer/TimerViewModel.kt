@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.planario.app.PlanarioDependencies
 import com.example.planario.data.repository.StudyRepository
-import com.example.planario.domain.timer.FinishedStudyTimerSession
 import com.example.planario.domain.timer.StudyTimerController
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -79,12 +78,9 @@ class TimerViewModel(
     }
 
     fun finishStudyTimer() {
-        val finishedSession = studyTimerController.finishStudyTimerAndReturnSession()
-
-        repository.clearActiveStudyTimerTracking()
-        saveFinishedStudyTimerSession(finishedSession)
-
-        PlanarioDependencies.stopStudyTimerForegroundService()
+        // A single durable journal/commit path is shared with notifications.
+        // The stopwatch is cleared only after Planario confirms the entry.
+        PlanarioDependencies.finishStudyTimerAndSave()
         PlanarioDependencies.refreshStudyClockWidgets()
     }
 
@@ -125,24 +121,7 @@ class TimerViewModel(
     }
 
     private fun recoverPendingStudyTimerIfNeeded() {
-        if (repository.recoveryError.value != null) return
-        val recoveredSession = studyTimerController.recoverPendingStudyTimerIfNeeded()
-            ?: return
-
-        repository.clearActiveStudyTimerTracking()
-        saveFinishedStudyTimerSession(recoveredSession)
-        PlanarioDependencies.stopStudyTimerForegroundService()
-    }
-
-    private fun saveFinishedStudyTimerSession(
-        session: FinishedStudyTimerSession
-    ) {
-        if (session.minutes <= 0) return
-
-        repository.addTimerTime(
-            minutes = session.minutes,
-            date = session.date
-        )
+        PlanarioDependencies.recoverPendingStudyTimerIfNeeded()
     }
 
     companion object {
