@@ -139,6 +139,27 @@ class StudyLocalDataSource(
     }
 
 
+    /**
+     * Backups taken in the tiny window between Planario commit and journal
+     * acknowledgement must not include the same session twice. Read the
+     * already-committed journal without changing any timer state.
+     */
+    fun pendingTimerForBackup(): StoredPendingTimerCompletion? {
+        val journal = appContext.getSharedPreferences(
+            "planario_study_timer_state", Context.MODE_PRIVATE
+        )
+        val id = journal.getString("pending_session_id", null)
+            ?.takeIf { it.isNotBlank() } ?: return null
+        val date = runCatching {
+            LocalDate.parse(journal.getString("pending_session_date", null))
+        }.getOrNull() ?: return null
+        return StoredPendingTimerCompletion(
+            id = id,
+            date = date,
+            minutes = journal.getInt("pending_session_minutes", 0).coerceAtLeast(0)
+        )
+    }
+
     fun startActiveStudyTimerTracking(
         date: LocalDate = LocalDate.now()
     ) {
@@ -263,6 +284,12 @@ class StudyLocalDataSource(
         private const val KEY_ACTIVE_TIMER_STARTED_AT = "active_timer_started_at"
     }
 }
+
+data class StoredPendingTimerCompletion(
+    val id: String,
+    val date: LocalDate,
+    val minutes: Int
+)
 
 data class StoredStudyData(
     val topics: List<StudyTopic> = emptyList(),
