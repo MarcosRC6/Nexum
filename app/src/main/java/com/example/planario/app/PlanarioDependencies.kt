@@ -10,6 +10,7 @@ import com.example.planario.data.repository.StudyRepository
 import com.example.planario.domain.timer.StudyTimerController
 import com.example.planario.domain.timer.StudyTimerForegroundService
 import com.example.planario.domain.timer.StudyTimerState
+import com.example.planario.domain.timer.FinishedStudyTimerSession
 import com.example.planario.domain.timer.StudyForegroundPolicy
 import com.example.planario.domain.timer.PomodoroTimerState
 import com.example.planario.domain.timer.PomodoroDurationPolicy
@@ -40,13 +41,7 @@ object PlanarioDependencies {
 
         when {
             recoveredPreviousDay != null -> {
-                studyRepository.clearActiveStudyTimerTracking()
-                if (recoveredPreviousDay.minutes > 0) {
-                    studyRepository.addTimerTime(
-                        minutes = recoveredPreviousDay.minutes,
-                        date = recoveredPreviousDay.date
-                    )
-                }
+                completeStagedStudyTimer(recoveredPreviousDay)
             }
 
             studyTimerController.state.value.studyTimerState == StudyTimerState.PAUSED -> {
@@ -129,23 +124,42 @@ object PlanarioDependencies {
         }
     }
 
+    /**
+     * Single completion path for UI, notification, service and midnight
+     * recovery. Normal operation remains one tap; on a write failure the
+     * original timer + pending journal remain available for a safe retry.
+     */
+    @Synchronized
     fun finishStudyTimerAndSave() {
         if (!::appContext.isInitialized) return
-        // Never consume a study timer when the target planning database is
-        // locked or unwritable. Preserve the timer snapshot for recovery.
         if (studyRepository.recoveryError.value != null) {
             studyTimerController.persistCurrentStudyTimerNow()
             return
         }
-        if (studyTimerController.state.value.studyTimerState == StudyTimerState.STOPPED) return
+        val staged = studyTimerController.prepareStudyTimerCompletion() ?: return
+        completeStagedStudyTimer(staged)
+    }
 
-        val finished = studyTimerController.finishStudyTimerAndReturnSession()
+    @Synchronized
+    fun completeStagedStudyTimer(session: FinishedStudyTimerSession): Boolean {
+        if (!::appContext.isInitialized || studyRepository.recoveryError.value != null) return false
+        // The journal ID becomes TimeEntry.id in a synchronous Planario
+        // SharedPreferences.commit(). Retrying after a crash is idempotent.
+        if (!studyRepository.recordTimerSessionOnce(session)) return false
+        // Clear the timer snapshot AND its journal together only after the
+        // committed entry exists on disk; an ack failure is safe to replay.
+        if (!studyTimerController.acknowledgeSavedStudyTimerSession(session)) return false
         studyRepository.clearActiveStudyTimerTracking()
-        if (finished.minutes > 0) {
-            studyRepository.addTimerTime(minutes = finished.minutes, date = finished.date)
-        }
         NexumStudyClockWidgetReceiver.updateAllWidgets(appContext)
         stopStudyTimerForegroundService()
+        return true
+    }
+
+    @Synchronized
+    fun recoverPendingStudyTimerIfNeeded() {
+        if (!::appContext.isInitialized || studyRepository.recoveryError.value != null) return
+        studyTimerController.recoverPendingStudyTimerIfNeeded()
+            ?.let(::completeStagedStudyTimer)
     }
 
     fun refreshStudyClockWidgets() {
