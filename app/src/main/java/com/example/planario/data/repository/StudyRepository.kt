@@ -585,6 +585,9 @@ class StudyRepository(
         localDataSource.clearActiveStudyTimerTracking()
     }
 
+    fun clearActiveStudyTimerTrackingDurably(): Boolean =
+        localDataSource.clearActiveStudyTimerTrackingDurably()
+
     fun restorePausedActiveStudyTimerTracking(
         date: LocalDate,
         elapsedSeconds: Long
