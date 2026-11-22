@@ -10,6 +10,7 @@ import com.example.planario.core.model.TimeEntry
 import com.example.planario.core.model.TimeEntryType
 import com.example.planario.data.local.StoredStudyData
 import com.example.planario.data.local.StudyLocalDataSource
+import com.example.planario.domain.timer.FinishedStudyTimerSession
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -435,6 +436,41 @@ class StudyRepository(
 
         _timeEntries.value = _timeEntries.value + entry
         refreshDay(date)
+    }
+
+    /**
+     * Exactly-once Planario commit for a completed stopwatch session.
+     * The journal's stable UUID is the TimeEntry.id; if an app process dies
+     * after the disk commit, replaying the same session cannot add minutes
+     * twice. Normal manual time entry and Pomodoro behaviour are unchanged.
+     *
+     * Snapshot both StateFlows and roll them back if disk persistence fails:
+     * a failed commit must NOT appear as an already-saved session.
+     */
+    @Synchronized
+    fun recordTimerSessionOnce(session: FinishedStudyTimerSession): Boolean {
+        if (session.id.isBlank() || session.minutes < 0) return false
+        if (_timeEntries.value.any { it.id == session.id }) return true
+        if (session.minutes == 0) return true
+
+        val originalEntries = _timeEntries.value
+        val originalDays = _studyDays.value
+        _timeEntries.value = originalEntries + TimeEntry(
+            id = session.id,
+            date = session.date,
+            minutes = session.minutes,
+            type = TimeEntryType.TIMER,
+            label = "Cronómetro"
+        )
+        _studyDays.value = originalDays + (
+            session.date to refreshedDay(session.date)
+        )
+        val saved = runCatching { persist() }.getOrDefault(false)
+        if (!saved) {
+            _timeEntries.value = originalEntries
+            _studyDays.value = originalDays
+        }
+        return saved
     }
 
     fun addTimerTime(
