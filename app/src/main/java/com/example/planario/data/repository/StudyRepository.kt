@@ -860,22 +860,29 @@ class StudyRepository(
             return localDataSource.originalCorruptJsonForRecovery()
                 ?: error("No se ha podido localizar el JSON original de Planario.")
         }
+        val pending = localDataSource.pendingTimerForBackup()
         val activeTimer = localDataSource.loadActiveStudyTimerSnapshot()
         val activeTimerMinutes = activeTimer.elapsedMinutes()
 
-        val exportedTimeEntries = if (
-            activeTimer.isActive &&
-            activeTimer.date != null &&
-            activeTimerMinutes > 0
-        ) {
-            _timeEntries.value + TimeEntry(
-                date = activeTimer.date,
-                minutes = activeTimerMinutes,
-                type = TimeEntryType.TIMER,
-                label = "Cronómetro · sesión activa incluida en la copia"
-            )
-        } else {
-            _timeEntries.value
+        val exportedTimeEntries = when {
+            // Journal already has a stable ID, and Planario might have saved it
+            // before the app died. Never duplicate it as a NEW backup entry.
+            pending != null -> if (pending.minutes > 0 &&
+                _timeEntries.value.none { it.id == pending.id }) {
+                _timeEntries.value + TimeEntry(
+                    id = pending.id, date = pending.date,
+                    minutes = pending.minutes, type = TimeEntryType.TIMER,
+                    label = "Cronómetro · sesión pendiente incluida en la copia"
+                )
+            } else _timeEntries.value
+            activeTimer.isActive && activeTimer.date != null &&
+                activeTimerMinutes > 0 -> _timeEntries.value + TimeEntry(
+                    date = activeTimer.date,
+                    minutes = activeTimerMinutes,
+                    type = TimeEntryType.TIMER,
+                    label = "Cronómetro · sesión activa incluida en la copia"
+                )
+            else -> _timeEntries.value
         }
 
         return localDataSource.exportToJson(
