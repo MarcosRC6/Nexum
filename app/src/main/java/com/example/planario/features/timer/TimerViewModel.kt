@@ -53,6 +53,7 @@ class TimerViewModel(
     )
 
     fun startStudyTimer() {
+        if (studyTimerController.hasPendingStudyTimerCompletion()) return
         val today = LocalDate.now()
 
         studyTimerController.startStudyTimer(
@@ -71,6 +72,7 @@ class TimerViewModel(
     }
 
     fun resumeStudyTimer() {
+        if (studyTimerController.hasPendingStudyTimerCompletion()) return
         studyTimerController.resumeStudyTimer()
         repository.resumeActiveStudyTimerTracking()
         PlanarioDependencies.startStudyTimerForegroundService()
@@ -85,6 +87,7 @@ class TimerViewModel(
     }
 
     fun discardStudyTimer() {
+        if (studyTimerController.hasPendingStudyTimerCompletion()) return
         studyTimerController.discardStudyTimer()
         repository.clearActiveStudyTimerTracking()
         PlanarioDependencies.stopStudyTimerForegroundService()
