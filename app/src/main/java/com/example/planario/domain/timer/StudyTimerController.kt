@@ -276,6 +276,9 @@ class StudyTimerController {
     }
 
     fun resumeStudyTimer() {
+        // A stop with pending durable completion cannot resume or alter its
+        // frozen minutes while a write is being retried.
+        if (readPendingStudyTimerCompletion() != null) return
         if (_state.value.studyTimerState != StudyTimerState.PAUSED) return
 
         studyAccumulatedSecondsBeforeRun = _state.value.studyElapsedSeconds
@@ -381,6 +384,9 @@ class StudyTimerController {
             id = id
         )
     }
+
+    fun hasPendingStudyTimerCompletion(): Boolean =
+        readPendingStudyTimerCompletion() != null
 
     fun discardStudyTimer() {
         // Once a stop has been staged it might ALREADY have been written to
