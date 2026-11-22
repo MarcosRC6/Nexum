@@ -71,6 +71,9 @@ class StudyTimerController {
     private var studyStartedAtWallMillis: Long? = null
     private var studyAccumulatedSecondsBeforeRun: Long = 0L
     private var studyDate: LocalDate? = null
+    // SharedPreferences.commit can return false after updating its in-memory
+    // map. Retain the journal in memory until a successful acknowledgement.
+    private var pendingCompletionInMemory: FinishedStudyTimerSession? = null
 
     private var lastStudyHeartbeatWallMillis: Long = 0L
 
@@ -351,7 +354,10 @@ class StudyTimerController {
             .remove(KEY_ELAPSED_SECONDS).remove(KEY_LAST_HEARTBEAT_WALL_MILLIS)
             .remove(KEY_LAST_HEARTBEAT_UPTIME_MILLIS).remove(KEY_STARTED_WALL_MILLIS)
             .commit()
-        if (cleared) resetStudyTimer(clearPersistedState = false)
+        if (cleared) {
+            pendingCompletionInMemory = null
+            resetStudyTimer(clearPersistedState = false)
+        }
         return cleared
     }
 
@@ -368,10 +374,12 @@ class StudyTimerController {
             .putString(KEY_PENDING_SESSION_DATE, session.date.toString())
             .putInt(KEY_PENDING_SESSION_MINUTES, session.minutes)
             .commit()
+        if (written) pendingCompletionInMemory = session
         return if (written) session else null
     }
 
     private fun readPendingStudyTimerCompletion(): FinishedStudyTimerSession? {
+        pendingCompletionInMemory?.let { return it }
         val preferences = prefs() ?: return null
         val id = preferences.getString(KEY_PENDING_SESSION_ID, null)
             ?.takeIf { it.isNotBlank() } ?: return null
@@ -382,7 +390,7 @@ class StudyTimerController {
             date = date,
             minutes = preferences.getInt(KEY_PENDING_SESSION_MINUTES, 0).coerceAtLeast(0),
             id = id
-        )
+        ).also { pendingCompletionInMemory = it }
     }
 
     fun hasPendingStudyTimerCompletion(): Boolean =
