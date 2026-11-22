@@ -450,7 +450,13 @@ class StudyRepository(
     @Synchronized
     fun recordTimerSessionOnce(session: FinishedStudyTimerSession): Boolean {
         if (session.id.isBlank() || session.minutes < 0) return false
-        if (_timeEntries.value.any { it.id == session.id }) return true
+        val savedEntry = _timeEntries.value.firstOrNull { it.id == session.id }
+        if (savedEntry != null) {
+            // An ID collision with another entry is NOT an acknowledgment.
+            return savedEntry.date == session.date &&
+                savedEntry.minutes == session.minutes &&
+                savedEntry.type == TimeEntryType.TIMER
+        }
         if (session.minutes == 0) return true
 
         val originalEntries = _timeEntries.value
