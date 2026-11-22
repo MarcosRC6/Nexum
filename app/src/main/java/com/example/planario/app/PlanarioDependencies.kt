@@ -146,10 +146,13 @@ object PlanarioDependencies {
         // The journal ID becomes TimeEntry.id in a synchronous Planario
         // SharedPreferences.commit(). Retrying after a crash is idempotent.
         if (!studyRepository.recordTimerSessionOnce(session)) return false
-        // Clear the timer snapshot AND its journal together only after the
-        // committed entry exists on disk; an ack failure is safe to replay.
+        // A crashed process must NEVER resurrect an already-recorded session
+        // from the legacy widget timer tracking state. Commit its STOPPED
+        // snapshot before removing the sole recovery journal.
+        if (!studyRepository.clearActiveStudyTimerTrackingDurably()) return false
+        // Clear the timer snapshot AND its journal together only after BOTH
+        // Planario's time entry and the widget state exist durably on disk.
         if (!studyTimerController.acknowledgeSavedStudyTimerSession(session)) return false
-        studyRepository.clearActiveStudyTimerTracking()
         NexumStudyClockWidgetReceiver.updateAllWidgets(appContext)
         stopStudyTimerForegroundService()
         return true
