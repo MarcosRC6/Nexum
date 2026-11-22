@@ -1,0 +1,163 @@
+# One-time signed stable 2.0 release, owner authorization 2026-11-22.
+# Intentionally triggers ONLY on the merge of this workflow into main.
+name: NEXUM 2.0 - official signed release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/nexum-v2-0-authorized-publish.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexum-v2-0-stable-official-once
+  cancel-in-progress: false
+
+jobs:
+  official-release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout exact merged official source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enforce exclusively reviewed source and stable version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          # Main must have advanced by a real two-parent merge of PR #57.
+          test "$(git rev-list --parents -n 1 HEAD | wc -w)" -eq 3
+          test "$(git rev-parse HEAD^1)" = "9ca83d6557ba85e445820f49d2225c66caac48a9"
+          # Baseline fully audited and tested before the version-only change.
+          AUDITED="09c88865873cdec6735faf8448e2d43551300ec7"
+          test "$(git merge-base "$AUDITED" HEAD^2)" = "$AUDITED"
+          CHANGED="$(git diff --name-only "$AUDITED" HEAD^2)"
+          EXPECTED="$(printf '%s\n' '.github/workflows/nexum-v2-0-authorized-publish.yml' 'app/build.gradle.kts')"
+          test "$CHANGED" = "$EXPECTED"
+          grep -Eq '^[[:space:]]*versionCode = 25[[:space:]]*$' app/build.gradle.kts
+          grep -Eq '^[[:space:]]*versionName = "2.0"[[:space:]]*$' app/build.gradle.kts
+          grep -Fq 'applicationId = "com.example.estudario"' app/build.gradle.kts
+          if gh release view v2.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v2.0 already exists - refusing overwrite"; exit 1
+          fi
+          if git ls-remote --tags origin refs/tags/v2.0 | grep -q .; then
+            echo "v2.0 tag already exists - refusing overwrite"; exit 1
+          fi
+
+      - name: Verify final audited source unit, emulator and security checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APPROVED="09c88865873cdec6735faf8448e2d43551300ec7 success"
+          for RUN in 45013255769 45013251070 45013255768; do
+            ACTUAL="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN" --jq '.head_sha + " " + .conclusion')"
+            test "$ACTUAL" = "$APPROVED"
+          done
+          echo "Approved code CI, instrumented Android 35 and security: PASS"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Load official keystore from repository secrets
+        env:
+          SIGNING_BASE64: ${{ secrets.NEXUM_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASS: ${{ secrets.NEXUM_KEYSTORE_PASSWORD }}
+          SIGNING_ALIAS: ${{ secrets.NEXUM_KEY_ALIAS }}
+          SIGNING_KEY_PASS: ${{ secrets.NEXUM_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SIGNING_BASE64"
+          test -n "$SIGNING_STORE_PASS"
+          test -n "$SIGNING_ALIAS"
+          test -n "$SIGNING_KEY_PASS"
+          umask 077
+          printf '%s' "$SIGNING_BASE64" | base64 --decode > "$RUNNER_TEMP/nexum-official.p12"
+          test -s "$RUNNER_TEMP/nexum-official.p12"
+          echo "NEXUM_SIGNING_STORE_FILE=$RUNNER_TEMP/nexum-official.p12" >> "$GITHUB_ENV"
+
+      - name: Execute unit tests, Android lint and build signed official APK
+        env:
+          NEXUM_KEYSTORE_PASSWORD: ${{ secrets.NEXUM_KEYSTORE_PASSWORD }}
+          NEXUM_KEY_ALIAS: ${{ secrets.NEXUM_KEY_ALIAS }}
+          NEXUM_KEY_PASSWORD: ${{ secrets.NEXUM_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest lintDebug assembleRelease --no-daemon --stacktrace
+
+      - name: Verify permanent official certificate and Android upgrade identity
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" > "$RUNNER_TEMP/cert.txt"
+          grep -Fqi "2ba2c89de56e0fcfbc1a0b6df804800972d8bcd226b495b5d9628bcb4f2a2249" "$RUNNER_TEMP/cert.txt"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.example.estudario' versionCode='25' versionName='2.0'"
+          mkdir -p dist
+          cp "$APK" "dist/NEXUM-v2.0.apk"
+          sha256sum "dist/NEXUM-v2.0.apk" > dist/SHA256SUMS.txt
+
+      - name: Preserve signed release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUM_2_0_OFICIAL_FIRMADA
+          path: |
+            dist/NEXUM-v2.0.apk
+            dist/SHA256SUMS.txt
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Publish immutable official GitHub Release v2.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/notes.md" <<'NOTES'
+          # NEXUM 2.0 — Versión estable
+
+          Primera versión estable de NEXUM 2.0, integrada en `main` tras las betas y la auditoría de integridad. Paquete Android permanente `com.example.estudario`, versión `2.0` y `versionCode 25`. Mantiene la firma oficial para actualizar sobre la Beta 10 (`versionCode 24`) y NEXUM 1.8 sin desinstalar.
+
+          ## Novedades
+          - Ejercicios de respuestas múltiples escritas y tarjetas Anki, con imágenes, zonas de ocultación, zoom directo, autocorrección y aciertos parciales.
+          - Banderas en Test, Anki y ejercicios escritos, con filtros y conservación de datos.
+          - Editor de zonas sobre imagen: crear, seleccionar, desplazar y redimensionar sin alternar entre dibujar/mover.
+          - Accesos rápidos web, tarjeta neón de añadir enlace, widgets, test rápido, notificación del cronómetro y mejoras visuales.
+          - Mejoras de importación ZIP multitema, duplicados, contenidos y plantillas, y copias globales con verificaciones de estructura.
+          - Protección de datos: lectura dañada de Planario/Biblioteca no sustituye automáticamente la base, comprobación de restauraciones y respaldo de emergencia separado.
+          - Guardado reforzado del cronómetro: diario de sesión pendiente con identificador estable, registro idempotente del tiempo, confirmación en disco y recuperación sin duplicar sesiones. Aplicado a Inicio, Plan, widget, notificación y cambio de día.
+
+          ## Validación y seguridad
+          - Auditoría, tests unitarios, compilación Release y Android Lint: PASS.
+          - Pruebas instrumentadas de recuperación en emulador Android 35: PASS.
+          - APK firmada con el certificado oficial de NEXUM, validada antes de publicar.
+          - La Beta 10 fue probada en un teléfono real; las protecciones adicionales de persistencia se han verificado mediante pruebas automatizadas.
+
+          ## Actualización
+          **Antes de instalar, exporta una COPIA GLOBAL COMPLETA ZIP y guárdala fuera del móvil.** Instala `NEXUM-v2.0.apk` sobre tu versión actual SIN desinstalar ni borrar datos. La app conserva identificador y certificado. No vuelvas a instalar una APK con `versionCode` menor.
+
+          ## Límites conocidos
+          - Importación nativa de paquetes Anki `.apkg` y sincronización incremental bidireccional permanente todavía no incluidas.
+          - Restauración global entre múltiples almacenes usa mecanismos preventivos y reversión, pero no transacciones de sistema de archivos ACID.
+          - El manejo de ZIP muy grandes puede estar condicionado por la memoria disponible del dispositivo.
+          NOTES
+          gh release create v2.0             "dist/NEXUM-v2.0.apk#NEXUM-v2.0.apk"             "dist/SHA256SUMS.txt#SHA256SUMS.txt"             --repo "$GITHUB_REPOSITORY"             --target "$GITHUB_SHA"             --title "NEXUM 2.0 — Versión estable"             --latest             --notes-file "$RUNNER_TEMP/notes.md"
+
+      - name: Remove temporary private keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/nexum-official.p12"
