@@ -222,6 +222,9 @@ class StudyTimerController {
     fun startStudyTimer(
         date: LocalDate = LocalDate.now()
     ) {
+        // An unacknowledged completed session must never be overwritten by a
+        // new one. Normal starts are unchanged once the journal is cleared.
+        if (readPendingStudyTimerCompletion() != null) return
         val current = _state.value
 
         if (current.studyTimerState == StudyTimerState.RUNNING) return
@@ -311,7 +314,21 @@ class StudyTimerController {
             StudyTimerState.PAUSED -> _state.value.studyElapsedSeconds
             StudyTimerState.STOPPED -> 0L
         }
-        return stageStudyTimerCompletion(date, (seconds / 60L).toInt())
+        val staged = stageStudyTimerCompletion(date, (seconds / 60L).toInt())
+            ?: return null
+        // Pressing "stop/save" freezes the clock at that instant. On a disk
+        // failure it stays PAUSED and the user can retry without losing time.
+        studyTickerJob?.cancel()
+        studyTickerJob = null
+        studyStartedAtElapsedRealtimeMillis = null
+        studyStartedAtWallMillis = null
+        studyAccumulatedSecondsBeforeRun = seconds
+        _state.value = _state.value.copy(
+            studyElapsedSeconds = seconds,
+            studyTimerState = StudyTimerState.PAUSED
+        )
+        persistStudyTimerNow(StudyTimerState.PAUSED, seconds)
+        return staged
     }
 
     /**
@@ -366,6 +383,10 @@ class StudyTimerController {
     }
 
     fun discardStudyTimer() {
+        // Once a stop has been staged it might ALREADY have been written to
+        // Planario. Require recovery/ack first; don't create a phantom
+        // "discarded" session with a journal that survives the reset.
+        if (readPendingStudyTimerCompletion() != null) return
         resetStudyTimer(clearPersistedState = true)
     }
 
