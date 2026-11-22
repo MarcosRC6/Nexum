@@ -75,8 +75,11 @@ class StudyTimerForegroundService : Service() {
             }
 
             ACTION_RESUME -> {
-                PlanarioDependencies.studyTimerController.resumeStudyTimer()
-                PlanarioDependencies.studyRepository.resumeActiveStudyTimerTracking()
+                val controller = PlanarioDependencies.studyTimerController
+                if (!controller.hasPendingStudyTimerCompletion()) {
+                    controller.resumeStudyTimer()
+                    PlanarioDependencies.studyRepository.resumeActiveStudyTimerTracking()
+                }
                 startForegroundNow()
                 observeTimer()
                 observeAutoClosedSessions()
