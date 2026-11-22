@@ -205,6 +205,12 @@ class StudyLocalDataSource(
         )
     }
 
+    /** Required at the end of a journaled stop: if this disk commit fails,
+     * keep the journal so the old widget snapshot can never be counted twice.
+     */
+    fun clearActiveStudyTimerTrackingDurably(): Boolean =
+        saveActiveStudyTimerSnapshot(StoredActiveStudyTimerSnapshot())
+
     fun restorePausedActiveStudyTimerTracking(
         date: LocalDate,
         elapsedSeconds: Long
@@ -260,7 +266,7 @@ class StudyLocalDataSource(
 
     private fun saveActiveStudyTimerSnapshot(
         snapshot: StoredActiveStudyTimerSnapshot
-    ) {
+    ): Boolean {
         val saved = activeTimerPreferences.edit()
             .putString(KEY_ACTIVE_TIMER_STATE, snapshot.state.name)
             .putString(KEY_ACTIVE_TIMER_DATE, snapshot.date?.toString())
@@ -271,6 +277,7 @@ class StudyLocalDataSource(
         if (saved) {
             PlanarioWidgetUpdater.updateTodayWidget(appContext)
         }
+        return saved
     }
 
     companion object {
