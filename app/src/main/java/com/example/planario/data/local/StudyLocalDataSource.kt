@@ -12,6 +12,8 @@ import com.example.planario.core.model.TimeEntry
 import com.example.planario.core.model.TimeEntryType
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -30,24 +32,64 @@ class StudyLocalDataSource(
         Context.MODE_PRIVATE
     )
 
+    // A damaged planning JSON must never be silently replaced by a new empty
+    // planning database. The lock is persisted independently from the backup
+    // so a process restart cannot reopen a destructive write path.
+    private val _recoveryError = MutableStateFlow<String?>(null)
+    val recoveryError: StateFlow<String?> = _recoveryError
+
+    /** Unlike a transient disk write failure, this means the original JSON
+     * cannot be decoded and normal backup exports must not pass as complete. */
+    fun isCorruptRecoveryLocked(): Boolean =
+        preferences.getBoolean(KEY_RECOVERY_LOCKED, false)
+
+    /** For a private, NON-RESTORABLE rescue archive only. Never pretend this
+     * corrupt JSON is an ordinary Planario database. */
+    fun originalCorruptJsonForRecovery(): String? =
+        if (isCorruptRecoveryLocked()) {
+            preferences.getString(KEY_RECOVERY_DATA, null)
+                ?: preferences.getString(KEY_DATA, null)
+        } else null
+
+    private fun recoveryNotice(): String =
+        "No se puede abrir la planificación guardada. NEXUM ha bloqueado " +
+        "los cambios de Planario para conservar el archivo original y su " +
+        "copia de recuperación. Restaura una copia global completa válida " +
+        "desde Ajustes; no borres los datos ni reinstales la aplicación."
+
+
     fun load(): StoredStudyData {
+        if (preferences.getBoolean(KEY_RECOVERY_LOCKED, false)) {
+            _recoveryError.value = recoveryNotice()
+            return StoredStudyData()
+        }
         val rawJson = preferences.getString(KEY_DATA, null) ?: return StoredStudyData()
 
         return try {
             val root = JSONObject(rawJson)
             jsonObjectToStoredStudyData(root)
         } catch (_: Exception) {
-            // Nunca descartamos el JSON dañado: el siguiente guardado podría
-            // reemplazarlo por una base vacía. Guardamos la copia de recuperación
-            // antes de devolver el estado predeterminado a la interfaz.
-            if (!preferences.contains(KEY_RECOVERY_DATA)) {
-                preferences.edit().putString(KEY_RECOVERY_DATA, rawJson).commit()
-            }
+            // Read-only recovery state: keep the original preferences value and
+            // store a separate emergency copy BEFORE any future save is allowed.
+            val protected = preferences.edit().apply {
+                if (!preferences.contains(KEY_RECOVERY_DATA)) {
+                    putString(KEY_RECOVERY_DATA, rawJson)
+                }
+                putBoolean(KEY_RECOVERY_LOCKED, true)
+            }.commit()
+            _recoveryError.value = recoveryNotice() +
+                if (protected) "" else
+                    " No se pudo crear el respaldo adicional: conserva la aplicación abierta."
             StoredStudyData()
         }
     }
 
-    fun save(data: StoredStudyData) {
+    fun save(data: StoredStudyData): Boolean {
+        if (preferences.getBoolean(KEY_RECOVERY_LOCKED, false)) {
+            _recoveryError.value = recoveryNotice()
+            return false
+        }
+        if (_recoveryError.value != null) return false
         val root = storedStudyDataToJsonObject(data)
 
         val saved = preferences.edit()
@@ -56,7 +98,31 @@ class StudyLocalDataSource(
 
         if (saved) {
             PlanarioWidgetUpdater.updateTodayWidget(appContext)
+        } else {
+            _recoveryError.value = "No se han podido escribir los cambios de Planario " +
+                "en el almacenamiento. Guarda una copia global completa fuera del móvil " +
+                "antes de cerrar NEXUM."
         }
+        return saved
+    }
+
+    /**
+     * Only a validated user-selected backup may unlock recovery. A failed
+     * commit must leave the lock and previous bytes unchanged.
+     */
+    fun restoreValidatedBackup(data: StoredStudyData): Boolean {
+        val body = storedStudyDataToJsonObject(data).toString()
+        val restored = preferences.edit()
+            .putString(KEY_DATA, body)
+            .remove(KEY_RECOVERY_LOCKED)
+            .commit()
+        if (restored) _recoveryError.value = null
+        return restored
+    }
+
+    /** Update widgets only after StudyRepository publishes the restored state. */
+    fun refreshWidgetsAfterRestore() {
+        PlanarioWidgetUpdater.updateTodayWidget(appContext)
     }
 
     fun exportToJson(data: StoredStudyData): String {
@@ -72,6 +138,27 @@ class StudyLocalDataSource(
         }
     }
 
+
+    /**
+     * Backups taken in the tiny window between Planario commit and journal
+     * acknowledgement must not include the same session twice. Read the
+     * already-committed journal without changing any timer state.
+     */
+    fun pendingTimerForBackup(): StoredPendingTimerCompletion? {
+        val journal = appContext.getSharedPreferences(
+            "planario_study_timer_state", Context.MODE_PRIVATE
+        )
+        val id = journal.getString("pending_session_id", null)
+            ?.takeIf { it.isNotBlank() } ?: return null
+        val date = runCatching {
+            LocalDate.parse(journal.getString("pending_session_date", null))
+        }.getOrNull() ?: return null
+        return StoredPendingTimerCompletion(
+            id = id,
+            date = date,
+            minutes = journal.getInt("pending_session_minutes", 0).coerceAtLeast(0)
+        )
+    }
 
     fun startActiveStudyTimerTracking(
         date: LocalDate = LocalDate.now()
@@ -117,6 +204,12 @@ class StudyLocalDataSource(
             StoredActiveStudyTimerSnapshot()
         )
     }
+
+    /** Required at the end of a journaled stop: if this disk commit fails,
+     * keep the journal so the old widget snapshot can never be counted twice.
+     */
+    fun clearActiveStudyTimerTrackingDurably(): Boolean =
+        saveActiveStudyTimerSnapshot(StoredActiveStudyTimerSnapshot())
 
     fun restorePausedActiveStudyTimerTracking(
         date: LocalDate,
@@ -173,7 +266,7 @@ class StudyLocalDataSource(
 
     private fun saveActiveStudyTimerSnapshot(
         snapshot: StoredActiveStudyTimerSnapshot
-    ) {
+    ): Boolean {
         val saved = activeTimerPreferences.edit()
             .putString(KEY_ACTIVE_TIMER_STATE, snapshot.state.name)
             .putString(KEY_ACTIVE_TIMER_DATE, snapshot.date?.toString())
@@ -184,11 +277,13 @@ class StudyLocalDataSource(
         if (saved) {
             PlanarioWidgetUpdater.updateTodayWidget(appContext)
         }
+        return saved
     }
 
     companion object {
         private const val KEY_DATA = "study_data"
         private const val KEY_RECOVERY_DATA = "study_data_corrupt_recovery"
+        private const val KEY_RECOVERY_LOCKED = "study_data_recovery_locked"
 
         private const val KEY_ACTIVE_TIMER_STATE = "active_timer_state"
         private const val KEY_ACTIVE_TIMER_DATE = "active_timer_date"
@@ -196,6 +291,12 @@ class StudyLocalDataSource(
         private const val KEY_ACTIVE_TIMER_STARTED_AT = "active_timer_started_at"
     }
 }
+
+data class StoredPendingTimerCompletion(
+    val id: String,
+    val date: LocalDate,
+    val minutes: Int
+)
 
 data class StoredStudyData(
     val topics: List<StudyTopic> = emptyList(),
@@ -611,11 +712,61 @@ private fun storedStudyDataToJsonObject(data: StoredStudyData): JSONObject {
 }
 
 private fun jsonObjectToStoredStudyData(root: JSONObject): StoredStudyData {
-    return StoredStudyData(
+    // A syntactically valid but empty/truncated object MUST NOT silently
+    // replace a real planning database with five default empty collections.
+    // Be compatible with older partial Planario backups: at least one
+    // recognizable data field is required, not necessarily all modern fields.
+    val arrays = listOf("topics", "fixedObjectives", "studyDays", "timeEntries")
+    val recognized = arrays.any { root.has(it) } || root.has("settings")
+    require(recognized) {
+        "Planario no contiene campos de planificación reconocibles: copia incompleta."
+    }
+    arrays.forEach { key ->
+        if (root.has(key)) require(root.opt(key) is JSONArray) {
+            "El campo $key de Planario no contiene una lista válida."
+        }
+    }
+    if (root.has("settings")) require(root.opt("settings") is JSONObject) {
+        "Los ajustes de Planario no son un objeto válido."
+    }
+    if (root.has("version")) {
+        val version = root.opt("version")
+        require(version is Number && version.toInt() in 0..2 &&
+            version.toDouble() == version.toInt().toDouble()) {
+            "La planificación pertenece a una versión futura o incompatible."
+        }
+    }
+    val decoded = StoredStudyData(
         topics = jsonArrayToStudyTopics(root.optJSONArray("topics")),
         fixedObjectives = jsonArrayToFixedObjectives(root.optJSONArray("fixedObjectives")),
         studyDays = jsonArrayToStudyDays(root.optJSONArray("studyDays")),
         timeEntries = jsonArrayToTimeEntries(root.optJSONArray("timeEntries")),
         settings = jsonObjectToStudySettings(root.optJSONObject("settings"))
     )
+    // Historical decoders skip invalid elements. That is acceptable for
+    // *displaying* legacy data, but silently dropping a malformed topic,
+    // objective, day or time entry during restore would destroy information.
+    fun sameCount(key: String, actual: Int) {
+        val expected = root.optJSONArray(key)?.length() ?: return
+        require(expected == actual) {
+            "Planario: el campo $key contiene registros inválidos o duplicados " +
+                "($actual de $expected). No se sustituirán los datos existentes."
+        }
+    }
+    sameCount("topics", decoded.topics.size)
+    sameCount("fixedObjectives", decoded.fixedObjectives.size)
+    sameCount("studyDays", decoded.studyDays.size)
+    sameCount("timeEntries", decoded.timeEntries.size)
+    require(decoded.topics.map { it.id }.distinct().size == decoded.topics.size) {
+        "Planario contiene identificadores de temas repetidos."
+    }
+    require(decoded.fixedObjectives.map { it.id }.distinct().size ==
+        decoded.fixedObjectives.size) {
+        "Planario contiene identificadores de objetivos repetidos."
+    }
+    require(decoded.timeEntries.map { it.id }.distinct().size ==
+        decoded.timeEntries.size) {
+        "Planario contiene identificadores de registros de tiempo repetidos."
+    }
+    return decoded
 }

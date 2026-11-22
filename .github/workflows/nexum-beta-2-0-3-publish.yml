@@ -1,0 +1,154 @@
+# One-time signed NEXUM 2.0 Beta 3, explicitly authorized by the owner on 2026-11-20.
+# Runs ONLY when this workflow is added atop the pinned, already-reviewed beta3 code.
+name: NEXUM - signed 2.0 Beta 3 prerelease
+
+on:
+  push:
+    branches:
+      - release/nexum-v2.0-beta.3-20261120
+    paths:
+      - '.github/workflows/nexum-beta-2-0-3-publish.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexum-signed-beta-2-0-3
+  cancel-in-progress: false
+
+jobs:
+  signed-prerelease:
+    if: github.ref == 'refs/heads/release/nexum-v2.0-beta.3-20261120'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout exact authorized beta source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 3
+
+      - name: Enforce reviewed source and one-time version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "17a117252f6e98b8e299fd6de1f58926f6d9f6fd"
+          test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/nexum-beta-2-0-3-publish.yml"
+          test "$(git rev-parse HEAD^^)" = "0d871836950fcb4aaf869a63ae67bfa1e1d7b75b"
+          test "$(git diff --name-only HEAD^^ HEAD^)" = "app/build.gradle.kts"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          grep -Eq '^[[:space:]]*versionCode = 17[[:space:]]*$' app/build.gradle.kts
+          grep -Eq '^[[:space:]]*versionName = "2.0-beta.3"[[:space:]]*$' app/build.gradle.kts
+          grep -Fq 'applicationId = "com.example.estudario"' app/build.gradle.kts
+          if gh release view v2.0-beta.3 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Beta release already exists; refusing to overwrite"; exit 1
+          fi
+          if git ls-remote --tags origin refs/tags/v2.0-beta.3 | grep -q .; then
+            echo "Beta tag already exists; refusing to overwrite"; exit 1
+          fi
+
+      - name: Require audited feature and independent Beta 3 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/44740735979" --jq '.head_sha + " " + .conclusion')" = "0d871836950fcb4aaf869a63ae67bfa1e1d7b75b success"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/44741071207" --jq '.head_sha + " " + .conclusion')" = "17a117252f6e98b8e299fd6de1f58926f6d9f6fd success"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/44741071051" --jq '.head_sha + " " + .conclusion')" = "17a117252f6e98b8e299fd6de1f58926f6d9f6fd success"
+          echo "Beta 3 audited source, upgrade version and security: PASS"
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Load official signing key privately
+        env:
+          SIGNING_BASE64: ${{ secrets.NEXUM_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASS: ${{ secrets.NEXUM_KEYSTORE_PASSWORD }}
+          SIGNING_ALIAS: ${{ secrets.NEXUM_KEY_ALIAS }}
+          SIGNING_KEY_PASS: ${{ secrets.NEXUM_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$SIGNING_BASE64"
+          test -n "$SIGNING_STORE_PASS"
+          test -n "$SIGNING_ALIAS"
+          test -n "$SIGNING_KEY_PASS"
+          umask 077
+          printf '%s' "$SIGNING_BASE64" | base64 --decode > "$RUNNER_TEMP/nexum-official.p12"
+          test -s "$RUNNER_TEMP/nexum-official.p12"
+          echo "NEXUM_SIGNING_STORE_FILE=$RUNNER_TEMP/nexum-official.p12" >> "$GITHUB_ENV"
+
+      - name: Build, test and lint signed beta
+        env:
+          NEXUM_KEYSTORE_PASSWORD: ${{ secrets.NEXUM_KEYSTORE_PASSWORD }}
+          NEXUM_KEY_ALIAS: ${{ secrets.NEXUM_KEY_ALIAS }}
+          NEXUM_KEY_PASSWORD: ${{ secrets.NEXUM_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest lintDebug assembleRelease --no-daemon --stacktrace
+
+      - name: Verify same official certificate, package and upgrade version
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs "$APK" > "$RUNNER_TEMP/certificate.txt"
+          grep -Fqi "2ba2c89de56e0fcfbc1a0b6df804800972d8bcd226b495b5d9628bcb4f2a2249" "$RUNNER_TEMP/certificate.txt"
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -F "package: name='com.example.estudario' versionCode='17' versionName='2.0-beta.3'"
+          mkdir -p dist
+          cp "$APK" "dist/NEXUM-v2.0-beta.3.apk"
+          sha256sum "dist/NEXUM-v2.0-beta.3.apk" | tee dist/SHA256SUMS.txt
+
+      - name: Archive verified signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUM_2_0_BETA_3_OFFICIAL_SIGNATURE
+          path: |
+            dist/NEXUM-v2.0-beta.3.apk
+            dist/SHA256SUMS.txt
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish GitHub prerelease only after all checks passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/beta-notes.md" <<'NOTES'
+          # NEXUM 2.0 Beta 3 · Para pruebas en Android
+
+          **Actualización beta firmada**; todavía no se ha certificado su funcionamiento completo en un teléfono físico.
+
+          ## Cambios respecto a Beta 2
+          - Entrada única Añadir pregunta con **Test / Respuesta escrita / Anki**, Test por defecto.
+          - Respuesta escrita sin círculos de test, soluciones individuales, Crear/Importar imagen debajo del enunciado y modo **Colocar soluciones** con marcadores más grandes.
+          - Lápiz para editar fotos, rotulador, subrayador de opacidad regulable, paleta de colores, grosor, deshacer/rehacer y zoom con dos dedos y desplazamiento; imágenes originales intactas.
+          - Lienzos creados con colores, grosor, subrayador y zoom/desplazamiento.
+          - Anki con «Cómo funciona» plegable, ocultación de fragmentos Siempre/Turnos, imágenes de pregunta/respuesta Crear/Importar y oclusiones cuyo tamaño puede ajustarse; se revelan al contestar.
+          - Correcciones del fondo transparente, protección ante texto Anki malformado, giro EXIF y precisión al cambiar zoom, color o grosor.
+
+          ## AVISO: protege tus datos
+          **Antes de actualizar exporta una copia GLOBAL COMPLETA en ZIP y guárdala fuera del móvil.** Instala esta APK encima de NEXUM sin desinstalar. Se conserva paquete com.example.estudario y certificado oficial, con versionCode 17 y datos en esquema v7.
+          No instales Beta 2, Beta 1 ni v1.8 encima de Beta 3; son versiones anteriores que no deben abrir una base v7 de una versión más moderna.
+
+          ## Instalación y comprobaciones
+          1. Descarga NEXUM-v2.0-beta.3.apk de esta página o usa «Buscar actualizaciones» desde Beta 2.
+          2. Actualiza sin desinstalar y comprueba que Biblioteca, fotografías, Plan y cronómetro siguen presentes.
+          3. Prueba la creación de un Test, una Respuesta escrita con imagen, un Anki de huecos y un Anki de oclusión.
+          4. Comprueba zoom, pincel, guardado, recuperación y marcadores con información de ensayo.
+          5. Compara el SHA-256 de la APK con SHA256SUMS.txt.
+
+          ## Límites
+          Pendiente QA física exhaustiva de gestos, fotos EXIF, restauraciones, temporizador y sesiones largas. La importación/exportación nativa Anki .apkg sigue pendiente. No uses esta beta como única copia del banco. No se ha fusionado main.
+          NOTES
+          gh release create v2.0-beta.3             "dist/NEXUM-v2.0-beta.3.apk#NEXUM-v2.0-beta.3.apk"             "dist/SHA256SUMS.txt#SHA256SUMS.txt"             --repo "$GITHUB_REPOSITORY"             --target "$GITHUB_SHA"             --title "NEXUM 2.0 Beta 3"             --prerelease             --notes-file "$RUNNER_TEMP/beta-notes.md"
+
+      - name: Delete temporary keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/nexum-official.p12"

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.UUID
 
 enum class StudyTimerState {
     STOPPED,
@@ -44,7 +45,9 @@ data class StudyTimerControllerState(
 
 data class FinishedStudyTimerSession(
     val date: LocalDate,
-    val minutes: Int
+    val minutes: Int,
+    /** Stable across retries after a crash; also used as TimeEntry.id. */
+    val id: String
 )
 
 class StudyTimerController {
@@ -68,6 +71,10 @@ class StudyTimerController {
     private var studyStartedAtWallMillis: Long? = null
     private var studyAccumulatedSecondsBeforeRun: Long = 0L
     private var studyDate: LocalDate? = null
+    // SharedPreferences.commit can return false after updating its in-memory
+    // map. Retain the journal in memory until a successful acknowledgement.
+    private var pendingCompletionInMemory: FinishedStudyTimerSession? = null
+    private var pendingCompletionDurable: Boolean = true
 
     private var lastStudyHeartbeatWallMillis: Long = 0L
 
@@ -113,33 +120,22 @@ class StudyTimerController {
     fun recoverPendingStudyTimerIfNeeded(
         today: LocalDate = LocalDate.now()
     ): FinishedStudyTimerSession? {
-        if (_state.value.studyTimerState != StudyTimerState.STOPPED) {
-            return null
-        }
+        // A previous process may have saved the journal, saved Planario and
+        // died before acknowledging. Replaying the SAME ID is safe.
+        readPendingStudyTimerCompletion()?.let { return it }
+        if (_state.value.studyTimerState != StudyTimerState.STOPPED) return null
 
         val stored = readStoredStudyTimer() ?: return null
-
         if (stored.date.isAfter(today)) {
             clearStoredStudyTimer()
             return null
         }
-
         if (stored.date.isBefore(today)) {
             val safeSeconds = recoverAccurateRunningSeconds(stored, endedYesterday = true)
                 ?: stored.elapsedSeconds
             val minutes = (safeSeconds / 60L).toInt()
-
-            clearStoredStudyTimer()
-            resetStudyTimer(clearPersistedState = true)
-
-            return if (minutes > 0) {
-                FinishedStudyTimerSession(
-                    date = stored.date,
-                    minutes = minutes
-                )
-            } else {
-                null
-            }
+            // Stage durably; DON'T delete the timer until Planario commits.
+            return stageStudyTimerCompletion(stored.date, minutes)
         }
 
         studyDate = stored.date
@@ -159,7 +155,6 @@ class StudyTimerController {
             elapsedSeconds = studyAccumulatedSecondsBeforeRun
         )
         if (canResume) startStudyTicker()
-
         return null
     }
 
@@ -231,6 +226,9 @@ class StudyTimerController {
     fun startStudyTimer(
         date: LocalDate = LocalDate.now()
     ) {
+        // An unacknowledged completed session must never be overwritten by a
+        // new one. Normal starts are unchanged once the journal is cleared.
+        if (hasPendingStudyTimerCompletion()) return
         val current = _state.value
 
         if (current.studyTimerState == StudyTimerState.RUNNING) return
@@ -282,6 +280,9 @@ class StudyTimerController {
     }
 
     fun resumeStudyTimer() {
+        // A stop with pending durable completion cannot resume or alter its
+        // frozen minutes while a write is being retried.
+        if (hasPendingStudyTimerCompletion()) return
         if (_state.value.studyTimerState != StudyTimerState.PAUSED) return
 
         studyAccumulatedSecondsBeforeRun = _state.value.studyElapsedSeconds
@@ -301,37 +302,121 @@ class StudyTimerController {
         startStudyTicker()
     }
 
-    fun finishStudyTimerAndReturnSession(): FinishedStudyTimerSession {
-        val sessionDate = studyDate ?: LocalDate.now()
-
-        val elapsedSeconds = when (_state.value.studyTimerState) {
-            StudyTimerState.RUNNING -> {
-                if (sessionDate.isBefore(LocalDate.now())) {
-                    calculateStudyElapsedSecondsCappedAtEndOfDay(sessionDate)
-                } else {
-                    calculateCurrentStudyElapsedSeconds()
-                }
-            }
-
+    /**
+     * Stage the stop before touching the active timer. A journal in the same
+     * SharedPreferences survives process death between the Planario commit
+     * and the final removal of the stopwatch snapshot.
+     *
+     * This method does NOT stop/reset the timer. Call acknowledge only after
+     * StudyRepository.recordTimerSessionOnce() returns true.
+     */
+    fun prepareStudyTimerCompletion(): FinishedStudyTimerSession? {
+        readPendingStudyTimerCompletion()?.let { return it }
+        if (_state.value.studyTimerState == StudyTimerState.STOPPED) return null
+        val date = studyDate ?: LocalDate.now()
+        val seconds = when (_state.value.studyTimerState) {
+            StudyTimerState.RUNNING -> if (date.isBefore(LocalDate.now())) {
+                calculateStudyElapsedSecondsCappedAtEndOfDay(date)
+            } else calculateCurrentStudyElapsedSeconds()
             StudyTimerState.PAUSED -> _state.value.studyElapsedSeconds
             StudyTimerState.STOPPED -> 0L
         }
-
-        val minutes = (elapsedSeconds / 60L).toInt()
-
-        resetStudyTimer(clearPersistedState = true)
-
-        return FinishedStudyTimerSession(
-            date = sessionDate,
-            minutes = minutes
+        val staged = stageStudyTimerCompletion(date, (seconds / 60L).toInt())
+            ?: return null
+        // Pressing "stop/save" freezes the clock at that instant. On a disk
+        // failure it stays PAUSED and the user can retry without losing time.
+        studyTickerJob?.cancel()
+        studyTickerJob = null
+        studyStartedAtElapsedRealtimeMillis = null
+        studyStartedAtWallMillis = null
+        studyAccumulatedSecondsBeforeRun = seconds
+        _state.value = _state.value.copy(
+            studyElapsedSeconds = seconds,
+            studyTimerState = StudyTimerState.PAUSED
         )
+        persistStudyTimerNow(StudyTimerState.PAUSED, seconds)
+        return staged
     }
 
-    fun finishStudyTimerAndReturnMinutes(): Int {
-        return finishStudyTimerAndReturnSession().minutes
+    /**
+     * Final stage of the commit protocol. Removal of the journal and active
+     * timer is ONE durable preference transaction. If it fails, a later
+     * restart replays the same ID and Planario deduplicates it.
+     */
+    fun acknowledgeSavedStudyTimerSession(session: FinishedStudyTimerSession): Boolean {
+        val pending = readPendingStudyTimerCompletion() ?: return false
+        if (pending != session) return false
+        val preferences = prefs() ?: return false
+        val cleared = preferences.edit()
+            .remove(KEY_PENDING_SESSION_ID)
+            .remove(KEY_PENDING_SESSION_DATE)
+            .remove(KEY_PENDING_SESSION_MINUTES)
+            .remove(KEY_ACTIVE).remove(KEY_DATE).remove(KEY_STATE)
+            .remove(KEY_ELAPSED_SECONDS).remove(KEY_LAST_HEARTBEAT_WALL_MILLIS)
+            .remove(KEY_LAST_HEARTBEAT_UPTIME_MILLIS).remove(KEY_STARTED_WALL_MILLIS)
+            .commit()
+        if (cleared) {
+            pendingCompletionInMemory = null
+            pendingCompletionDurable = true
+            resetStudyTimer(clearPersistedState = false)
+        }
+        return cleared
     }
+
+    private fun stageStudyTimerCompletion(date: LocalDate, minutes: Int):
+        FinishedStudyTimerSession? {
+        readPendingStudyTimerCompletion()?.let { return it }
+        val preferences = prefs() ?: return null
+        pendingCompletionInMemory?.let { pending ->
+            // Retry the SAME ID if SharedPreferences.commit() failed but the
+            // preference cache temporarily contains the unflushed journal.
+            val committed = preferences.edit()
+                .putString(KEY_PENDING_SESSION_ID, pending.id)
+                .putString(KEY_PENDING_SESSION_DATE, pending.date.toString())
+                .putInt(KEY_PENDING_SESSION_MINUTES, pending.minutes)
+                .commit()
+            pendingCompletionDurable = committed
+            return if (committed) pending else null
+        }
+        val session = FinishedStudyTimerSession(
+            date = date, minutes = minutes.coerceAtLeast(0),
+            id = UUID.randomUUID().toString()
+        )
+        val written = preferences.edit()
+            .putString(KEY_PENDING_SESSION_ID, session.id)
+            .putString(KEY_PENDING_SESSION_DATE, session.date.toString())
+            .putInt(KEY_PENDING_SESSION_MINUTES, session.minutes)
+            .commit()
+        pendingCompletionInMemory = session
+        pendingCompletionDurable = written
+        return if (written) session else null
+    }
+
+    private fun readPendingStudyTimerCompletion(): FinishedStudyTimerSession? {
+        pendingCompletionInMemory?.let {
+            return it.takeIf { _ -> pendingCompletionDurable }
+        }
+        val preferences = prefs() ?: return null
+        val id = preferences.getString(KEY_PENDING_SESSION_ID, null)
+            ?.takeIf { it.isNotBlank() } ?: return null
+        val date = runCatching {
+            LocalDate.parse(preferences.getString(KEY_PENDING_SESSION_DATE, null))
+        }.getOrNull() ?: return null
+        return FinishedStudyTimerSession(
+            date = date,
+            minutes = preferences.getInt(KEY_PENDING_SESSION_MINUTES, 0).coerceAtLeast(0),
+            id = id
+        ).also { pendingCompletionInMemory = it }
+    }
+
+    fun hasPendingStudyTimerCompletion(): Boolean =
+        pendingCompletionInMemory != null || readPendingStudyTimerCompletion() != null
 
     fun discardStudyTimer() {
+        // Once a stop has been staged it might ALREADY have been written to
+        // Planario. Require recovery/ack first; don't create a phantom
+        // "discarded" session with a journal that survives the reset.
+        if (hasPendingStudyTimerCompletion()) return
         resetStudyTimer(clearPersistedState = true)
     }
 
@@ -492,17 +577,44 @@ class StudyTimerController {
 
         val minutes = (elapsedSeconds / 60L).toInt()
 
-        resetStudyTimer(clearPersistedState = true)
-
-        if (minutes > 0) {
-            _autoClosedStudyTimerSessions.tryEmit(
-                FinishedStudyTimerSession(
-                    date = date,
-                    minutes = minutes
-                )
-            )
+        if (minutes <= 0) {
+            // No time entry is needed. In particular, do not leave an
+            // unobserved zero-minute journal that could block the next day.
+            resetStudyTimer(clearPersistedState = true)
+            return true
         }
 
+        // SharedFlow(replay=0) discards a close event if the foreground
+        // service has no active subscriber. Keep the previous day's PAUSED
+        // snapshot instead of deleting the only copy of the study time.
+        if (TimerAutoClosePolicy.preserveForRecovery(
+                minutes, _autoClosedStudyTimerSessions.subscriptionCount.value)) {
+            studyAccumulatedSecondsBeforeRun = elapsedSeconds
+            studyStartedAtElapsedRealtimeMillis = null
+            studyStartedAtWallMillis = null
+            _state.value = _state.value.copy(
+                studyElapsedSeconds = elapsedSeconds,
+                studyTimerState = StudyTimerState.PAUSED
+            )
+            persistStudyTimerNow(StudyTimerState.PAUSED, elapsedSeconds)
+            return true
+        }
+
+        // The observer may be interrupted immediately after this event.
+        // Stage the exact same stable ID before notifying it; neither the
+        // event nor the controller may delete the original timer snapshot.
+        val pending = stageStudyTimerCompletion(date, minutes) ?: return true
+        studyTickerJob?.cancel()
+        studyTickerJob = null
+        studyStartedAtElapsedRealtimeMillis = null
+        studyStartedAtWallMillis = null
+        studyAccumulatedSecondsBeforeRun = elapsedSeconds
+        _state.value = _state.value.copy(
+            studyElapsedSeconds = elapsedSeconds,
+            studyTimerState = StudyTimerState.PAUSED
+        )
+        persistStudyTimerNow(StudyTimerState.PAUSED, elapsedSeconds)
+        if (pending.minutes > 0) _autoClosedStudyTimerSessions.tryEmit(pending)
         return true
     }
 
@@ -682,6 +794,9 @@ class StudyTimerController {
         private const val KEY_LAST_HEARTBEAT_WALL_MILLIS = "last_heartbeat_wall_millis"
         private const val KEY_LAST_HEARTBEAT_UPTIME_MILLIS = "last_heartbeat_uptime_millis"
         private const val KEY_STARTED_WALL_MILLIS = "started_wall_millis"
+        private const val KEY_PENDING_SESSION_ID = "pending_session_id"
+        private const val KEY_PENDING_SESSION_DATE = "pending_session_date"
+        private const val KEY_PENDING_SESSION_MINUTES = "pending_session_minutes"
 
         private const val STUDY_HEARTBEAT_INTERVAL_MILLIS = 10_000L
     }

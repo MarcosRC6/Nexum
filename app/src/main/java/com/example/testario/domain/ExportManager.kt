@@ -27,6 +27,7 @@ class ExportManager(private val context: Context, private val localStore: Testar
         val cleanTopics = topicsToExport.map { topic ->
             topic.copy(
                 isPinned = false,
+                exercises = topic.exercises.filterNot { it.draft },
                 questions = topic.questions.map { q ->
                     q.copy(stats = QuestionStats(), favorite = false)
                 }
@@ -51,16 +52,18 @@ class ExportManager(private val context: Context, private val localStore: Testar
                 testTemplates = exportedTemplates
             )
         )
-        val referencedImageNames = cleanTopics
-            .asSequence()
-            .flatMap { it.questions.asSequence() }
-            .flatMap { question ->
-                sequenceOf(question.explanationImageUri, question.correctionImageUri)
+        // A library export must not silently drop either a classic Test
+        // photograph or a new exercise/Anki picture.
+        val root = imagesDir.canonicalPath + File.separator
+        val paths = LibraryMediaReferences.paths(cleanTopics)
+        paths.forEach { path ->
+            val file = File(path)
+            require(file.isFile && file.canonicalPath.startsWith(root)) {
+                "No se puede exportar: falta una fotografía interna de una pregunta o ejercicio. " +
+                    "Comprueba y reimporta la imagen desde el editor."
             }
-            .mapNotNull { path -> path?.takeIf { it.isNotBlank() } }
-            .map { path -> File(path).name }
-            .filter { it.isNotBlank() }
-            .toSet()
+        }
+        val referencedImageNames = paths.mapTo(linkedSetOf()) { File(it).name }
 
         packageZip(outputStream, jsonString, referencedImageNames)
     }

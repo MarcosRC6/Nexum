@@ -79,10 +79,13 @@ internal fun NexumUpdateSettingsCard() {
                         NexumUpdateManager.verifyDownloadedApk(context, id, requested)
                     }.getOrDefault(false)
                     downloadReady = true
-                    message = if (integrityOk) {
-                        "APK verificada. Pulsa Instalar para confirmar la actualización en Android."
-                    } else {
-                        "La descarga no superó la verificación de integridad. No se instalará."
+                    message = when {
+                        integrityOk ->
+                            "APK verificada. Pulsa Instalar para confirmar la actualización en Android."
+                        requested?.expectedSha256 == null ->
+                            "La publicación no incluye una huella SHA-256 válida. No se instalará una APK sin verificar."
+                        else ->
+                            "La descarga no superó la verificación de integridad. No se instalará."
                     }
                     break
                 }
@@ -108,6 +111,14 @@ internal fun NexumUpdateSettingsCard() {
         ) {
             Text("Información de NEXUM", style = MaterialTheme.typography.titleLarge)
             Text("Versión instalada: ${BuildConfig.VERSION_NAME}", color = TestarioMutedText)
+            Text(
+                if (BuildConfig.VERSION_NAME.contains("-beta.")) {
+                    "Canal beta: busca nuevas betas y versiones estables posteriores."
+                } else {
+                    "Canal estable: las versiones de prueba no se instalan automáticamente."
+                },
+                color = TestarioMutedText, style = MaterialTheme.typography.bodySmall
+            )
             Text(message, color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
             if (release != null) {
                 val r = release!!

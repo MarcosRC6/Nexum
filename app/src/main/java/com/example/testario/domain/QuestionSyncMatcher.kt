@@ -3,16 +3,12 @@ package com.example.testario.domain
 import com.example.testario.data.model.Answer
 import com.example.testario.data.model.Question
 import java.util.UUID
-import java.text.Normalizer
 
 /**
  * Empareja preguntas para sincronizar sin suponer que un enunciado idéntico
  * identifica la misma pregunta. Una coincidencia ambigua nunca se sobrescribe.
  */
 internal object QuestionSyncMatcher {
-    private val combiningMarks = Regex("\\p{Mn}+")
-    private val nonAlphanumeric = Regex("[^a-z0-9]")
-
     fun findCompatible(local: Question, candidates: List<Question>): Question? {
         // La identidad estable prevalece, incluso si se han editado respuestas.
         val byId = candidates.filter { it.id == local.id }
@@ -76,15 +72,11 @@ internal object QuestionSyncMatcher {
         }
     }
 
-    private fun normalizeAnswer(text: String): String =
-        Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD)
-            .replace(combiningMarks, "")
-            .replace(nonAlphanumeric, "")
+    // Sync must not conflate C++ with C# or 1,5 with 15 when stable IDs are absent.
+    // Use the exact same conservative key as topic imports.
+    private fun normalizeAnswer(text: String): String = TopicImportMatcher.normalize(text)
 
     private fun answerFingerprint(question: Question): List<String> =
-        question.answers.map { answer ->
-            Normalizer.normalize(answer.text.lowercase(), Normalizer.Form.NFD)
-                .replace(combiningMarks, "")
-                .replace(nonAlphanumeric, "")
-        }.sorted()
+        question.answers.map { normalizeAnswer(it.text) }.sorted()
+
 }

@@ -10,6 +10,7 @@ import com.example.planario.core.model.TimeEntry
 import com.example.planario.core.model.TimeEntryType
 import com.example.planario.data.local.StoredStudyData
 import com.example.planario.data.local.StudyLocalDataSource
+import com.example.planario.domain.timer.FinishedStudyTimerSession
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,9 @@ class StudyRepository(
 ) {
 
     private val storedData = localDataSource.load()
+
+    /** Surface corrupt or unwritable planning storage; do not hide the failure. */
+    val recoveryError: StateFlow<String?> = localDataSource.recoveryError
 
     private val _topics = MutableStateFlow(storedData.topics)
     val topics: StateFlow<List<StudyTopic>> = _topics.asStateFlow()
@@ -434,6 +438,47 @@ class StudyRepository(
         refreshDay(date)
     }
 
+    /**
+     * Exactly-once Planario commit for a completed stopwatch session.
+     * The journal's stable UUID is the TimeEntry.id; if an app process dies
+     * after the disk commit, replaying the same session cannot add minutes
+     * twice. Normal manual time entry and Pomodoro behaviour are unchanged.
+     *
+     * Snapshot both StateFlows and roll them back if disk persistence fails:
+     * a failed commit must NOT appear as an already-saved session.
+     */
+    @Synchronized
+    fun recordTimerSessionOnce(session: FinishedStudyTimerSession): Boolean {
+        if (session.id.isBlank() || session.minutes < 0) return false
+        val savedEntry = _timeEntries.value.firstOrNull { it.id == session.id }
+        if (savedEntry != null) {
+            // An ID collision with another entry is NOT an acknowledgment.
+            return savedEntry.date == session.date &&
+                savedEntry.minutes == session.minutes &&
+                savedEntry.type == TimeEntryType.TIMER
+        }
+        if (session.minutes == 0) return true
+
+        val originalEntries = _timeEntries.value
+        val originalDays = _studyDays.value
+        _timeEntries.value = originalEntries + TimeEntry(
+            id = session.id,
+            date = session.date,
+            minutes = session.minutes,
+            type = TimeEntryType.TIMER,
+            label = "Cronómetro"
+        )
+        _studyDays.value = originalDays + (
+            session.date to refreshedDay(session.date)
+        )
+        val saved = runCatching { persist() }.getOrDefault(false)
+        if (!saved) {
+            _timeEntries.value = originalEntries
+            _studyDays.value = originalDays
+        }
+        return saved
+    }
+
     fun addTimerTime(
         minutes: Int,
         date: LocalDate = LocalDate.now()
@@ -539,6 +584,9 @@ class StudyRepository(
     fun clearActiveStudyTimerTracking() {
         localDataSource.clearActiveStudyTimerTracking()
     }
+
+    fun clearActiveStudyTimerTrackingDurably(): Boolean =
+        localDataSource.clearActiveStudyTimerTrackingDurably()
 
     fun restorePausedActiveStudyTimerTracking(
         date: LocalDate,
@@ -802,23 +850,42 @@ class StudyRepository(
         return getStudiedMinutesForDate(date) >= _settings.value.dailyGoalMinutes
     }
 
-    fun exportBackupJson(): String {
+    val hasCorruptPlanningData: Boolean
+        get() = localDataSource.isCorruptRecoveryLocked()
+
+    fun exportBackupJson(forPrivateRescueOnly: Boolean = false): String {
+        if (localDataSource.isCorruptRecoveryLocked()) {
+            check(forPrivateRescueOnly) {
+                "Planario contiene datos ilegibles. No se puede generar una copia " +
+                    "GLOBAL COMPLETA válida con una planificación vacía. Conserva " +
+                    "la instalación y restaura una copia anterior verificada."
+            }
+            return localDataSource.originalCorruptJsonForRecovery()
+                ?: error("No se ha podido localizar el JSON original de Planario.")
+        }
+        val pending = localDataSource.pendingTimerForBackup()
         val activeTimer = localDataSource.loadActiveStudyTimerSnapshot()
         val activeTimerMinutes = activeTimer.elapsedMinutes()
 
-        val exportedTimeEntries = if (
-            activeTimer.isActive &&
-            activeTimer.date != null &&
-            activeTimerMinutes > 0
-        ) {
-            _timeEntries.value + TimeEntry(
-                date = activeTimer.date,
-                minutes = activeTimerMinutes,
-                type = TimeEntryType.TIMER,
-                label = "Cronómetro · sesión activa incluida en la copia"
-            )
-        } else {
-            _timeEntries.value
+        val exportedTimeEntries = when {
+            // Journal already has a stable ID, and Planario might have saved it
+            // before the app died. Never duplicate it as a NEW backup entry.
+            pending != null -> if (pending.minutes > 0 &&
+                _timeEntries.value.none { it.id == pending.id }) {
+                _timeEntries.value + TimeEntry(
+                    id = pending.id, date = pending.date,
+                    minutes = pending.minutes, type = TimeEntryType.TIMER,
+                    label = "Cronómetro · sesión pendiente incluida en la copia"
+                )
+            } else _timeEntries.value
+            activeTimer.isActive && activeTimer.date != null &&
+                activeTimerMinutes > 0 -> _timeEntries.value + TimeEntry(
+                    date = activeTimer.date,
+                    minutes = activeTimerMinutes,
+                    type = TimeEntryType.TIMER,
+                    label = "Cronómetro · sesión activa incluida en la copia"
+                )
+            else -> _timeEntries.value
         }
 
         return localDataSource.exportToJson(
@@ -834,15 +901,18 @@ class StudyRepository(
 
     fun importBackupJson(json: String): Boolean {
         val importedData = localDataSource.importFromJson(json) ?: return false
+        val normalized = importedData.copy(topics = normalizeTopicQueue(importedData.topics))
 
-        _topics.value = normalizeTopicQueue(importedData.topics)
-        _fixedObjectives.value = importedData.fixedObjectives
-        _studyDays.value = importedData.studyDays
-        _timeEntries.value = importedData.timeEntries
-        _settings.value = importedData.settings
+        // Write the replacement FIRST. If storage is unavailable, do not
+        // advertise the backup as restored or replace the current in-memory plan.
+        if (!localDataSource.restoreValidatedBackup(normalized)) return false
 
-        persist()
-
+        _topics.value = normalized.topics
+        _fixedObjectives.value = normalized.fixedObjectives
+        _studyDays.value = normalized.studyDays
+        _timeEntries.value = normalized.timeEntries
+        _settings.value = normalized.settings
+        localDataSource.refreshWidgetsAfterRestore()
         return true
     }
 
@@ -984,8 +1054,8 @@ class StudyRepository(
         return activeTopics + archivedTopics
     }
 
-    private fun persist() {
-        localDataSource.save(
+    private fun persist(): Boolean {
+        return localDataSource.save(
             StoredStudyData(
                 topics = _topics.value,
                 fixedObjectives = _fixedObjectives.value,

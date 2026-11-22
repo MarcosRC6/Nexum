@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -68,6 +69,8 @@ import com.example.planario.features.home.HomeViewModel
 import com.example.planario.domain.timer.StudyTimerState
 import com.example.planario.ui.notifications.rememberTimerNotificationPermissionRequest
 import com.example.testario.data.local.QuickTestLinkManager
+import com.example.testario.data.local.WebQuickLinkStore
+import com.example.testario.domain.QuickAccessVisibility
 import com.example.testario.data.model.TestMode
 import com.example.testario.ui.theme.FourItemDropdown
 import com.example.testario.ui.theme.TestarioNeonSelected
@@ -98,13 +101,17 @@ fun HomeScreen(
     onSettings: () -> Unit,
     onCustomizeHome: () -> Unit,
     savedTestSessionViewModel: com.example.testario.viewmodel.TestSessionViewModel,
-    onResumeSavedTest: () -> Unit
+    onResumeSavedTest: () -> Unit,
+    focusTodayRequestId: Int? = null
 ) {
     val database by libraryViewModel.database.collectAsState()
     val studyViewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory())
     val studyState by studyViewModel.uiState.collectAsState()
     val context = LocalContext.current
     val quickTestLinks = remember { QuickTestLinkManager(context.applicationContext) }
+    val webQuickLinkStore = remember { WebQuickLinkStore.get(context.applicationContext) }
+    val webQuickLinks by webQuickLinkStore.links.collectAsState()
+    var showManageWebLinks by remember { mutableStateOf(false) }
     val requestTimerNotificationPermission = rememberTimerNotificationPermissionRequest()
     val pendingTest by savedTestSessionViewModel.pendingSavedSession.collectAsState()
     LaunchedEffect(Unit) { savedTestSessionViewModel.refreshSavedSession() }
@@ -128,7 +135,8 @@ fun HomeScreen(
         .filter { id -> database.topics.any { it.id == id } }
 
     fun isWidgetVisible(widgetId: String): Boolean = when (widgetId) {
-        HomeSettingsViewModel.WIDGET_TODAY -> homeSettingsViewModel.showStudyToday
+        HomeSettingsViewModel.WIDGET_TODAY ->
+            homeSettingsViewModel.showStudyToday || focusTodayRequestId != null
         HomeSettingsViewModel.WIDGET_TOPIC -> homeSettingsViewModel.showStudyTopic && activeStudyTopic != null
         HomeSettingsViewModel.WIDGET_TIMER -> homeSettingsViewModel.showStudyTimer
         HomeSettingsViewModel.WIDGET_CREATE_TEST -> homeSettingsViewModel.showCreateTest
@@ -136,15 +144,26 @@ fun HomeScreen(
         HomeSettingsViewModel.WIDGET_FAILURES -> homeSettingsViewModel.showFailures && failures > 0
         HomeSettingsViewModel.WIDGET_TEMPLATES -> homeSettingsViewModel.showTemplates
         HomeSettingsViewModel.WIDGET_QUICK_ACCESS ->
-            homeSettingsViewModel.showLibraryShortcut ||
-                homeSettingsViewModel.showTestShortcut ||
-                homeSettingsViewModel.showPlanShortcut ||
-                homeSettingsViewModel.showStatsShortcut
+            QuickAccessVisibility.show(
+                library = homeSettingsViewModel.showLibraryShortcut,
+                test = homeSettingsViewModel.showTestShortcut,
+                plan = homeSettingsViewModel.showPlanShortcut,
+                statistics = homeSettingsViewModel.showStatsShortcut,
+                links = homeSettingsViewModel.showWebLinksShortcut
+            )
         else -> false
     }
 
     val visibleWidgetIds = homeSettingsViewModel.widgetOrder.filter(::isWidgetVisible)
     val homeListState = rememberLazyListState()
+    // El widget del escritorio debe llevar al bloque Hoy incluso si cambió
+    // de posición en Inicio o estaba oculto en Personalizar inicio.
+    LaunchedEffect(focusTodayRequestId, visibleWidgetIds, pendingTest) {
+        if (focusTodayRequestId != null) {
+            val idx = visibleWidgetIds.indexOf(HomeSettingsViewModel.WIDGET_TODAY)
+            if (idx >= 0) homeListState.scrollToItem(idx + if (pendingTest == null) 0 else 1)
+        }
+    }
     var draggedWidgetId by remember { mutableStateOf<String?>(null) }
     var listTopInRoot by remember { mutableFloatStateOf(0f) }
 
@@ -574,6 +593,9 @@ fun HomeScreen(
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Accesos rápidos", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
+                                        IconButton(onClick = { showManageWebLinks = true }) {
+                                            Text("✎", color = TestarioPrimary, style = MaterialTheme.typography.titleMedium)
+                                        }
                                         IconButton(onClick = { homeQuickAccessExpanded = !homeQuickAccessExpanded }) {
                                             Text(if (homeQuickAccessExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
                                         }
@@ -594,6 +616,68 @@ fun HomeScreen(
                                                 ) {
                                                     EstudarioIcon(item.second, TestarioPrimary, Modifier.width(24.dp).height(24.dp))
                                                     Text(item.first, color = TestarioText, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                                }
+                                            }
+                                        }
+                                    }
+                                    val visibleWebLinks = if (homeSettingsViewModel.showWebLinksShortcut)
+                                        webQuickLinks.filterNot { it.hidden } else emptyList()
+                                    if (homeSettingsViewModel.showWebLinksShortcut) {
+                                        // Always include the compact add tile, even
+                                        // when all other quick access categories are off.
+                                        // The same tile remains available beside links.
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            (0..visibleWebLinks.size).toList().chunked(3).forEach { slots ->
+                                                Row(
+                                                    Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    slots.forEach { index ->
+                                                        if (index == visibleWebLinks.size) {
+                                                            Card(
+                                                                modifier = Modifier.weight(1f).clickable(
+                                                                    onClickLabel = "Añadir enlace"
+                                                                ) { showManageWebLinks = true },
+                                                                shape = RoundedCornerShape(15.dp),
+                                                                colors = CardDefaults.cardColors(
+                                                                    containerColor = TestarioSurfaceLight),
+                                                                border = BorderStroke(1.5.dp, TestarioPrimary)
+                                                            ) {
+                                                                Box(
+                                                                    Modifier.fillMaxWidth().aspectRatio(1f),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    Text("+", color = TestarioPrimary,
+                                                                        style = MaterialTheme.typography.headlineMedium)
+                                                                }
+                                                            }
+                                                        } else {
+                                                            val link = visibleWebLinks[index]
+                                                            Card(
+                                                                modifier = Modifier.weight(1f)
+                                                                    .clickable { openWebQuickLink(context, link) },
+                                                                shape = RoundedCornerShape(15.dp),
+                                                                colors = CardDefaults.cardColors(
+                                                                    containerColor = TestarioSurfaceLight),
+                                                                border = BorderStroke(1.dp, TestarioOutline)
+                                                            ) {
+                                                                Column(
+                                                                    Modifier.fillMaxWidth().padding(
+                                                                        vertical = 12.dp, horizontal = 5.dp),
+                                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                                                                ) {
+                                                                    Text(webQuickLinkIcon(link.icon))
+                                                                    Text(link.title, color = TestarioText,
+                                                                        style = MaterialTheme.typography.labelSmall,
+                                                                        maxLines = 1)
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    repeat(3 - slots.size) {
+                                                        Spacer(Modifier.weight(1f))
+                                                    }
                                                 }
                                             }
                                         }
@@ -641,6 +725,13 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    if (showManageWebLinks) {
+        WebQuickLinksManagerDialog(
+            store = webQuickLinkStore,
+            onDismiss = { showManageWebLinks = false }
+        )
     }
 
     if (showDiscardPendingTestDialog) {

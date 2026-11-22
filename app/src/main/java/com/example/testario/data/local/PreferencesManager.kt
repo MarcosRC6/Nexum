@@ -114,6 +114,14 @@ class PreferencesManager(context: Context) {
         prefs.edit().putBoolean("home_show_plan_shortcut", enabled).apply()
     }
 
+    /** Independent quick-access Links switch; existing web links are never deleted. */
+    fun getHomeShowWebLinksShortcut(): Boolean =
+        prefs.getBoolean("home_show_web_links_shortcut", true)
+
+    fun setHomeShowWebLinksShortcut(enabled: Boolean) {
+        prefs.edit().putBoolean("home_show_web_links_shortcut", enabled).apply()
+    }
+
     fun getHomeWidgetOrder(defaultOrder: List<String>): List<String> {
         val raw = prefs.getString("home_widget_order", null) ?: return defaultOrder
         val saved = raw.split('|').filter { it.isNotBlank() }

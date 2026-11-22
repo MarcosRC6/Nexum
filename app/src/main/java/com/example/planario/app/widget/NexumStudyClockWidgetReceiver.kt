@@ -69,19 +69,27 @@ class NexumStudyClockWidgetReceiver : AppWidgetProvider() {
         when (action) {
             ACTION_STUDY_TOGGLE -> when (controller.state.value.studyTimerState) {
                 StudyTimerState.STOPPED -> {
-                    val today = LocalDate.now()
-                    controller.startStudyTimer(today)
-                    repository.startActiveStudyTimerTracking(today)
-                    PlanarioDependencies.startStudyTimerForegroundService()
+                    if (!controller.hasPendingStudyTimerCompletion()) {
+                        val today = LocalDate.now()
+                        controller.startStudyTimer(today)
+                        if (controller.state.value.studyTimerState == StudyTimerState.RUNNING) {
+                            repository.startActiveStudyTimerTracking(today)
+                            PlanarioDependencies.startStudyTimerForegroundService()
+                        }
+                    }
                 }
                 StudyTimerState.RUNNING -> {
                     controller.pauseStudyTimer()
                     repository.pauseActiveStudyTimerTracking()
                 }
                 StudyTimerState.PAUSED -> {
-                    controller.resumeStudyTimer()
-                    repository.resumeActiveStudyTimerTracking()
-                    PlanarioDependencies.startStudyTimerForegroundService()
+                    if (!controller.hasPendingStudyTimerCompletion()) {
+                        controller.resumeStudyTimer()
+                        if (controller.state.value.studyTimerState == StudyTimerState.RUNNING) {
+                            repository.resumeActiveStudyTimerTracking()
+                            PlanarioDependencies.startStudyTimerForegroundService()
+                        }
+                    }
                 }
             }
             ACTION_STUDY_SAVE -> PlanarioDependencies.finishStudyTimerAndSave()

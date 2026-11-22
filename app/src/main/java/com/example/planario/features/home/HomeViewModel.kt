@@ -9,6 +9,7 @@ import com.example.planario.core.model.FixedObjective
 import com.example.planario.core.model.StudyTopic
 import com.example.planario.data.repository.StudyRepository
 import com.example.planario.domain.timer.StudyTimerController
+import com.example.planario.domain.timer.StudyTimerState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -86,6 +87,12 @@ class HomeViewModel(
     }
 
     fun markTodayFreeDay() {
+        // A pending stop may already have reached Planario's disk. Do not
+        // discard it or change the day until the journal is reconciled.
+        if (studyTimerController.hasPendingStudyTimerCompletion()) {
+            PlanarioDependencies.finishStudyTimerAndSave()
+            if (studyTimerController.hasPendingStudyTimerCompletion()) return
+        }
         studyTimerController.discardStudyTimer()
         repository.clearActiveStudyTimerTracking()
         PlanarioDependencies.stopStudyTimerForegroundService()
@@ -108,30 +115,25 @@ class HomeViewModel(
     }
 
     fun startStudyFromHome() {
+        if (studyTimerController.hasPendingStudyTimerCompletion()) return
         studyTimerController.startStudyTimer()
+        if (studyTimerController.state.value.studyTimerState != StudyTimerState.RUNNING) return
         repository.startActiveStudyTimerTracking(LocalDate.now())
         PlanarioDependencies.startStudyTimerForegroundService()
     }
 
     fun restartStudyFromHome(saveCurrentTime: Boolean) {
+        if (studyTimerController.hasPendingStudyTimerCompletion()) return
         if (saveCurrentTime) {
-            val session = studyTimerController.finishStudyTimerAndReturnSession()
-            repository.clearActiveStudyTimerTracking()
-
-            if (session.minutes > 0) {
-                repository.addTimerTime(
-                    minutes = session.minutes,
-                    date = session.date
-                )
-            }
+            PlanarioDependencies.finishStudyTimerAndSave()
+            if (studyTimerController.hasPendingStudyTimerCompletion() ||
+                studyTimerController.state.value.studyTimerState != StudyTimerState.STOPPED
+            ) return
         } else {
             studyTimerController.discardStudyTimer()
             repository.clearActiveStudyTimerTracking()
         }
-
-        studyTimerController.startStudyTimer()
-        repository.startActiveStudyTimerTracking(LocalDate.now())
-        PlanarioDependencies.startStudyTimerForegroundService()
+        startStudyFromHome()
     }
 
     fun pauseStudyFromHome() {
@@ -140,40 +142,32 @@ class HomeViewModel(
     }
 
     fun resumeStudyFromHome() {
+        if (studyTimerController.hasPendingStudyTimerCompletion()) return
         studyTimerController.resumeStudyTimer()
+        if (studyTimerController.state.value.studyTimerState != StudyTimerState.RUNNING) return
         repository.resumeActiveStudyTimerTracking()
         PlanarioDependencies.startStudyTimerForegroundService()
     }
 
     fun stopStudyFromHome() {
-        val session = studyTimerController.finishStudyTimerAndReturnSession()
-        repository.clearActiveStudyTimerTracking()
-        if (session.minutes > 0) {
-            repository.addTimerTime(
-                minutes = session.minutes,
-                date = session.date
-            )
-        }
-        PlanarioDependencies.stopStudyTimerForegroundService()
+        PlanarioDependencies.finishStudyTimerAndSave()
     }
 
     fun finishToday() {
-        val minutes = studyTimerController.finishStudyTimerAndReturnMinutes()
-
-        repository.clearActiveStudyTimerTracking()
-
-        if (minutes > 0) {
-            repository.addTimerTime(
-                minutes = minutes,
-                date = LocalDate.now()
-            )
+        // If the durable storage is unavailable, keep both the timer and the
+        // day open rather than marking a falsely completed daily objective.
+        if (studyTimerController.state.value.studyTimerState != StudyTimerState.STOPPED ||
+            studyTimerController.hasPendingStudyTimerCompletion()) {
+            PlanarioDependencies.finishStudyTimerAndSave()
+            if (studyTimerController.state.value.studyTimerState != StudyTimerState.STOPPED ||
+                studyTimerController.hasPendingStudyTimerCompletion()) return
         }
-
         repository.finishDay(LocalDate.now())
         PlanarioDependencies.stopStudyTimerForegroundService()
     }
 
     fun resetToday() {
+        if (studyTimerController.hasPendingStudyTimerCompletion()) return
         studyTimerController.discardStudyTimer()
         repository.clearActiveStudyTimerTracking()
         repository.resetDay(LocalDate.now())

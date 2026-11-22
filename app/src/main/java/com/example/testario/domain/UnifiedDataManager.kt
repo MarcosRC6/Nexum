@@ -7,7 +7,10 @@ import com.example.planario.data.local.StudyLocalDataSource
 import com.example.testario.data.model.TestarioDatabase
 import com.example.testario.data.local.MigrationManager
 import com.example.testario.data.local.QuickTestLinkManager
+import com.example.testario.data.local.WebQuickLinkStore
+import com.example.testario.data.local.WebQuickLinkPolicy
 import com.example.testario.data.local.SavedTestSessionStore
+import com.example.testario.data.local.SavedMixedSessionStore
 import com.example.testario.data.local.TestarioLocalStore
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -16,6 +19,7 @@ import org.json.JSONObject
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -38,6 +42,9 @@ class UnifiedDataManager(private val context: Context) {
             if (manifest != null) {
                 val format = runCatching { JSONObject(manifest).optString("format") }.getOrDefault("")
                 if (format == GLOBAL_FORMAT) return Detection(ImportKind.GLOBAL_BACKUP)
+                if (format == PLAN_FORMAT) return entries["planario_backup.json"]?.let {
+                    Detection(ImportKind.PLAN_BACKUP, it)
+                } ?: Detection(ImportKind.UNKNOWN)
             }
             val testarioDatabase = entries["testario_database.json"]
             if (testarioDatabase != null) {
@@ -83,12 +90,16 @@ class UnifiedDataManager(private val context: Context) {
             readZipTextEntries(bytes, setOf("testario_database.json"))["testario_database.json"]
         }.getOrNull() ?: return false
 
-        // Validamos completamente la base antes de escribir una sola imagen o dato.
+        // Validate the actual backup shape BEFORE Kotlin's default values
+        // could turn an incomplete JSON into an empty replacement database.
         runCatching {
+            DatabaseBackupValidator.requireLibraryShape(raw)
             val migrated = MigrationManager.migrate(raw)
             json.decodeFromString<TestarioDatabase>(migrated)
         }.getOrElse { return false }
 
+        // Refuse destructive restore unless the COMPLETE previous state is safe on disk.
+        if (!protectBeforeRestore()) return false
         if (!extractQuestionImages(bytes)) return false
 
         return runCatching {
@@ -97,25 +108,54 @@ class UnifiedDataManager(private val context: Context) {
         }.getOrDefault(false)
     }
 
-    fun exportGlobalBackup(outputStream: OutputStream, syncDeviceId: String? = null) {
+    /** Dedicated plan-only ZIP: never disguise JSON as an Anki or NEXUM library package. */
+    fun exportPlanZip(outputStream: OutputStream) {
+        val plan = PlanarioDependencies.studyRepository.exportBackupJson()
+        ZipOutputStream(outputStream).use { zip ->
+            writeText(zip, "manifest.json", JSONObject().apply {
+                put("format", PLAN_FORMAT)
+                put("version", 1)
+            }.toString())
+            writeText(zip, "planario_backup.json", plan)
+        }
+    }
+
+    fun exportGlobalBackup(
+        outputStream: OutputStream,
+        syncDeviceId: String? = null,
+        privateRescueOnly: Boolean = false
+    ) {
+        val corruptPlanning = PlanarioDependencies.studyRepository.hasCorruptPlanningData
         val databaseJson = json.encodeToString(localStore.database.value)
-        val planJson = PlanarioDependencies.studyRepository.exportBackupJson()
+        // Public exports fail closed if Planario is unreadable; only our
+        // private pre-restore rescue archive may carry the original corrupt
+        // bytes, explicitly marked NON-RESTORABLE in its manifest.
+        val planJson = PlanarioDependencies.studyRepository.exportBackupJson(
+            forPrivateRescueOnly = privateRescueOnly)
         val quickLinksJson = QuickTestLinkManager(context).exportJson()
+        val webQuickLinksJson = WebQuickLinkStore.get(context).exportJson()
         val settingsJson = exportTestarioSettings()
         val pendingTest = SavedTestSessionStore(context).exportJson()
+        val pendingMixed = SavedMixedSessionStore(context).exportJson()
 
         ZipOutputStream(outputStream).use { zos ->
             writeText(zos, "manifest.json", JSONObject().apply {
                 put("format", GLOBAL_FORMAT)
                 put("version", 1)
                 put("createdAt", System.currentTimeMillis())
+                if (privateRescueOnly && corruptPlanning) {
+                    put("recoveryOnly", true)
+                    put("recoveryReason", "corrupt-planario-json")
+                }
                 if (syncDeviceId != null) put("syncDeviceId", syncDeviceId)
             }.toString(2))
             writeText(zos, "testario_database.json", databaseJson)
             writeText(zos, "planario_backup.json", planJson)
             writeText(zos, "quick_test_links.json", quickLinksJson)
+            writeText(zos, "quick_web_links.json", webQuickLinksJson)
             writeText(zos, "testario_settings.json", settingsJson)
             if (pendingTest != null) writeText(zos, "pending_test_session.json", pendingTest)
+            if (pendingMixed != null) writeText(zos, "pending_mixed_session.json", pendingMixed)
 
             if (imagesDir.exists()) {
                 imagesDir.listFiles()?.filter { it.isFile }?.forEach { file ->
@@ -131,14 +171,17 @@ class UnifiedDataManager(private val context: Context) {
         // Never throw away a running OR paused timer during an unrelated restore.
         // UI must ask the user to finish/save before starting destructive restore.
         if (PlanarioDependencies.studyTimerController.state.value.studyTimerState !=
-            StudyTimerState.STOPPED) return false
+            StudyTimerState.STOPPED ||
+            PlanarioDependencies.studyTimerController.hasPendingStudyTimerCompletion()) return false
         val wanted = setOf(
             "manifest.json",
             "testario_database.json",
             "planario_backup.json",
             "quick_test_links.json",
+            "quick_web_links.json",
             "testario_settings.json",
-            "pending_test_session.json"
+            "pending_test_session.json",
+            "pending_mixed_session.json"
         )
         val textEntries = runCatching { readZipTextEntries(bytes, wanted) }.getOrElse { return false }
 
@@ -146,9 +189,13 @@ class UnifiedDataManager(private val context: Context) {
         val manifestJson = runCatching { JSONObject(manifest) }.getOrNull() ?: return false
         if (manifestJson.optString("format") != GLOBAL_FORMAT) return false
         if (manifestJson.optInt("version", 0) !in 1..1) return false
+        // An emergency snapshot of corrupt Planario raw JSON is valuable for
+        // forensics, but it MUST NOT be accepted as a restorable global ZIP.
+        if (manifestJson.optBoolean("recoveryOnly", false)) return false
 
         val dbRaw = textEntries["testario_database.json"] ?: return false
         runCatching {
+            DatabaseBackupValidator.requireLibraryShape(dbRaw)
             val migrated = MigrationManager.migrate(dbRaw)
             json.decodeFromString<TestarioDatabase>(migrated)
         }.getOrElse { return false }
@@ -163,6 +210,11 @@ class UnifiedDataManager(private val context: Context) {
             return false
         }
 
+        val webQuickLinksRaw = textEntries["quick_web_links.json"]
+        if (webQuickLinksRaw != null &&
+            runCatching { WebQuickLinkPolicy.parseBackup(webQuickLinksRaw) }.isFailure
+        ) return false
+
         val settingsRaw = textEntries["testario_settings.json"]
         if (settingsRaw != null && runCatching { JSONObject(settingsRaw) }.isFailure) {
             return false
@@ -173,7 +225,14 @@ class UnifiedDataManager(private val context: Context) {
             runCatching { SavedTestSessionStore(context).validate(pendingTestRaw) }.isFailure
         ) return false
 
-        // Solo después de validar todos los componentes empezamos a modificar el estado.
+        val pendingMixedRaw = textEntries["pending_mixed_session.json"]
+        if (pendingMixedRaw != null &&
+            runCatching { SavedMixedSessionStore(context).validate(pendingMixedRaw) }.isFailure
+        ) return false
+
+        // Preserve the old database, Planario, session slots and every photo before
+        // modifying anything. This is a durable recovery point, not an ACID guarantee.
+        if (!protectBeforeRestore()) return false
         if (!extractQuestionImages(bytes)) return false
 
         // Una sesión antigua no debe sobrevivir a una restauración de Planario.
@@ -189,12 +248,53 @@ class UnifiedDataManager(private val context: Context) {
         if (quickLinksRaw != null) {
             runCatching { QuickTestLinkManager(context).importJson(quickLinksRaw) }.getOrElse { return false }
         }
+        if (webQuickLinksRaw != null) {
+            if (!runCatching {
+                WebQuickLinkStore.get(context).importJson(webQuickLinksRaw)
+            }.getOrDefault(false)) return false
+        }
         if (settingsRaw != null) {
             runCatching { restoreTestarioSettings(settingsRaw) }.getOrElse { return false }
         }
         runCatching { SavedTestSessionStore(context).importJson(pendingTestRaw) }.getOrElse { return false }
+        runCatching { SavedMixedSessionStore(context).importJson(pendingMixedRaw) }.getOrElse { return false }
         return true
     }
+
+
+    /**
+     * A restore spans several independent stores and cannot be committed atomically.
+     * Keep a complete private recovery ZIP on disk BEFORE the first image/database
+     * write. If there is not enough free space, stop rather than risk destroying
+     * the only existing copy. Never delete earlier recovery points automatically.
+     *
+     * Stored in noBackupFilesDir so Android cloud backup will not upload this
+     * extra copy of the user's private bank, photos and planning information.
+     */
+    private fun protectBeforeRestore(): Boolean = runCatching {
+        val recoveryDir = File(context.noBackupFilesDir, "nexum_restore_recovery")
+        check(recoveryDir.isDirectory || recoveryDir.mkdirs()) {
+            "No se puede preparar el directorio de recuperación."
+        }
+        val name = "pre_restore_${System.currentTimeMillis()}_${java.util.UUID.randomUUID()}.zip"
+        val staging = File(recoveryDir, "$name.partial")
+        val protected = File(recoveryDir, name)
+        try {
+            FileOutputStream(staging).use { output ->
+                exportGlobalBackup(output, privateRescueOnly = true)
+                output.fd.sync()
+            }
+            check(staging.isFile && staging.length() > 0L) {
+                "La copia preventiva está vacía."
+            }
+            check(staging.renameTo(protected)) {
+                "No se pudo consolidar la copia preventiva."
+            }
+        } finally {
+            if (staging.exists()) staging.delete()
+        }
+        true
+    }.getOrDefault(false)
 
     /**
      * Extrae las imágenes en dos fases: primero valida y descomprime todo en
@@ -299,7 +399,7 @@ class UnifiedDataManager(private val context: Context) {
                 is String -> editor.putString(key, value)
             }
         }
-        editor.apply()
+        check(editor.commit()) { "No se pudieron guardar los ajustes de Testario." }
     }
 
     private fun looksLikeTestarioBackup(raw: String): Boolean {
@@ -370,6 +470,7 @@ class UnifiedDataManager(private val context: Context) {
 
     companion object {
         const val GLOBAL_FORMAT = "testario_planario_global"
+        const val PLAN_FORMAT = "nexum_plan_bundle"
         private const val MAX_IMPORT_IMAGE_BYTES = 64L * 1024L * 1024L
         private const val MAX_IMPORT_IMAGE_TOTAL_BYTES = 512L * 1024L * 1024L
         private const val MAX_IMPORT_JSON_ENTRY_BYTES = 128L * 1024L * 1024L

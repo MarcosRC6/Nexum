@@ -43,6 +43,49 @@ object MigrationManager {
             jsonObject.put("version", currentVersion)
         }
 
+        // v4: additional exercises coexist with legacy Question entries, untouched.
+        if (currentVersion < 4) {
+            val topics = jsonObject.optJSONArray("topics")
+            if (topics != null) {
+                for (index in 0 until topics.length()) {
+                    val topic = topics.optJSONObject(index) ?: continue
+                    if (!topic.has("exercises")) topic.put("exercises", JSONArray())
+                }
+            }
+            if (!jsonObject.has("ankiReviewStates")) jsonObject.put("ankiReviewStates", JSONArray())
+            if (!jsonObject.has("ankiReviewEvents")) jsonObject.put("ankiReviewEvents", JSONArray())
+            if (!jsonObject.has("ankiReviewEnabled")) jsonObject.put("ankiReviewEnabled", false)
+            // Settings default is handled by Kotlin serialization; preserve old data.
+            currentVersion = 4
+            jsonObject.put("version", currentVersion)
+        }
+
+        // v5: numbered cloze rounds and editable vector drawings. Existing
+        // v4 cards/gaps/sketches retain their contents unchanged; missing cursor
+        // map defaults to an empty schedule, not a rewritten note collection.
+        if (currentVersion < 5) {
+            if (!jsonObject.has("ankiClozeCursors"))
+                jsonObject.put("ankiClozeCursors", JSONObject())
+            currentVersion = 5
+            jsonObject.put("version", currentVersion)
+        }
+
+        // v6: additive mixed-session history. Existing Testario questions,
+        // training/exam records, Anki schedules and Planario data are unchanged.
+        if (currentVersion < 6) {
+            if (!jsonObject.has("mixedSessionHistory"))
+                jsonObject.put("mixedSessionHistory", JSONArray())
+            currentVersion = 6
+            jsonObject.put("version", currentVersion)
+        }
+
+        // v7: non-destructive per-photo vector overlays. Older JSON readers
+        // use empty annotation defaults; no image or answer IDs are rewritten.
+        if (currentVersion < 7) {
+            currentVersion = 7
+            jsonObject.put("version", currentVersion)
+        }
+
         return jsonObject.toString()
     }
 }
