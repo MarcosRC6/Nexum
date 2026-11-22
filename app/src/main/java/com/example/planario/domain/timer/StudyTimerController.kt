@@ -228,7 +228,7 @@ class StudyTimerController {
     ) {
         // An unacknowledged completed session must never be overwritten by a
         // new one. Normal starts are unchanged once the journal is cleared.
-        if (readPendingStudyTimerCompletion() != null) return
+        if (hasPendingStudyTimerCompletion()) return
         val current = _state.value
 
         if (current.studyTimerState == StudyTimerState.RUNNING) return
@@ -282,7 +282,7 @@ class StudyTimerController {
     fun resumeStudyTimer() {
         // A stop with pending durable completion cannot resume or alter its
         // frozen minutes while a write is being retried.
-        if (readPendingStudyTimerCompletion() != null) return
+        if (hasPendingStudyTimerCompletion()) return
         if (_state.value.studyTimerState != StudyTimerState.PAUSED) return
 
         studyAccumulatedSecondsBeforeRun = _state.value.studyElapsedSeconds
@@ -410,13 +410,13 @@ class StudyTimerController {
     }
 
     fun hasPendingStudyTimerCompletion(): Boolean =
-        readPendingStudyTimerCompletion() != null
+        pendingCompletionInMemory != null || readPendingStudyTimerCompletion() != null
 
     fun discardStudyTimer() {
         // Once a stop has been staged it might ALREADY have been written to
         // Planario. Require recovery/ack first; don't create a phantom
         // "discarded" session with a journal that survives the reset.
-        if (readPendingStudyTimerCompletion() != null) return
+        if (hasPendingStudyTimerCompletion()) return
         resetStudyTimer(clearPersistedState = true)
     }
 
