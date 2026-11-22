@@ -68,6 +68,11 @@ class TimerDurableCompletionInstrumentedTest {
             assertTrue(repository.recordTimerSessionOnce(session))
             assertTrue(repository.recordTimerSessionOnce(session))
             assertEquals(1, repository.timeEntries.value.count { it.id == session.id })
+            // Exporting before acknowledgement must not add a second, random
+            // time entry from the still-active widget tracking snapshot.
+            val backup = repository.exportBackupJson()
+            val backupData = requireNotNull(StudyLocalDataSource(context).importFromJson(backup))
+            assertEquals(1, backupData.timeEntries.count { it.id == session.id })
 
             // Simulate process death BEFORE journal acknowledgement.
             val relaunchedRepository = StudyRepository(StudyLocalDataSource(context))
@@ -98,6 +103,12 @@ class TimerDurableCompletionInstrumentedTest {
             // Storage is repaired; the exact same staged session is replayed.
             assertTrue(plan.edit().remove("study_data_recovery_locked").commit())
             val retry = StudyRepository(StudyLocalDataSource(context))
+            // Before the successful write, an emergency export preserves the
+            // pending time under its stable journal ID exactly once.
+            val pendingBackup = retry.exportBackupJson()
+            val pendingData = requireNotNull(
+                StudyLocalDataSource(context).importFromJson(pendingBackup))
+            assertEquals(1, pendingData.timeEntries.count { it.id == session.id })
             val restarted = StudyTimerController().apply { attachContext(context) }
             assertEquals(session, restarted.recoverPendingStudyTimerIfNeeded())
             assertTrue(retry.recordTimerSessionOnce(session))
