@@ -74,6 +74,7 @@ class StudyTimerController {
     // SharedPreferences.commit can return false after updating its in-memory
     // map. Retain the journal in memory until a successful acknowledgement.
     private var pendingCompletionInMemory: FinishedStudyTimerSession? = null
+    private var pendingCompletionDurable: Boolean = true
 
     private var lastStudyHeartbeatWallMillis: Long = 0L
 
@@ -356,6 +357,7 @@ class StudyTimerController {
             .commit()
         if (cleared) {
             pendingCompletionInMemory = null
+            pendingCompletionDurable = true
             resetStudyTimer(clearPersistedState = false)
         }
         return cleared
@@ -365,6 +367,17 @@ class StudyTimerController {
         FinishedStudyTimerSession? {
         readPendingStudyTimerCompletion()?.let { return it }
         val preferences = prefs() ?: return null
+        pendingCompletionInMemory?.let { pending ->
+            // Retry the SAME ID if SharedPreferences.commit() failed but the
+            // preference cache temporarily contains the unflushed journal.
+            val committed = preferences.edit()
+                .putString(KEY_PENDING_SESSION_ID, pending.id)
+                .putString(KEY_PENDING_SESSION_DATE, pending.date.toString())
+                .putInt(KEY_PENDING_SESSION_MINUTES, pending.minutes)
+                .commit()
+            pendingCompletionDurable = committed
+            return if (committed) pending else null
+        }
         val session = FinishedStudyTimerSession(
             date = date, minutes = minutes.coerceAtLeast(0),
             id = UUID.randomUUID().toString()
@@ -374,12 +387,15 @@ class StudyTimerController {
             .putString(KEY_PENDING_SESSION_DATE, session.date.toString())
             .putInt(KEY_PENDING_SESSION_MINUTES, session.minutes)
             .commit()
-        if (written) pendingCompletionInMemory = session
+        pendingCompletionInMemory = session
+        pendingCompletionDurable = written
         return if (written) session else null
     }
 
     private fun readPendingStudyTimerCompletion(): FinishedStudyTimerSession? {
-        pendingCompletionInMemory?.let { return it }
+        pendingCompletionInMemory?.let {
+            return it.takeIf { _ -> pendingCompletionDurable }
+        }
         val preferences = prefs() ?: return null
         val id = preferences.getString(KEY_PENDING_SESSION_ID, null)
             ?.takeIf { it.isNotBlank() } ?: return null
