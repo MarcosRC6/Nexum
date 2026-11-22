@@ -65,6 +65,7 @@ class TimerDurableCompletionInstrumentedTest {
             assertEquals(StudyTimerState.PAUSED, controller.state.value.studyTimerState)
 
             val repository = StudyRepository(StudyLocalDataSource(context))
+            repository.startActiveStudyTimerTracking(today)
             assertTrue(repository.recordTimerSessionOnce(session))
             assertTrue(repository.recordTimerSessionOnce(session))
             assertEquals(1, repository.timeEntries.value.count { it.id == session.id })
@@ -80,7 +81,13 @@ class TimerDurableCompletionInstrumentedTest {
             assertEquals(1, relaunchedRepository.timeEntries.value.count { it.id == session.id })
             val relaunchedTimer = StudyTimerController().apply { attachContext(context) }
             assertEquals(session, relaunchedTimer.recoverPendingStudyTimerIfNeeded())
+            // A crash can occur AFTER the time entry was committed but before
+            // the old widget state was cleared. Replay must clear that state
+            // BEFORE acknowledging the journal to prevent a phantom restart.
+            assertTrue(relaunchedRepository.clearActiveStudyTimerTrackingDurably())
             assertTrue(relaunchedTimer.acknowledgeSavedStudyTimerSession(session))
+            assertFalse(StudyLocalDataSource(context)
+                .loadActiveStudyTimerSnapshot().isActive)
             assertNull(timer.getString("pending_session_id", null))
             assertFalse(timer.getBoolean("active", false))
             assertNull(relaunchedTimer.recoverPendingStudyTimerIfNeeded())
@@ -112,6 +119,7 @@ class TimerDurableCompletionInstrumentedTest {
             val restarted = StudyTimerController().apply { attachContext(context) }
             assertEquals(session, restarted.recoverPendingStudyTimerIfNeeded())
             assertTrue(retry.recordTimerSessionOnce(session))
+            assertTrue(retry.clearActiveStudyTimerTrackingDurably())
             assertTrue(restarted.acknowledgeSavedStudyTimerSession(session))
             val again = StudyRepository(StudyLocalDataSource(context))
             assertEquals(1, again.timeEntries.value.count { it.id == session.id })
@@ -126,6 +134,7 @@ class TimerDurableCompletionInstrumentedTest {
             val repository = StudyRepository(StudyLocalDataSource(context))
             assertTrue(repository.recordTimerSessionOnce(session))
             assertTrue(repository.timeEntries.value.isEmpty())
+            assertTrue(repository.clearActiveStudyTimerTrackingDurably())
             assertTrue(controller.acknowledgeSavedStudyTimerSession(session))
             assertNull(timer.getString("pending_session_id", null))
             assertEquals(StudyTimerState.STOPPED, controller.state.value.studyTimerState)
