@@ -55,7 +55,7 @@ android {
             if (nexumPreviewBuild) {
                 applicationIdSuffix = ".neon"
                 versionNameSuffix = "-neon-preview"
-                manifestPlaceholders["nexumAppLabel"] = "NEXUM Neón"
+                manifestPlaceholders["nexumAppLabel"] = "NEXUM Latón"
             }
         }
     }

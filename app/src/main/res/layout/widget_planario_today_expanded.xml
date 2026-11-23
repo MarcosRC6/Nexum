@@ -15,7 +15,7 @@
         android:layout_height="wrap_content"
         android:text="Tema activo"
         android:textSize="11sp"
-        android:textColor="#CBD5E1" />
+        android:textColor="#CFC7B5" />
 
     <TextView
         android:id="@+id/widgetTodayExpandedTopic"
@@ -27,7 +27,7 @@
         android:text="Sin tema activo"
         android:textSize="17sp"
         android:textStyle="bold"
-        android:textColor="#F8FAFC" />
+        android:textColor="#F2EBDC" />
 
     <TextView
         android:id="@+id/widgetTodayExpandedProgress"
@@ -38,7 +38,7 @@
         android:text="0 min / 6 h"
         android:textSize="14sp"
         android:textStyle="bold"
-        android:textColor="#F8FAFC" />
+        android:textColor="#F2EBDC" />
 
     <ProgressBar
         android:id="@+id/widgetTodayExpandedBar"
@@ -56,7 +56,7 @@
         android:text="Objetivos diarios"
         android:textSize="12sp"
         android:textStyle="bold"
-        android:textColor="#D9BCFF" />
+        android:textColor="#E8D3A6" />
 
     <TextView
         android:id="@+id/widgetTodayExpandedObjectives"
@@ -68,7 +68,7 @@
         android:text="Sin objetivos diarios"
         android:textSize="12sp"
         android:lineSpacingExtra="2dp"
-        android:textColor="#CBD5E1" />
+        android:textColor="#CFC7B5" />
 
     <LinearLayout
         android:id="@+id/widgetTodayExpandedActions"
@@ -87,7 +87,7 @@
             android:text="Ver Hoy"
             android:textSize="12sp"
             android:textStyle="bold"
-            android:textColor="#EADFFF" />
+            android:textColor="#F2EBDC" />
 
         <TextView
             android:id="@+id/widgetTodayExpandedTest"

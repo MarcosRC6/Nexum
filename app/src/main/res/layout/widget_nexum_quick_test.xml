@@ -36,7 +36,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
             android:text="10 preguntas aleatorias"
-            android:textColor="#D9BCFF"
+            android:textColor="#E8D3A6"
             android:textSize="10sp"
             android:ellipsize="end"
             android:maxLines="1" />
@@ -50,7 +50,7 @@
         android:gravity="center"
         android:background="@drawable/widget_today_section_dark"
         android:text="⚙"
-        android:textColor="#EADFFF"
+        android:textColor="#F2EBDC"
         android:textStyle="bold"
         android:textSize="18sp"
         android:contentDescription="Elegir plantilla" />

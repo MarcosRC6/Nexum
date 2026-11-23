@@ -60,7 +60,7 @@ class PlanarioTodayWidgetConfigurationActivity : ComponentActivity() {
             var expanded by rememberSaveable { mutableStateOf(false) }
             TestarioTheme(darkTheme = true) {
                 Column(
-                    Modifier.fillMaxSize().background(Color(0xFF070A16))
+                    Modifier.fillMaxSize().background(Color(0xFF0B0D0C))
                         .verticalScroll(rememberScrollState()).padding(20.dp)
                 ) {
                     Text("Configurar widget · Hoy", color = Color.White)
@@ -68,16 +68,16 @@ class PlanarioTodayWidgetConfigurationActivity : ComponentActivity() {
                     Text(
                         "El tamaño se ajusta desde el escritorio: pequeño muestra tema y tiempo; " +
                             "ampliado añade los objetivos diarios. Puedes probar ambos aquí.",
-                        color = Color(0xFFCFD2E6)
+                        color = Color(0xFFD9D2C0)
                     )
                     Spacer(Modifier.height(14.dp))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(17.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF101827))
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF151816))
                     ) {
                         Column(Modifier.padding(15.dp)) {
-                            Text("Tema activo", color = Color(0xFFCBD5E1))
+                            Text("Tema activo", color = Color(0xFFCFC7B5))
                             Text(topic, color = Color.White)
                             Spacer(Modifier.height(7.dp))
                             Text("${minutes} min / ${goal} min", color = Color.White)
@@ -87,19 +87,19 @@ class PlanarioTodayWidgetConfigurationActivity : ComponentActivity() {
                             )
                             if (expanded) {
                                 Spacer(Modifier.height(12.dp))
-                                Text("Objetivos diarios", color = Color(0xFFD9BCFF))
+                                Text("Objetivos diarios", color = Color(0xFFE8D3A6))
                                 if (objectives.isEmpty()) {
-                                    Text("Sin objetivos diarios", color = Color(0xFFCBD5E1))
+                                    Text("Sin objetivos diarios", color = Color(0xFFCFC7B5))
                                 } else {
                                     objectives.take(4).forEach { obj ->
                                         Text(
                                             (if (obj.id in done) "✓ " else "○ ") + obj.name,
-                                            color = Color(0xFFCFD2E6)
+                                            color = Color(0xFFD9D2C0)
                                         )
                                     }
                                     if (objectives.size > 4) {
                                         Text("+${objectives.size - 4} más en Plan",
-                                            color = Color(0xFFCFD2E6))
+                                            color = Color(0xFFD9D2C0))
                                     }
                                 }
                             }

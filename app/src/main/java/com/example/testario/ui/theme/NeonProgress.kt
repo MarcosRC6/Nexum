@@ -7,12 +7,11 @@ import androidx.compose.material3.LinearProgressIndicator as MaterialLinearProgr
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
- * A soft bloom on the filled violet progress track, shared by dark/light modes.
+ * A slim brass progress track, shared by dark/light modes.
  * An indeterminate indicator is supported for file-import progress.
  */
 @Composable
@@ -26,12 +25,6 @@ fun NeonLinearProgressIndicator(
     val track = if (trackColor == Color.Unspecified) TestarioNeonSelected else trackColor
     val shape = RoundedCornerShape(100.dp)
     val neonModifier = modifier
-        .shadow(
-            elevation = 6.dp,
-            shape = shape,
-            ambientColor = fill.copy(alpha = 0.56f),
-            spotColor = fill.copy(alpha = 0.65f)
-        )
         .clip(shape)
         .background(track, shape)
 

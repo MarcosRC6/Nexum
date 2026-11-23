@@ -223,7 +223,7 @@ fun TestarioApp(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(if (darkTheme) Color(0xFF060914) else Color(0xFFF4F5FA))
+                .background(if (darkTheme) Color(0xFF0B0D0C) else Color(0xFFF2EDE1))
         ) {
             NexumBackgroundWatermark(
                 modifier = Modifier.fillMaxSize(),

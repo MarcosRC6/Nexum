@@ -20,7 +20,6 @@ import androidx.compose.material3.OutlinedButton as MaterialOutlinedButton
 import androidx.compose.material3.TextButton as MaterialTextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -32,9 +31,9 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Shared, theme-aware action style for NEXUM.
- * Default: dark/light neutral panel + neon violet outline.
- * Selected: the same outline + a restrained translucent violet tint.
- * Disabled: neutral subdued panel; no neon glow.
+ * Default: ink/paper panel + brass hairline outline.
+ * Selected: the same outline + a restrained translucent brass tint.
+ * Disabled: neutral subdued panel, no accent outline.
  *
  * A ButtonColors parameter is retained for source compatibility with legacy
  * screens; the surface and outline are intentionally standardized here. Destructive
@@ -57,31 +56,23 @@ private fun neonActionBorder(enabled: Boolean, border: BorderStroke?): BorderStr
     if (!enabled) {
         BorderStroke(1.dp, TestarioOutline.copy(alpha = 0.42f))
     } else {
-        border ?: BorderStroke(1.4.dp, TestarioPrimary)
+        border ?: BorderStroke(1.dp, TestarioPrimary)
     }
 
 @Composable
 private fun rememberSource(given: MutableInteractionSource?): MutableInteractionSource =
     given ?: remember { MutableInteractionSource() }
 
-// Presses shrink the control a few percent so every neon action feels tactile.
+// Presses shrink the control a few percent so every action feels tactile.
 @Composable
-private fun glowModifier(
+private fun pressModifier(
     modifier: Modifier,
     enabled: Boolean,
-    shape: Shape,
     source: MutableInteractionSource
 ): Modifier {
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed && enabled) 0.97f else 1f, tween(90), label = "neonPress")
-    return modifier
-        .graphicsLayer { scaleX = scale; scaleY = scale }
-        .shadow(
-            elevation = if (enabled) 3.dp else 0.dp,
-            shape = shape,
-            ambientColor = TestarioPrimary.copy(alpha = 0.36f),
-            spotColor = TestarioPrimary.copy(alpha = 0.43f)
-        )
+    return modifier.graphicsLayer { scaleX = scale; scaleY = scale }
 }
 
 @Composable
@@ -101,7 +92,7 @@ fun NeonButton(
     val source = rememberSource(interactionSource)
     MaterialButton(
         onClick = onClick,
-        modifier = glowModifier(modifier, enabled, shape, source),
+        modifier = pressModifier(modifier, enabled, source),
         enabled = enabled,
         shape = shape,
         colors = neonActionColors(selected),
@@ -130,7 +121,7 @@ fun NeonOutlinedButton(
     val source = rememberSource(interactionSource)
     MaterialOutlinedButton(
         onClick = onClick,
-        modifier = glowModifier(modifier, enabled, shape, source),
+        modifier = pressModifier(modifier, enabled, source),
         enabled = enabled,
         shape = shape,
         colors = neonActionColors(selected),
@@ -159,7 +150,7 @@ fun NeonTextButton(
     val source = rememberSource(interactionSource)
     MaterialTextButton(
         onClick = onClick,
-        modifier = glowModifier(modifier, enabled, shape, source),
+        modifier = pressModifier(modifier, enabled, source),
         enabled = enabled,
         shape = shape,
         colors = neonActionColors(selected),
@@ -188,7 +179,7 @@ fun NeonTonalButton(
     val source = rememberSource(interactionSource)
     MaterialFilledTonalButton(
         onClick = onClick,
-        modifier = glowModifier(modifier, enabled, shape, source),
+        modifier = pressModifier(modifier, enabled, source),
         enabled = enabled,
         shape = shape,
         colors = neonActionColors(selected),
@@ -213,8 +204,8 @@ fun NeonIconButton(
     val source = rememberSource(interactionSource)
     MaterialIconButton(
         onClick = onClick,
-        modifier = glowModifier(modifier, enabled, shape, source).border(
-            width = 1.4.dp,
+        modifier = pressModifier(modifier, enabled, source).border(
+            width = 1.dp,
             color = if (enabled) TestarioPrimary else TestarioOutline.copy(alpha = 0.42f),
             shape = shape
         ),

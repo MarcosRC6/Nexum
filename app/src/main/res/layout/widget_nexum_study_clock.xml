@@ -17,7 +17,7 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:text="‹"
-            android:textColor="#D9BCFF"
+            android:textColor="#E8D3A6"
             android:textSize="24sp"
             android:contentDescription="Vista anterior" />
         <TextView
@@ -29,14 +29,14 @@
             android:textStyle="bold"
             android:gravity="center"
             android:textSize="12sp"
-            android:textColor="#D9BCFF" />
+            android:textColor="#E8D3A6" />
         <TextView
             android:id="@+id/studyWidgetSwitchRight"
             android:layout_width="42dp"
             android:layout_height="match_parent"
             android:gravity="center"
             android:text="›"
-            android:textColor="#D9BCFF"
+            android:textColor="#E8D3A6"
             android:textSize="24sp"
             android:contentDescription="Vista siguiente" />
     </LinearLayout>
@@ -108,7 +108,7 @@
             android:layout_height="20dp"
             android:gravity="center"
             android:textSize="10sp"
-            android:textColor="#D9BCFF"
+            android:textColor="#E8D3A6"
             android:text="25 min · no suma estudio" />
         <LinearLayout
             android:layout_width="match_parent"
@@ -144,6 +144,6 @@
         android:layout_height="20dp"
         android:gravity="center"
         android:text="● ○"
-        android:textColor="#B46BFF"
+        android:textColor="#D8B880"
         android:textSize="11sp" />
 </LinearLayout>

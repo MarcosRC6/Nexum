@@ -57,7 +57,7 @@ class NexumStudyClockWidgetConfigurationActivity : ComponentActivity() {
             }
             TestarioTheme(darkTheme = true) {
                 Column(
-                    modifier = Modifier.fillMaxSize().background(Color(0xFF070A16)).padding(20.dp),
+                    modifier = Modifier.fillMaxSize().background(Color(0xFF0B0D0C)).padding(20.dp),
                     verticalArrangement = Arrangement.Top
                 ) {
                     Text("Configurar widget · Estudio", color = Color.White)
@@ -66,17 +66,17 @@ class NexumStudyClockWidgetConfigurationActivity : ComponentActivity() {
                         "Tamaño adaptable desde el escritorio (compacto 2 × 2 o ampliado). " +
                             "Dos vistas con flechas: tiempo de estudio y Pomodoro. " +
                             "El Pomodoro no añade horas al estudio.",
-                        color = Color(0xFFCFD2E6)
+                        color = Color(0xFFD9D2C0)
                     )
                     Spacer(Modifier.height(14.dp))
                     Card(
                         shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF111126)),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF151816)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(if (page == 0) "‹  ESTUDIO  ›" else "‹  POMODORO  ›",
-                                color = Color(0xFFD9BCFF),
+                                color = Color(0xFFE8D3A6),
                                 modifier = Modifier.clickable { page = 1 - page })
                             Spacer(Modifier.height(8.dp))
                             val seconds = if (page == 0) state.studyElapsedSeconds
@@ -96,10 +96,10 @@ class NexumStudyClockWidgetConfigurationActivity : ComponentActivity() {
                                     PomodoroTimerState.PAUSED -> "Reanudar · Reiniciar"
                                     else -> "Iniciar · Reiniciar"
                                 },
-                                color = Color(0xFFD9BCFF)
+                                color = Color(0xFFE8D3A6)
                             )
                             Spacer(Modifier.height(8.dp))
-                            Text(if (page == 0) "● ○" else "○ ●", color = Color(0xFFB46BFF))
+                            Text(if (page == 0) "● ○" else "○ ●", color = Color(0xFFD8B880))
                         }
                     }
                     Spacer(Modifier.height(12.dp))

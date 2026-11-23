@@ -33,42 +33,45 @@ data class TestarioColors(
     val navBackground: Color
 )
 
+// "Tinta y latón": warm ink-black surfaces, ivory text and a champagne-brass accent
+// in dark mode; warm paper and bronze in light mode. Semantic colors keep their
+// meaning (green = done, terracotta = error, amber = warning) but share the warm cast.
 private val DarkTestarioColors = TestarioColors(
-    background = Color(0xE0080C16),
-    surface = Color(0xE6111827),
-    surfaceLight = Color(0xD91A2233),
-    primary = Color(0xFFC283FF),
-    primaryDark = Color(0xFF352347),
-    neonSurface = Color(0xFF111322),
-    neonSelected = Color(0xFF342046),
-    text = Color(0xFFF8F7FC),
-    mutedText = Color(0xFF98A4BA),
-    green = Color(0xFF61D995),
-    greenDark = Color(0xFF183E32),
-    red = Color(0xFFFF6B78),
-    redDark = Color(0xFF4A2029),
-    yellow = Color(0xFFFFC857),
-    outline = Color(0xFF2C3850),
-    navBackground = Color(0xE60D1320)
+    background = Color(0xE00B0D0C),
+    surface = Color(0xE6151816),
+    surfaceLight = Color(0xD91E2220),
+    primary = Color(0xFFD8B880),
+    primaryDark = Color(0xFF3A2E17),
+    neonSurface = Color(0xFF141715),
+    neonSelected = Color(0xFF2E2615),
+    text = Color(0xFFF2EBDC),
+    mutedText = Color(0xFFA39C8B),
+    green = Color(0xFF7BCB9E),
+    greenDark = Color(0xFF16342A),
+    red = Color(0xFFE8826F),
+    redDark = Color(0xFF43211B),
+    yellow = Color(0xFFF2B63D),
+    outline = Color(0xFF2E322D),
+    navBackground = Color(0xE60F1210)
 )
 
 private val LightTestarioColors = TestarioColors(
-    background = Color(0xEAF4F5FA),
-    surface = Color(0xEDFFFFFF),
-    surfaceLight = Color(0xE6EDEFF6),
-    primary = Color(0xFF7E39D4),
-    primaryDark = Color(0xFFEEE2FF),
-    neonSurface = Color(0xFFFFFFFF),
-    neonSelected = Color(0xFFF0E5FF),
-    text = Color(0xFF151827),
-    mutedText = Color(0xFF687188),
-    green = Color(0xFF19895A),
-    greenDark = Color(0xFFDDF4E9),
-    red = Color(0xFFC63E50),
-    redDark = Color(0xFFFFE1E6),
-    yellow = Color(0xFFA56A00),
-    outline = Color(0xFFD9DDEA),
-    navBackground = Color(0xECFCFCFF)
+    background = Color(0xEAF3EEE2),
+    surface = Color(0xEDFBF8EF),
+    surfaceLight = Color(0xE6EAE4D6),
+    primary = Color(0xFF8A5A12),
+    primaryDark = Color(0xFFF1E1BF),
+    neonSurface = Color(0xFFFBF8EF),
+    neonSelected = Color(0xFFF1E3C3),
+    text = Color(0xFF1B1A16),
+    mutedText = Color(0xFF6B6558),
+    green = Color(0xFF1F7A55),
+    greenDark = Color(0xFFDCEFE3),
+    red = Color(0xFFB5412D),
+    redDark = Color(0xFFF8DDD6),
+    yellow = Color(0xFF8F6200),
+    outline = Color(0xFFD9D2C0),
+    navBackground = Color(0xECF8F4EA)
 )
 
 private val LocalTestarioColors = staticCompositionLocalOf { DarkTestarioColors }
@@ -91,11 +94,11 @@ val TestarioOutline: Color @Composable get() = LocalTestarioColors.current.outli
 val TestarioNavBackground: Color @Composable get() = LocalTestarioColors.current.navBackground
 
 private val EstudarioShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(22.dp),
-    extraLarge = RoundedCornerShape(28.dp)
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(18.dp),
+    extraLarge = RoundedCornerShape(26.dp)
 )
 
 @Composable
@@ -111,14 +114,14 @@ fun TestarioTheme(
         // roles are opaque on purpose: overlays must stay readable over the watermark.
         darkColorScheme(
             primary = testarioColors.primary,
-            onPrimary = Color(0xFF2B0A4A), // 6.4:1 on primary (was near-white, 2.5:1)
+            onPrimary = Color(0xFF2A1D05), // ~9:1 on brass
             primaryContainer = testarioColors.primaryDark,
             onPrimaryContainer = testarioColors.text,
-            inversePrimary = Color(0xFF7E39D4),
-            secondary = Color(0xFF70C7FF),
-            onSecondary = Color(0xFF00344E),
-            secondaryContainer = Color(0xFF123A52),
-            onSecondaryContainer = Color(0xFFD2EEFF),
+            inversePrimary = Color(0xFF8A5A12),
+            secondary = Color(0xFF6BC4B4),
+            onSecondary = Color(0xFF00332D),
+            secondaryContainer = Color(0xFF123A35),
+            onSecondaryContainer = Color(0xFFD2F2EC),
             tertiary = testarioColors.yellow,
             onTertiary = Color(0xFF3F2E00),
             tertiaryContainer = Color(0xFF3D3000),
@@ -130,31 +133,31 @@ fun TestarioTheme(
             surfaceVariant = testarioColors.surfaceLight,
             onSurfaceVariant = testarioColors.mutedText,
             surfaceTint = testarioColors.primary,
-            inverseSurface = Color(0xFFF1F0F6),
-            inverseOnSurface = Color(0xFF151827),
+            inverseSurface = Color(0xFFF2EBDC),
+            inverseOnSurface = Color(0xFF1B1A16),
             error = testarioColors.red,
-            onError = Color(0xFF4D0012),
+            onError = Color(0xFF4A1208),
             errorContainer = testarioColors.redDark,
-            onErrorContainer = Color(0xFFFFDADD),
+            onErrorContainer = Color(0xFFFFDAD2),
             outline = testarioColors.outline,
-            outlineVariant = Color(0xFF222C41),
-            surfaceContainerLowest = Color(0xFF060914),
-            surfaceContainerLow = Color(0xFF0D1220),
-            surfaceContainer = Color(0xFF111827),
-            surfaceContainerHigh = Color(0xFF182033),
-            surfaceContainerHighest = Color(0xFF1F283D)
+            outlineVariant = Color(0xFF252A26),
+            surfaceContainerLowest = Color(0xFF080A09),
+            surfaceContainerLow = Color(0xFF0F1210),
+            surfaceContainer = Color(0xFF151816),
+            surfaceContainerHigh = Color(0xFF1C201D),
+            surfaceContainerHighest = Color(0xFF242925)
         )
     } else {
         lightColorScheme(
             primary = testarioColors.primary,
-            onPrimary = Color.White, // 6.1:1 on primary (was near-black, 2.9:1)
+            onPrimary = Color.White, // ~5.9:1 on bronze
             primaryContainer = testarioColors.primaryDark,
             onPrimaryContainer = testarioColors.text,
-            inversePrimary = Color(0xFFC283FF),
-            secondary = Color(0xFF2476A8),
+            inversePrimary = Color(0xFFD8B880),
+            secondary = Color(0xFF1F7A6E),
             onSecondary = Color.White,
-            secondaryContainer = Color(0xFFD6ECFA),
-            onSecondaryContainer = Color(0xFF0B2F45),
+            secondaryContainer = Color(0xFFD4EEE9),
+            onSecondaryContainer = Color(0xFF0A2F2A),
             tertiary = testarioColors.yellow,
             onTertiary = Color.White,
             tertiaryContainer = Color(0xFFFFE9B8),
@@ -166,19 +169,19 @@ fun TestarioTheme(
             surfaceVariant = testarioColors.surfaceLight,
             onSurfaceVariant = testarioColors.mutedText,
             surfaceTint = testarioColors.primary,
-            inverseSurface = Color(0xFF151827),
-            inverseOnSurface = Color(0xFFF8F7FC),
+            inverseSurface = Color(0xFF1B1A16),
+            inverseOnSurface = Color(0xFFF2EBDC),
             error = testarioColors.red,
             onError = Color.White,
             errorContainer = testarioColors.redDark,
-            onErrorContainer = Color(0xFF5C0F1B),
+            onErrorContainer = Color(0xFF4A130A),
             outline = testarioColors.outline,
-            outlineVariant = Color(0xFFE6E9F2),
-            surfaceContainerLowest = Color(0xFFFFFFFF),
-            surfaceContainerLow = Color(0xFFF7F8FC),
-            surfaceContainer = Color(0xFFF0F2F8),
-            surfaceContainerHigh = Color(0xFFE9ECF5),
-            surfaceContainerHighest = Color(0xFFE2E6F1)
+            outlineVariant = Color(0xFFE6E0D0),
+            surfaceContainerLowest = Color(0xFFFFFDF8),
+            surfaceContainerLow = Color(0xFFFAF6EC),
+            surfaceContainer = Color(0xFFF4EFE3),
+            surfaceContainerHigh = Color(0xFFEEE8DA),
+            surfaceContainerHighest = Color(0xFFE7E0D0)
         )
     }
 
