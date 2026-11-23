@@ -52,6 +52,13 @@ fun StudyExerciseEditorScreen(
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
     val original = topic?.exercises?.firstOrNull { it.id == exerciseId }
+    // Avoid caching a blank state before an existing question finishes loading.
+    if (topic == null || (exerciseId != null && original == null)) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Cargando ejercicio…", color = TestarioMutedText)
+        }
+        return
+    }
     // The same navigation-scoped ViewModel survives multi-window resize and
     // orientation changes. The explicit kind namespace prevents the written
     // and Anki drafts from ever overwriting each other's fields or saves.
