@@ -237,7 +237,7 @@ class UnifiedDataManager(private val context: Context) {
 
         // Preserve the old database, Planario, session slots and every photo before
         // modifying anything. This is a durable recovery point, not an ACID guarantee.
-        if (!protectBeforeRestore()) return fail("no se pudo crear la copia previa de seguridad")
+        if (!protectBeforeRestore()) return fail(lastRestoreFailure ?: "no se pudo crear la copia previa de seguridad")
         if (!extractQuestionImages(bytes)) return fail("no se pudieron extraer las imágenes")
 
         // Una sesión antigua no debe sobrevivir a una restauración de Planario.
@@ -285,10 +285,10 @@ class UnifiedDataManager(private val context: Context) {
         val staging = File(recoveryDir, "$name.partial")
         val protected = File(recoveryDir, name)
         try {
-            FileOutputStream(staging).use { output ->
-                exportGlobalBackup(output, privateRescueOnly = true)
-                output.fd.sync()
-            }
+            // exportGlobalBackup cierra el stream; hay que sincronizar a disco con otro
+            // descriptor, porque fd.sync() sobre uno cerrado lanza excepción.
+            FileOutputStream(staging).use { exportGlobalBackup(it, privateRescueOnly = true) }
+            FileOutputStream(staging, true).use { it.fd.sync() }
             check(staging.isFile && staging.length() > 0L) {
                 "La copia preventiva está vacía."
             }
@@ -299,7 +299,10 @@ class UnifiedDataManager(private val context: Context) {
             if (staging.exists()) staging.delete()
         }
         true
-    }.getOrDefault(false)
+    }.getOrElse {
+        lastRestoreFailure = "copia previa: ${it.javaClass.simpleName}: ${it.message}"
+        false
+    }
 
     /**
      * Extrae las imágenes en dos fases: primero valida y descomprime todo en
