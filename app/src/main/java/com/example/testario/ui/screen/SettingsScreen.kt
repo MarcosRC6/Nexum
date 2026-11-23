@@ -1058,6 +1058,7 @@ fun SettingsScreen(
             }
         }
 
+        LaunchedEffect(isLoading) { if (!isLoading) com.example.testario.domain.NexumProgress.clear() }
         if (isLoading) {
             Box(
                 Modifier
@@ -1077,18 +1078,26 @@ fun SettingsScreen(
                             .width(260.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        val step by com.example.testario.domain.NexumProgress.current.collectAsState()
+                        val shown by androidx.compose.animation.core.animateFloatAsState(
+                            targetValue = step?.fraction ?: 0f, label = "progreso"
+                        )
                         Text("Cargando datos...", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                         Spacer(Modifier.height(14.dp))
-                        LinearProgressIndicator(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(10.dp)
-                                .clip(RoundedCornerShape(50)),
-                            color = TestarioPrimary,
-                            trackColor = TestarioSurfaceLight
-                        )
+                        val barModifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(50))
+                        if (step == null) {
+                            LinearProgressIndicator(modifier = barModifier, color = TestarioPrimary, trackColor = TestarioSurfaceLight)
+                        } else {
+                            LinearProgressIndicator(progress = { shown }, modifier = barModifier, color = TestarioPrimary, trackColor = TestarioSurfaceLight)
+                        }
                         Spacer(Modifier.height(8.dp))
-                        Text("Procesando archivos", style = MaterialTheme.typography.labelSmall, color = TestarioMutedText)
+                        Text(
+                            step?.let { "${it.label} · ${(shown * 100).toInt()} %" } ?: "Procesando archivos",
+                            style = MaterialTheme.typography.labelSmall, color = TestarioMutedText
+                        )
                     }
                 }
             }

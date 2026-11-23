@@ -99,9 +99,12 @@ class UnifiedDataManager(private val context: Context) {
         }.getOrElse { return false }
 
         // Refuse destructive restore unless the COMPLETE previous state is safe on disk.
+        NexumProgress.set("Guardando una copia de seguridad del estado actual", 0.25f)
         if (!protectBeforeRestore()) return false
+        NexumProgress.set("Extrayendo imágenes", 0.5f)
         if (!extractQuestionImages(bytes)) return false
 
+        NexumProgress.set("Restaurando la Biblioteca", 0.75f)
         return runCatching {
             ImportManager(context, localStore).restoreBackup(raw)
             true
@@ -237,7 +240,9 @@ class UnifiedDataManager(private val context: Context) {
 
         // Preserve the old database, Planario, session slots and every photo before
         // modifying anything. This is a durable recovery point, not an ACID guarantee.
+        NexumProgress.set("Guardando una copia de seguridad del estado actual", 0.2f)
         if (!protectBeforeRestore()) return fail(lastRestoreFailure ?: "no se pudo crear la copia previa de seguridad")
+        NexumProgress.set("Extrayendo imágenes", 0.4f)
         if (!extractQuestionImages(bytes)) return fail("no se pudieron extraer las imágenes")
 
         // Una sesión antigua no debe sobrevivir a una restauración de Planario.
@@ -245,11 +250,14 @@ class UnifiedDataManager(private val context: Context) {
         PlanarioDependencies.studyRepository.clearActiveStudyTimerTracking()
         PlanarioDependencies.stopStudyTimerForegroundService()
 
+        NexumProgress.set("Restaurando la Biblioteca", 0.55f)
         runCatching { ImportManager(context, localStore).restoreBackup(dbRaw) }.getOrElse { return fail("falló al guardar la biblioteca: ${it.message}") }
 
+        NexumProgress.set("Restaurando el Plan", 0.7f)
         if (planRaw != null && !PlanarioDependencies.studyRepository.importBackupJson(planRaw)) {
             return fail("falló al guardar el plan")
         }
+        NexumProgress.set("Restaurando enlaces y ajustes", 0.85f)
         if (quickLinksRaw != null) {
             runCatching { QuickTestLinkManager(context).importJson(quickLinksRaw) }.getOrElse { return fail("falló al guardar los enlaces de test rápido: ${it.message}") }
         }
@@ -263,6 +271,7 @@ class UnifiedDataManager(private val context: Context) {
         }
         runCatching { SavedTestSessionStore(context).importJson(pendingTestRaw) }.getOrElse { return fail("falló al guardar la sesión de test pendiente: ${it.message}") }
         runCatching { SavedMixedSessionStore(context).importJson(pendingMixedRaw) }.getOrElse { return fail("falló al guardar la sesión mixta pendiente: ${it.message}") }
+        NexumProgress.set("Finalizando", 0.97f)
         return true
     }
 

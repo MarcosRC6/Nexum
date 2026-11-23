@@ -131,7 +131,9 @@ class NexumNearbyArchive(private val context: Context) {
         }
         require(archive.file.exists() && archive.file.length() == archive.size)
         require(digest(archive.file) == archive.sha256)
+        NexumProgress.set("Verificando la copia", 0.05f)
         requireValid(archive.file)
+        NexumProgress.set("Creando un punto de recuperación", 0.1f)
         val recovery = makeVerifiedRecovery()
         UnifiedDataManager.lastRestoreFailure = null
         val result = runCatching {
