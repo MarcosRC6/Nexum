@@ -38,12 +38,12 @@ data class TestarioColors(
 // meaning (green = done, terracotta = error, amber = warning) but share the warm cast.
 private val DarkTestarioColors = TestarioColors(
     background = Color(0xE00B0D0C),
-    surface = Color(0xE6151816),
-    surfaceLight = Color(0xD91E2220),
+    surface = Color(0xEB1A1E1B),
+    surfaceLight = Color(0xF0252A26),
     primary = Color(0xFFD8B880),
     primaryDark = Color(0xFF3A2E17),
-    neonSurface = Color(0xFF141715),
-    neonSelected = Color(0xFF2E2615),
+    neonSurface = Color(0xFF282D29),
+    neonSelected = Color(0xFF3A2F18),
     text = Color(0xFFF2EBDC),
     mutedText = Color(0xFFA39C8B),
     green = Color(0xFF7BCB9E),
@@ -57,11 +57,11 @@ private val DarkTestarioColors = TestarioColors(
 
 private val LightTestarioColors = TestarioColors(
     background = Color(0xEAF3EEE2),
-    surface = Color(0xEDFBF8EF),
-    surfaceLight = Color(0xE6EAE4D6),
+    surface = Color(0xF5FFFEFA),
+    surfaceLight = Color(0xFFF1ECDF),
     primary = Color(0xFF8A5A12),
     primaryDark = Color(0xFFF1E1BF),
-    neonSurface = Color(0xFFFBF8EF),
+    neonSurface = Color(0xFFEDE6D6),
     neonSelected = Color(0xFFF1E3C3),
     text = Color(0xFF1B1A16),
     mutedText = Color(0xFF6B6558),

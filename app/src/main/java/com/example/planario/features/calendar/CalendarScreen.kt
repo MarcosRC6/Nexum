@@ -1,5 +1,6 @@
 package com.example.planario.features.calendar
 
+import com.example.testario.ui.screen.ChevronIcon
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -444,7 +445,7 @@ private fun SelectedDayCard(
                         }
 
                         ExpandableExplanation(
-                            title = "💡 ¿Qué es?",
+                            title = "¿Qué es?",
                             text = "Este bloque resume el día seleccionado. Los días libres y descansos no exigen objetivo, no acumulan nada y no rompen el plan."
                         )
                     }
@@ -634,7 +635,7 @@ private fun LegendCard() {
                     )
 
                     ExpandableExplanation(
-                        title = "💡 ¿Qué es?",
+                        title = "¿Qué es?",
                         text = "La leyenda explica los colores del calendario. Solo sirve como ayuda visual: no crea deuda ni cambia el plan."
                     )
                 }
@@ -707,12 +708,7 @@ private fun ExpandableCardHeader(
             )
         }
 
-        Text(
-            text = if (expanded) "⌃" else "⌄",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
-        )
+        ChevronIcon(expanded, MaterialTheme.colorScheme.primary)
     }
 }
 

@@ -200,7 +200,6 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(22.dp),
                             colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-                            border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.5f))
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -245,7 +244,6 @@ fun HomeScreen(
                                 .clickable(onClick = onCustomizeHome),
                             shape = RoundedCornerShape(28.dp),
                             colors = CardDefaults.cardColors(containerColor = TestarioSurface.copy(alpha = 0.55f)),
-                            border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.28f))
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxSize(),
@@ -367,7 +365,7 @@ fun HomeScreen(
                                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                             Text("Objetivos diarios", style = MaterialTheme.typography.titleMedium, color = TestarioText, modifier = Modifier.weight(1f))
                                             IconButton(onClick = { homeObjectivesExpanded = !homeObjectivesExpanded }) {
-                                                Text(if (homeObjectivesExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                                                ChevronIcon(homeObjectivesExpanded)
                                             }
                                         }
                                         if (homeObjectivesExpanded) {
@@ -430,13 +428,12 @@ fun HomeScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(22.dp),
                                     colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-                                    border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.35f))
                                 ) {
                                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                             Text("Tema activo", style = MaterialTheme.typography.titleMedium, color = TestarioText, modifier = Modifier.weight(1f))
                                             IconButton(onClick = { homeTopicExpanded = !homeTopicExpanded }) {
-                                                Text(if (homeTopicExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                                                ChevronIcon(homeTopicExpanded)
                                             }
                                         }
                                         if (homeTopicExpanded) {
@@ -504,7 +501,7 @@ fun HomeScreen(
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Resumen", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
                                         IconButton(onClick = { homeSummaryExpanded = !homeSummaryExpanded }) {
-                                            Text(if (homeSummaryExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                                            ChevronIcon(homeSummaryExpanded)
                                         }
                                     }
                                     if (homeSummaryExpanded) {
@@ -526,7 +523,6 @@ fun HomeScreen(
                                 modifier = Modifier.fillMaxWidth().clickable(onClick = onCreateTest),
                                 shape = RoundedCornerShape(20.dp),
                                 colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-                                border = BorderStroke(1.dp, TestarioPrimary)
                             ) {
                                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
@@ -548,7 +544,7 @@ fun HomeScreen(
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Plantillas", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
                                         IconButton(onClick = { homeTemplatesExpanded = !homeTemplatesExpanded }) {
-                                            Text(if (homeTemplatesExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                                            ChevronIcon(homeTemplatesExpanded)
                                         }
                                     }
                                     if (homeTemplatesExpanded && database.testTemplates.isEmpty()) {
@@ -561,7 +557,6 @@ fun HomeScreen(
                                                 modifier = Modifier.fillMaxWidth().clickable { onOpenTemplate(template.id) },
                                                 shape = RoundedCornerShape(16.dp),
                                                 colors = CardDefaults.cardColors(containerColor = TestarioSurfaceLight),
-                                                border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.85f))
                                             ) {
                                                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                                     Column(Modifier.weight(1f)) {
@@ -588,16 +583,15 @@ fun HomeScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(20.dp),
                                 colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-                                border = BorderStroke(1.dp, TestarioOutline)
                             ) {
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Accesos rápidos", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
                                         IconButton(onClick = { showManageWebLinks = true }) {
-                                            Text("✎", color = TestarioPrimary, style = MaterialTheme.typography.titleMedium)
+                                            EditIcon(TestarioPrimary)
                                         }
                                         IconButton(onClick = { homeQuickAccessExpanded = !homeQuickAccessExpanded }) {
-                                            Text(if (homeQuickAccessExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                                            ChevronIcon(homeQuickAccessExpanded)
                                         }
                                     }
                                     if (homeQuickAccessExpanded) {
@@ -607,7 +601,6 @@ fun HomeScreen(
                                                 modifier = Modifier.weight(1f).clickable(onClick = item.third),
                                                 shape = RoundedCornerShape(15.dp),
                                                 colors = CardDefaults.cardColors(containerColor = TestarioSurfaceLight),
-                                                border = BorderStroke(1.dp, TestarioOutline)
                                             ) {
                                                 Column(
                                                     Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 4.dp),
@@ -660,7 +653,6 @@ fun HomeScreen(
                                                                 shape = RoundedCornerShape(15.dp),
                                                                 colors = CardDefaults.cardColors(
                                                                     containerColor = TestarioSurfaceLight),
-                                                                border = BorderStroke(1.dp, TestarioOutline)
                                                             ) {
                                                                 Column(
                                                                     Modifier.fillMaxWidth().padding(
@@ -705,7 +697,6 @@ fun HomeScreen(
                         .zIndex(30f),
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = TestarioSurface.copy(alpha = 0.96f)),
-                    border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.48f))
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),

@@ -311,7 +311,6 @@ fun TopicDetailScreen(
                             .weight(1f)
                             .height(54.dp),
                         shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, TestarioPrimary)
                     ) { Text("Hacer Test") }
                 }
             }
@@ -375,7 +374,6 @@ fun TopicDetailScreen(
                                     TestarioSurface
                                 }
                             ),
-                            border = BorderStroke(1.dp, TestarioSurfaceLight)
                         ) {
                             Box(
                                 contentAlignment = Alignment.Center,
@@ -780,7 +778,6 @@ private fun SelectionActions(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-        border = BorderStroke(1.dp, TestarioPrimary)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -829,7 +826,6 @@ private fun SelectionActions(
                     enabled = selectedCount > 0,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, TestarioPrimary)
                 ) {
                     Text("Crear tema")
                 }

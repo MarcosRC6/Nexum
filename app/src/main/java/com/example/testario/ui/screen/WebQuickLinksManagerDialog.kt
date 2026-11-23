@@ -208,7 +208,7 @@ internal fun WebQuickLinksManagerDialog(
                                 icon = link.icon
                                 customIconLabel = link.customIconLabel.orEmpty()
                                 error = null
-                            }) { Text("✎", color = TestarioPrimary) }
+                            }) { EditIcon(TestarioPrimary) }
                             IconButton(onClick = { store.setHidden(link.id, !link.hidden) }) {
                                 Text(if (link.hidden) "◉" else "◌", color = TestarioPrimary)
                             }

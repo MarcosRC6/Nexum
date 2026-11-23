@@ -499,7 +499,7 @@ fun SettingsScreen(
                                 Text("Pantalla de inicio", style = MaterialTheme.typography.titleLarge, color = TestarioText)
                                 Text("Elige los bloques y accesos que aparecen en Inicio.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
-                            Text(if (showHomeSettings) "▲" else "▼", color = TestarioPrimary, style = MaterialTheme.typography.titleMedium)
+                            ChevronIcon(showHomeSettings)
                         }
 
                         AnimatedVisibility(visible = showHomeSettings) {
@@ -615,7 +615,7 @@ fun SettingsScreen(
                                 Text("Comportamiento de los ejercicios", style = MaterialTheme.typography.titleLarge, color = TestarioText)
                                 Text("Preguntas falladas, repaso y tarjetas Anki.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
-                            Text(if (showBehaviorSettings) "▲" else "▼", color = TestarioPrimary)
+                            ChevronIcon(showBehaviorSettings)
                         }
 
                         AnimatedVisibility(visible = showBehaviorSettings) {
@@ -696,7 +696,7 @@ fun SettingsScreen(
                                 }
 
                                 Text(
-                                    text = if (showBehaviorInstructions) "💡 ¿Cómo funcionan estos ajustes? ▲" else "💡 ¿Cómo funcionan estos ajustes? ▼",
+                                    text = if (showBehaviorInstructions) "¿Cómo funcionan estos ajustes? ▲" else "¿Cómo funcionan estos ajustes? ▼",
                                     color = TestarioPrimary,
                                     style = MaterialTheme.typography.labelLarge,
                                     modifier = Modifier
@@ -734,7 +734,7 @@ fun SettingsScreen(
                                 Text("Planificación y notificaciones", style = MaterialTheme.typography.titleLarge, color = TestarioText)
                                 Text("Objetivo diario, descansos y recordatorios.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
-                            Text(if (showStudySettings) "▲" else "▼", color = TestarioPrimary)
+                            ChevronIcon(showStudySettings)
                         }
                         AnimatedVisibility(showStudySettings) {
                             CompactScrollableColumn(height = 350.dp) {
@@ -885,7 +885,7 @@ fun SettingsScreen(
                                 Text("Datos", style = MaterialTheme.typography.titleLarge, color = TestarioText)
                                 Text("Copia completa, importación automática y exportación compatible.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
-                            Text(if (showDataOptions) "▲" else "▼", color = TestarioPrimary)
+                            ChevronIcon(showDataOptions)
                         }
 
                         AnimatedVisibility(showDataOptions) {
@@ -911,7 +911,6 @@ fun SettingsScreen(
                                     },
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
                                     shape = RoundedCornerShape(16.dp),
-                                    border = BorderStroke(1.dp, TestarioPrimary)
                                 ) { Text(if (showExportOptions) "Cerrar exportación" else "Exportar", color = TestarioPrimary) }
 
                                 AnimatedVisibility(showExportOptions) {
@@ -1001,7 +1000,6 @@ fun SettingsScreen(
                                     onClick = { showNearbySync = !showNearbySync },
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
                                     shape = RoundedCornerShape(16.dp),
-                                    border = BorderStroke(1.dp, TestarioPrimary)
                                 ) {
                                     Text(
                                         if (showNearbySync) "Cerrar transferencia" else "Sincronizar dispositivos",

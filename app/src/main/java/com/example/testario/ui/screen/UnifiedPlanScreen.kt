@@ -119,18 +119,21 @@ fun UnifiedPlanScreen(
                 Button(
                     onClick = { selectedTab = PlanTab.PLAN },
                     modifier = Modifier.weight(1f),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
                     selected = selectedTab == PlanTab.PLAN
-                ) { Text("Plan") }
+                ) { Text("Plan", maxLines = 1) }
                 Button(
                     onClick = { selectedTab = PlanTab.TIMER },
                     modifier = Modifier.weight(1f),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
                     selected = selectedTab == PlanTab.TIMER
-                ) { Text("Reloj") }
+                ) { Text("Reloj", maxLines = 1) }
                 Button(
                     onClick = { selectedTab = PlanTab.CALENDAR },
                     modifier = Modifier.weight(1f),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
                     selected = selectedTab == PlanTab.CALENDAR
-                ) { Text("Calendario") }
+                ) { Text("Calendario", maxLines = 1) }
             }
 
             if (selectedTab == PlanTab.PLAN) {
@@ -143,7 +146,6 @@ fun UnifiedPlanScreen(
                             .padding(horizontal = 16.dp, vertical = 2.dp),
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-                        border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.45f))
                     ) {
                         Column(
                             Modifier.padding(14.dp),

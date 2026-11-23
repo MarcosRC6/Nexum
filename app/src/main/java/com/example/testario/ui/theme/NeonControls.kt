@@ -3,7 +3,6 @@ package com.example.testario.ui.theme
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.getValue
@@ -30,34 +30,48 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 
 /**
- * Shared, theme-aware action style for NEXUM.
- * Default: ink/paper panel + brass hairline outline.
- * Selected: the same outline + a restrained translucent brass tint.
- * Disabled: neutral subdued panel, no accent outline.
+ * Shared action styles for NEXUM, with no outlines by default:
+ *  - `selected = null` (default): the screen's main action, solid brass.
+ *    TextButton: plain brass text.
+ *  - `selected = false/true`: a toggle/segment. Off = quiet tonal fill, on = brass tint with
+ *    brass label.
+ * Secondary variants (Outlined/Tonal/Icon) are tonal fills when they are not toggles.
+ * Disabled controls are muted. An explicit `border` is still honoured (destructive actions
+ * pass a red one), except a brass one, which would just bring the old outline back.
  *
- * A ButtonColors parameter is retained for source compatibility with legacy
- * screens; the surface and outline are intentionally standardized here. Destructive
- * operations can still provide their own explicit border and red text.
+ * The ButtonColors parameter is kept for source compatibility with legacy screens.
  */
 @Composable
-private fun neonSurface(selected: Boolean): Color =
-    if (selected) TestarioNeonSelected else TestarioNeonSurface
+private fun neonActionColors(selected: Boolean?, cta: Boolean): ButtonColors {
+    val disabledContainer = TestarioMutedText.copy(alpha = 0.14f)
+    val disabledContent = TestarioMutedText.copy(alpha = 0.55f)
+    return when {
+        selected == true -> ButtonDefaults.buttonColors(
+            containerColor = TestarioNeonSelected, contentColor = TestarioPrimary,
+            disabledContainerColor = disabledContainer, disabledContentColor = disabledContent
+        )
+        selected == null && cta -> ButtonDefaults.buttonColors(
+            containerColor = TestarioPrimary, contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = disabledContainer, disabledContentColor = disabledContent
+        )
+        else -> ButtonDefaults.buttonColors(
+            containerColor = TestarioNeonSurface, contentColor = TestarioText,
+            disabledContainerColor = disabledContainer, disabledContentColor = disabledContent
+        )
+    }
+}
 
 @Composable
-private fun neonActionColors(selected: Boolean): ButtonColors = ButtonDefaults.buttonColors(
-    containerColor = neonSurface(selected),
-    contentColor = if (selected) TestarioPrimary else TestarioText,
-    disabledContainerColor = TestarioNeonSurface.copy(alpha = 0.50f),
-    disabledContentColor = TestarioMutedText.copy(alpha = 0.67f)
+private fun neonTextColors(selected: Boolean?): ButtonColors = ButtonDefaults.buttonColors(
+    containerColor = if (selected == true) TestarioNeonSelected else Color.Transparent,
+    contentColor = if (selected == false) TestarioText else TestarioPrimary,
+    disabledContainerColor = Color.Transparent,
+    disabledContentColor = TestarioMutedText.copy(alpha = 0.55f)
 )
 
 @Composable
-private fun neonActionBorder(enabled: Boolean, border: BorderStroke?): BorderStroke =
-    if (!enabled) {
-        BorderStroke(1.dp, TestarioOutline.copy(alpha = 0.42f))
-    } else {
-        border ?: BorderStroke(1.dp, TestarioPrimary)
-    }
+private fun neonActionBorder(enabled: Boolean, border: BorderStroke?): BorderStroke? =
+    if (!enabled || border == null || border.brush == SolidColor(TestarioPrimary)) null else border
 
 @Composable
 private fun rememberSource(given: MutableInteractionSource?): MutableInteractionSource =
@@ -86,7 +100,7 @@ fun NeonButton(
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
-    selected: Boolean = false,
+    selected: Boolean? = null,
     content: @Composable RowScope.() -> Unit
 ) {
     val source = rememberSource(interactionSource)
@@ -95,7 +109,7 @@ fun NeonButton(
         modifier = pressModifier(modifier, enabled, source),
         enabled = enabled,
         shape = shape,
-        colors = neonActionColors(selected),
+        colors = neonActionColors(selected, cta = true),
         elevation = elevation,
         border = neonActionBorder(enabled, border),
         contentPadding = contentPadding,
@@ -115,7 +129,7 @@ fun NeonOutlinedButton(
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
-    selected: Boolean = false,
+    selected: Boolean? = null,
     content: @Composable RowScope.() -> Unit
 ) {
     val source = rememberSource(interactionSource)
@@ -124,7 +138,7 @@ fun NeonOutlinedButton(
         modifier = pressModifier(modifier, enabled, source),
         enabled = enabled,
         shape = shape,
-        colors = neonActionColors(selected),
+        colors = neonActionColors(selected, cta = false),
         elevation = elevation,
         border = neonActionBorder(enabled, border),
         contentPadding = contentPadding,
@@ -144,7 +158,7 @@ fun NeonTextButton(
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.TextButtonContentPadding,
     interactionSource: MutableInteractionSource? = null,
-    selected: Boolean = false,
+    selected: Boolean? = null,
     content: @Composable RowScope.() -> Unit
 ) {
     val source = rememberSource(interactionSource)
@@ -153,7 +167,7 @@ fun NeonTextButton(
         modifier = pressModifier(modifier, enabled, source),
         enabled = enabled,
         shape = shape,
-        colors = neonActionColors(selected),
+        colors = neonTextColors(selected),
         elevation = elevation,
         border = neonActionBorder(enabled, border),
         contentPadding = contentPadding,
@@ -173,7 +187,7 @@ fun NeonTonalButton(
     border: BorderStroke? = null,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     interactionSource: MutableInteractionSource? = null,
-    selected: Boolean = false,
+    selected: Boolean? = null,
     content: @Composable RowScope.() -> Unit
 ) {
     val source = rememberSource(interactionSource)
@@ -182,7 +196,7 @@ fun NeonTonalButton(
         modifier = pressModifier(modifier, enabled, source),
         enabled = enabled,
         shape = shape,
-        colors = neonActionColors(selected),
+        colors = neonActionColors(selected, cta = false),
         elevation = elevation,
         border = neonActionBorder(enabled, border),
         contentPadding = contentPadding,
@@ -200,21 +214,16 @@ fun NeonIconButton(
     interactionSource: MutableInteractionSource? = null,
     content: @Composable () -> Unit
 ) {
-    val shape = RoundedCornerShape(12.dp)
     val source = rememberSource(interactionSource)
     MaterialIconButton(
         onClick = onClick,
-        modifier = pressModifier(modifier, enabled, source).border(
-            width = 1.dp,
-            color = if (enabled) TestarioPrimary else TestarioOutline.copy(alpha = 0.42f),
-            shape = shape
-        ),
+        modifier = pressModifier(modifier, enabled, source),
         enabled = enabled,
         colors = IconButtonDefaults.iconButtonColors(
-            containerColor = TestarioNeonSurface,
+            containerColor = Color.Transparent,
             contentColor = TestarioText,
-            disabledContainerColor = TestarioNeonSurface.copy(alpha = 0.50f),
-            disabledContentColor = TestarioMutedText.copy(alpha = 0.67f)
+            disabledContainerColor = Color.Transparent,
+            disabledContentColor = TestarioMutedText.copy(alpha = 0.55f)
         ),
         interactionSource = source,
         content = content
