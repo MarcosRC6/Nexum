@@ -67,6 +67,9 @@ fun StudyExerciseEditorScreen(
             it.points.isNotEmpty()
         } == true) WrittenAnswerMode.NUMBERED else WrittenAnswerMode.UNORDERED
     }
+    // Editing an older exercise without touching its mode must NOT silently
+    // apply new stricter marker requirements to historical partial layouts.
+    var writtenModeTouched by drafts.state(scope, "writtenModeTouched") { false }
     var selectedSolutionId by drafts.state(scope, "selectedSolutionId") {
         original?.solutions?.firstOrNull()?.id
     }
@@ -168,6 +171,7 @@ fun StudyExerciseEditorScreen(
         runCatching { WrittenMarkerRules.place(available, target.id, x, y) }
             .onSuccess { placed ->
                 writtenAnswerMode = WrittenAnswerMode.NUMBERED
+                writtenModeTouched = true
                 solutions = placed
                 selectedSolutionId = placed.firstOrNull { it.points.isEmpty() }?.id
                 error = null
@@ -256,8 +260,10 @@ fun StudyExerciseEditorScreen(
                 SketchDrawing(strokes = sketchStrokes) else null,
             revision = original?.revision ?: 1, draft = draft,
             flagged = original?.flagged ?: false,
-            writtenAnswerMode = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI)
-                writtenAnswerMode else null
+            writtenAnswerMode = if (exerciseKind != StudyExerciseKind.WRITTEN_MULTI) null
+                else if (original != null && original.writtenAnswerMode == null &&
+                    !writtenModeTouched) null
+                else writtenAnswerMode
         )
     }
 
@@ -414,6 +420,7 @@ fun StudyExerciseEditorScreen(
                                     error = "Elimina primero los números vinculados a la imagen para usar respuestas sin orden."
                                 } else {
                                     writtenAnswerMode = WrittenAnswerMode.UNORDERED
+                                    writtenModeTouched = true
                                     error = null
                                 }
                             },
@@ -424,6 +431,7 @@ fun StudyExerciseEditorScreen(
                             selected = writtenAnswerMode == WrittenAnswerMode.NUMBERED,
                             onClick = {
                                 writtenAnswerMode = WrittenAnswerMode.NUMBERED
+                                writtenModeTouched = true
                                 error = null
                             },
                             label = { Text("Por números", maxLines = 1) },
