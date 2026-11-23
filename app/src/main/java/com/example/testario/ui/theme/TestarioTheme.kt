@@ -106,36 +106,79 @@ fun TestarioTheme(
 ) {
     val testarioColors = if (darkTheme) DarkTestarioColors else LightTestarioColors
     val materialColors = if (darkTheme) {
+        // Every role is defined so dialogs, menus, sheets, chips and switches no
+        // longer fall back to the stock Material violet. The surfaceContainer*
+        // roles are opaque on purpose: overlays must stay readable over the watermark.
         darkColorScheme(
             primary = testarioColors.primary,
-            onPrimary = testarioColors.text,
+            onPrimary = Color(0xFF2B0A4A), // 6.4:1 on primary (was near-white, 2.5:1)
             primaryContainer = testarioColors.primaryDark,
             onPrimaryContainer = testarioColors.text,
+            inversePrimary = Color(0xFF7E39D4),
             secondary = Color(0xFF70C7FF),
+            onSecondary = Color(0xFF00344E),
+            secondaryContainer = Color(0xFF123A52),
+            onSecondaryContainer = Color(0xFFD2EEFF),
+            tertiary = testarioColors.yellow,
+            onTertiary = Color(0xFF3F2E00),
+            tertiaryContainer = Color(0xFF3D3000),
+            onTertiaryContainer = Color(0xFFFFE9B3),
             background = testarioColors.background,
-            surface = testarioColors.surface,
-            surfaceVariant = testarioColors.surfaceLight,
-            outline = testarioColors.outline,
             onBackground = testarioColors.text,
+            surface = testarioColors.surface,
             onSurface = testarioColors.text,
+            surfaceVariant = testarioColors.surfaceLight,
             onSurfaceVariant = testarioColors.mutedText,
-            error = testarioColors.red
+            surfaceTint = testarioColors.primary,
+            inverseSurface = Color(0xFFF1F0F6),
+            inverseOnSurface = Color(0xFF151827),
+            error = testarioColors.red,
+            onError = Color(0xFF4D0012),
+            errorContainer = testarioColors.redDark,
+            onErrorContainer = Color(0xFFFFDADD),
+            outline = testarioColors.outline,
+            outlineVariant = Color(0xFF222C41),
+            surfaceContainerLowest = Color(0xFF060914),
+            surfaceContainerLow = Color(0xFF0D1220),
+            surfaceContainer = Color(0xFF111827),
+            surfaceContainerHigh = Color(0xFF182033),
+            surfaceContainerHighest = Color(0xFF1F283D)
         )
     } else {
         lightColorScheme(
             primary = testarioColors.primary,
-            onPrimary = testarioColors.text,
+            onPrimary = Color.White, // 6.1:1 on primary (was near-black, 2.9:1)
             primaryContainer = testarioColors.primaryDark,
             onPrimaryContainer = testarioColors.text,
+            inversePrimary = Color(0xFFC283FF),
             secondary = Color(0xFF2476A8),
+            onSecondary = Color.White,
+            secondaryContainer = Color(0xFFD6ECFA),
+            onSecondaryContainer = Color(0xFF0B2F45),
+            tertiary = testarioColors.yellow,
+            onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFFFE9B8),
+            onTertiaryContainer = Color(0xFF3A2600),
             background = testarioColors.background,
-            surface = testarioColors.surface,
-            surfaceVariant = testarioColors.surfaceLight,
-            outline = testarioColors.outline,
             onBackground = testarioColors.text,
+            surface = testarioColors.surface,
             onSurface = testarioColors.text,
+            surfaceVariant = testarioColors.surfaceLight,
             onSurfaceVariant = testarioColors.mutedText,
-            error = testarioColors.red
+            surfaceTint = testarioColors.primary,
+            inverseSurface = Color(0xFF151827),
+            inverseOnSurface = Color(0xFFF8F7FC),
+            error = testarioColors.red,
+            onError = Color.White,
+            errorContainer = testarioColors.redDark,
+            onErrorContainer = Color(0xFF5C0F1B),
+            outline = testarioColors.outline,
+            outlineVariant = Color(0xFFE6E9F2),
+            surfaceContainerLowest = Color(0xFFFFFFFF),
+            surfaceContainerLow = Color(0xFFF7F8FC),
+            surfaceContainer = Color(0xFFF0F2F8),
+            surfaceContainerHigh = Color(0xFFE9ECF5),
+            surfaceContainerHighest = Color(0xFFE2E6F1)
         )
     }
 

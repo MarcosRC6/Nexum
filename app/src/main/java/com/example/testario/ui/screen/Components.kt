@@ -1,5 +1,6 @@
 package com.example.testario.ui.screen
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -322,13 +323,21 @@ private fun MainBottomNavigationItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val tint = if (selected) TestarioPrimary else TestarioMutedText
+    // Colours ease between states instead of snapping. The unselected background
+    // is the same hue at alpha 0 so the fade does not pass through dark grey.
+    val tint by animateColorAsState(
+        if (selected) TestarioPrimary else TestarioMutedText, tween(180), label = "navTint"
+    )
+    val labelColor by animateColorAsState(
+        if (selected) TestarioText else TestarioMutedText, tween(180), label = "navLabel"
+    )
+    val pill by animateColorAsState(
+        if (selected) TestarioPrimaryDark else TestarioPrimaryDark.copy(alpha = 0f),
+        tween(180), label = "navPill"
+    )
     Column(
         modifier = modifier
-            .background(
-                color = if (selected) TestarioPrimaryDark else Color.Transparent,
-                shape = RoundedCornerShape(16.dp)
-            )
+            .background(color = pill, shape = RoundedCornerShape(16.dp))
             .then(
                 if (selected) Modifier.border(1.dp, TestarioPrimary.copy(alpha = 0.28f), RoundedCornerShape(16.dp))
                 else Modifier
@@ -341,7 +350,7 @@ private fun MainBottomNavigationItem(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = if (selected) TestarioText else TestarioMutedText,
+            color = labelColor,
             maxLines = 1
         )
     }
