@@ -107,6 +107,20 @@ object StudyExerciseRules {
             val names = hashMapOf<String, String>()
             val markerIds = hashSetOf<String>()
             val orders = hashSetOf<Int>()
+            if (exercise.writtenAnswerMode == WrittenAnswerMode.UNORDERED &&
+                exercise.solutions.any { it.points.isNotEmpty() }) {
+                errors += "Para respuestas sin orden, elimina antes los números de imagen."
+            }
+            if (exercise.writtenAnswerMode == WrittenAnswerMode.NUMBERED) {
+                if (exercise.solutions.any { it.points.size != 1 } ||
+                    exercise.solutions.flatMap { it.points }.map { it.order }.sorted() !=
+                        (1..exercise.solutions.size).toList()) {
+                    errors += "La corrección por números requiere un marcador 1, 2, 3… por cada solución."
+                }
+                if (exercise.baseImageUri == null && exercise.diagram == null &&
+                    exercise.sketch == null)
+                    errors += "La corrección por números requiere una imagen o dibujo."
+            }
             exercise.solutions.forEach { solution ->
                 if (solution.id.isBlank() || !ids.add(solution.id))
                     errors += "ID de solución duplicado o vacío."
@@ -264,7 +278,8 @@ object StudyExerciseRules {
         pointsCorrect: Double = 1.0,
         penaltyWrong: Double = -0.25
     ): WrittenResult {
-        if (exercise.solutions.none { it.points.isNotEmpty() }) {
+        if (exercise.writtenAnswerMode == WrittenAnswerMode.UNORDERED ||
+            exercise.solutions.none { it.points.isNotEmpty() }) {
             return gradeWritten(exercise, submitted, pointsCorrect, penaltyWrong)
         }
         requireValid(exercise)

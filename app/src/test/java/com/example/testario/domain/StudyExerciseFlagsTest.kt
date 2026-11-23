@@ -14,6 +14,7 @@ class StudyExerciseFlagsTest {
         val older = """{"id":"written-1","kind":"WRITTEN_MULTI","prompt":"Enumera las calles"}"""
         val loaded = json.decodeFromString<StudyExercise>(older)
         assertFalse(loaded.flagged)
+        assertNull(loaded.writtenAnswerMode) // legacy JSON: infer from numbered photo markers
         assertEquals("written-1", loaded.id)
         assertEquals(StudyExerciseKind.WRITTEN_MULTI, loaded.kind)
     }
@@ -24,6 +25,18 @@ class StudyExerciseFlagsTest {
         val loaded = json.decodeFromString<StudyExercise>(older)
         assertFalse(loaded.flagged)
         assertEquals("Respuesta", loaded.flashcard?.back)
+    }
+
+    @Test fun newWrittenModeRoundTripsWithoutChangingLegacyQuestionIds() {
+        for (mode in WrittenAnswerMode.entries) {
+            val saved = StudyExercise(id = "original-id",
+                kind = StudyExerciseKind.WRITTEN_MULTI, prompt = "Enumera",
+                solutions = listOf(CanonicalSolution(id = "sol-id", text = "Respuesta")),
+                writtenAnswerMode = mode)
+            val restored = json.decodeFromString<StudyExercise>(json.encodeToString(saved))
+            assertEquals(saved, restored)
+            assertEquals("sol-id", restored.solutions.single().id)
+        }
     }
 
     @Test fun flaggedWrittenAndAnkiRoundTripWithoutChangingIds() {

@@ -179,37 +179,65 @@ fun StudyExercisePracticeScreen(
                         markerStatuses = statusByMarker
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedTextField(
-                        value = entry, onValueChange = { entry = it },
-                        label = { Text("Escribe una respuesta") },
-                        enabled = !completed,
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, keyboardType = KeyboardType.Text),
-                        keyboardActions = KeyboardActions(onDone = {
-                            val clean = entry.trim()
-                            if (clean.isNotEmpty() && !answers.any {
-                                StudyExerciseRules.normalize(it) == StudyExerciseRules.normalize(clean)
-                            }) answers = ArrayList(answers + clean)
-                            entry = ""
-                            keyboard?.hide()
-                        })
-                    )
-                    Button(
-                        onClick = {
-                            val clean = entry.trim()
-                            if (clean.isNotEmpty() && !answers.any {
-                                StudyExerciseRules.normalize(it) == StudyExerciseRules.normalize(clean)
-                            }) answers = ArrayList(answers + clean)
-                            entry = ""
-                        },
-                        enabled = !completed
-                    ) { Text("Añadir") }
+                val numbered = exercise.writtenAnswerMode == WrittenAnswerMode.NUMBERED ||
+                    exercise.solutions.any { it.points.isNotEmpty() }
+                Text(if (numbered)
+                    "Responde cada número de la imagen en su casilla correspondiente."
+                    else "Respuestas libres: el orden no importa y no hace falta imagen.",
+                    color = TestarioMutedText)
+                if (numbered) {
+                    if (!completed) {
+                        repeat(exercise.solutions.size) { slot ->
+                            OutlinedTextField(
+                                value = answers.getOrNull(slot).orEmpty(),
+                                onValueChange = { typed ->
+                                    val updated = answers.toMutableList()
+                                    while (updated.size <= slot) updated.add("")
+                                    updated[slot] = typed.replace("\n", " ")
+                                    answers = ArrayList(updated)
+                                },
+                                label = { Text("Respuesta número ${slot + 1}") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                        }
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedTextField(
+                            value = entry, onValueChange = { entry = it },
+                            label = { Text("Escribe una respuesta") },
+                            enabled = !completed,
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done, keyboardType = KeyboardType.Text),
+                            keyboardActions = KeyboardActions(onDone = {
+                                val clean = entry.trim()
+                                if (clean.isNotEmpty() && !answers.any {
+                                    StudyExerciseRules.normalize(it) == StudyExerciseRules.normalize(clean)
+                                }) answers = ArrayList(answers + clean)
+                                entry = ""
+                                keyboard?.hide()
+                            })
+                        )
+                        Button(
+                            onClick = {
+                                val clean = entry.trim()
+                                if (clean.isNotEmpty() && !answers.any {
+                                    StudyExerciseRules.normalize(it) == StudyExerciseRules.normalize(clean)
+                                }) answers = ArrayList(answers + clean)
+                                entry = ""
+                            },
+                            enabled = !completed
+                        ) { Text("Añadir") }
+                    }
                 }
-                answers.forEachIndexed { i, value ->
+                if (completed || !numbered) answers.forEachIndexed { i, value ->
                     val acceptedId = StudyExerciseRules.findAcceptedSolution(exercise, value)?.id
-                    val correct = acceptedId != null && acceptedId in graded?.correctIds.orEmpty()
+                    val expectedId = if (numbered)
+                        StudyExerciseRules.positionalSolutions(exercise).getOrNull(i)?.id else null
+                    val correct = acceptedId != null && acceptedId in graded?.correctIds.orEmpty() &&
+                        (!numbered || acceptedId == expectedId)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val feedbackColor = if (!completed) TestarioText
                             else if (correct) TestarioGreen else TestarioRed

@@ -361,8 +361,8 @@ fun MixedSessionScreen(
                     ) {
                         if (!showAnswer) {
                             Text(if (exercise.solutions.any { it.points.isNotEmpty() })
-                                "Responde las soluciones marcadas del 1 al ${exercise.solutions.size}."
-                                else "Escribe las ${exercise.solutions.size} soluciones.",
+                                "Responde cada solución en la casilla de su número en la imagen."
+                                else "Escribe las ${exercise.solutions.size} soluciones. El orden no importa; no necesitas imagen.",
                                 color = TestarioMutedText)
                             repeat(exercise.solutions.size) { index ->
                                 val inputParts = writtenInput.split("\n")

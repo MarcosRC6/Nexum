@@ -10,6 +10,12 @@ enum class StudyExerciseKind { WRITTEN_MULTI, ANKI_CARD }
 @Serializable
 enum class FlashcardKind { BASIC, REVERSED, CLOZE, TYPE_ANSWER, IMAGE_OCCLUSION }
 
+/** Written exercises with no numbered image markers are graded as a set.
+ * Legacy records (null mode) retain their historical marker-based behaviour.
+ */
+@Serializable
+enum class WrittenAnswerMode { UNORDERED, NUMBERED }
+
 @Serializable
 data class ImagePoint(
     val id: String = UUID.randomUUID().toString(),
@@ -106,7 +112,9 @@ data class StudyExercise(
     val revision: Int = 1,
     val draft: Boolean = false,
     /** Additive v7 field: old card/exercise JSON loads as unflagged. */
-    val flagged: Boolean = false
+    val flagged: Boolean = false,
+    /** Optional v7+ mode. Null preserves older question-bank JSON semantics. */
+    val writtenAnswerMode: WrittenAnswerMode? = null
 ) {
     fun referencedImageUris(): List<String> =
         listOfNotNull(baseImageUri, flashcard?.frontImageUri, flashcard?.backImageUri)
