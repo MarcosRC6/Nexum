@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.testario.viewmodel.EditorDraftViewModel
 import androidx.compose.ui.unit.dp
 import com.example.testario.data.model.StudyExerciseKind
 import com.example.testario.ui.theme.*
@@ -18,7 +20,8 @@ fun UnifiedQuestionEditorScreen(
     libraryViewModel: LibraryViewModel,
     onBack: () -> Unit
 ) {
-    var selected by remember(topicId) { mutableStateOf(AuthoringKind.TEST) }
+    val drafts: EditorDraftViewModel = viewModel()
+    var selected by drafts.state("unified:$topicId", "selectedKind") { AuthoringKind.TEST }
     Column(Modifier.fillMaxSize()) {
         TestarioTopBar(title = "Añadir pregunta", onBack = onBack)
         Text("Tipo de pregunta", modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 6.dp),
