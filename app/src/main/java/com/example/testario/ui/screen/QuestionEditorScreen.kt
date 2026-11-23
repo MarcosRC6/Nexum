@@ -85,6 +85,8 @@ import com.example.testario.viewmodel.LibraryViewModel
 import com.example.testario.domain.ImageManager
 import java.io.File
 import java.util.UUID
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.testario.viewmodel.EditorDraftViewModel
 
 @Composable
 fun QuestionEditorScreen(
@@ -102,33 +104,43 @@ fun QuestionEditorScreen(
     val context = LocalContext.current
     val imageManager = remember(context) { ImageManager(context.applicationContext) }
 
-    var questionText by remember { mutableStateOf(existingQuestion?.text ?: "") }
-    var answers by remember {
-        mutableStateOf(
-            existingQuestion?.answers ?: listOf(
-                Answer(id = "a", text = ""),
-                Answer(id = "b", text = ""),
-                Answer(id = "c", text = "")
-            )
+    // Retain the complete test draft across type switches and Android
+    // configuration changes; this scope cannot hold written/Anki fields.
+    val drafts: EditorDraftViewModel = viewModel()
+    val scope = "test:$topicId:${questionId ?: "new"}"
+    var questionText by drafts.state(scope, "questionText") {
+        existingQuestion?.text.orEmpty()
+    }
+    var answers by drafts.state(scope, "answers") {
+        existingQuestion?.answers ?: listOf(
+            Answer(id = "a", text = ""), Answer(id = "b", text = ""),
+            Answer(id = "c", text = "")
         )
     }
-
-    var correctAnswerId by remember { mutableStateOf(existingQuestion?.correctAnswerId ?: "") }
-    var difficulty by remember { mutableStateOf(existingQuestion?.difficulty) }
-    var explanation by remember { mutableStateOf(existingQuestion?.explanation ?: "") }
-    // El campo histórico explanationImageUri se conserva como imagen del enunciado por compatibilidad.
-    var statementImageUri by remember { mutableStateOf(existingQuestion?.explanationImageUri) }
-    var correctionImageUri by remember { mutableStateOf(existingQuestion?.correctionImageUri) }
-    var statementAnnotations by remember { mutableStateOf(existingQuestion?.statementAnnotations ?: ImageAnnotations()) }
-    var correctionAnnotations by remember { mutableStateOf(existingQuestion?.correctionAnnotations ?: ImageAnnotations()) }
-    var flagged by remember { mutableStateOf(existingQuestion?.flagged ?: false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var imageMenu by remember { mutableStateOf(false) }
-    var imageSourceMenu by remember { mutableStateOf(false) }
-    var imageTarget by remember { mutableStateOf("statement") }
-
-    // NUEVO: Estado para el diálogo de confirmación de borrado
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    var correctAnswerId by drafts.state(scope, "correctAnswerId") {
+        existingQuestion?.correctAnswerId.orEmpty()
+    }
+    var difficulty by drafts.state(scope, "difficulty") { existingQuestion?.difficulty }
+    var explanation by drafts.state(scope, "explanation") { existingQuestion?.explanation.orEmpty() }
+    // Historical explanationImageUri remains the question image.
+    var statementImageUri by drafts.state(scope, "statementImageUri") {
+        existingQuestion?.explanationImageUri
+    }
+    var correctionImageUri by drafts.state(scope, "correctionImageUri") {
+        existingQuestion?.correctionImageUri
+    }
+    var statementAnnotations by drafts.state(scope, "statementAnnotations") {
+        existingQuestion?.statementAnnotations ?: ImageAnnotations()
+    }
+    var correctionAnnotations by drafts.state(scope, "correctionAnnotations") {
+        existingQuestion?.correctionAnnotations ?: ImageAnnotations()
+    }
+    var flagged by drafts.state(scope, "flagged") { existingQuestion?.flagged ?: false }
+    var error by drafts.state<String?>(scope, "error") { null }
+    var imageMenu by drafts.state(scope, "imageMenu") { false }
+    var imageSourceMenu by drafts.state(scope, "imageSourceMenu") { false }
+    var imageTarget by drafts.state(scope, "imageTarget") { "statement" }
+    var showDeleteDialog by drafts.state(scope, "showDeleteDialog") { false }
 
     val statementImagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
