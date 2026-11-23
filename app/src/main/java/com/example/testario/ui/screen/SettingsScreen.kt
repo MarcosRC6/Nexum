@@ -1055,7 +1055,6 @@ fun SettingsScreen(
 
                 NexumUpdateSettingsCard()
 
-                message?.let { Card(Modifier.fillMaxWidth(), RoundedCornerShape(14.dp), CardDefaults.cardColors(containerColor = if(it.startsWith("Error")) TestarioRedDark else TestarioGreenDark)) { Text(it, Modifier.padding(12.dp), color = TestarioText) } }
             }
         }
 
@@ -1159,6 +1158,17 @@ fun SettingsScreen(
         )
     }
 
+
+    // Results used to appear in a card at the bottom of the screen, out of sight right
+    // after picking a file in "Datos"; a dialog is always seen.
+    message?.let { text ->
+        AlertDialog(
+            onDismissRequest = { message = null },
+            title = { Text(if (listOf("Error", "No se", "Restauración cancelada", "Lote inválido", "Guarda y").any(text::startsWith)) "No se pudo completar" else "Hecho") },
+            text = { Text(text) },
+            confirmButton = { Button(onClick = { message = null }) { Text("Entendido") } }
+        )
+    }
 
     if (showUnifiedRestoreConfirm) {
         AlertDialog(
