@@ -24,6 +24,12 @@ class StudyExerciseRulesTest {
         assertEquals(3, result.correct)
         assertEquals(0, result.incorrect)
         assertEquals(10.0, result.scoreOutOfTen, 0.0)
+
+        // An optional photo alone never forces ordering; only numbered pins do.
+        val unnumberedPhoto = ex.copy(baseImageUri = "/some/photo.jpg")
+        assertTrue(StudyExerciseRules.errors(unnumberedPhoto).isEmpty())
+        assertEquals(3, StudyExerciseRules.gradeWrittenInSession(
+            unnumberedPhoto, listOf("Huesca", "Teruel", "Zaragoza")).correct)
     }
 
     @Test fun numberedImageRequiresMatchingSolutionInItsOwnSlot() {
