@@ -12,6 +12,54 @@ class StudyExerciseRulesTest {
             solutions = solutions.toList()
         )
 
+    @Test fun writtenWithoutImageIsValidAndAnyOrderIsFullyCorrect() {
+        val ex = written(
+            CanonicalSolution(id = "s1", text = "Zaragoza"),
+            CanonicalSolution(id = "s2", text = "Huesca"),
+            CanonicalSolution(id = "s3", text = "Teruel")
+        ).copy(writtenAnswerMode = WrittenAnswerMode.UNORDERED)
+        assertTrue(StudyExerciseRules.errors(ex).isEmpty())
+        val result = StudyExerciseRules.gradeWrittenInSession(
+            ex, listOf("Teruel", "ZARAGOZA", "Huesca"))
+        assertEquals(3, result.correct)
+        assertEquals(0, result.incorrect)
+        assertEquals(10.0, result.scoreOutOfTen, 0.0)
+    }
+
+    @Test fun numberedImageRequiresMatchingSolutionInItsOwnSlot() {
+        val ex = written(
+            CanonicalSolution(id = "s1", text = "Calle A",
+                points = listOf(ImagePoint(x = .2, y = .2, order = 1))),
+            CanonicalSolution(id = "s2", text = "Calle B",
+                points = listOf(ImagePoint(x = .5, y = .5, order = 2))),
+            CanonicalSolution(id = "s3", text = "Calle C",
+                points = listOf(ImagePoint(x = .8, y = .8, order = 3)))
+        ).copy(baseImageUri = "/some/photo.jpg",
+            writtenAnswerMode = WrittenAnswerMode.NUMBERED)
+        assertTrue(StudyExerciseRules.errors(ex).isEmpty())
+        assertEquals(3, StudyExerciseRules.gradeWrittenInSession(
+            ex, listOf("Calle A", "Calle B", "Calle C")).correct)
+        val misplaced = StudyExerciseRules.gradeWrittenInSession(
+            ex, listOf("Calle C", "Calle A", "Calle B"))
+        assertEquals(0, misplaced.correct)
+        assertEquals(3, misplaced.incorrect)
+    }
+
+    @Test fun numberedModeRejectsMissingMarkersAndFreeModeRejectsMarkedPhoto() {
+        val free = written(CanonicalSolution(text = "Uno"))
+            .copy(writtenAnswerMode = WrittenAnswerMode.UNORDERED)
+        assertTrue(StudyExerciseRules.errors(free).isEmpty())
+        val numberedNoImage = free.copy(writtenAnswerMode = WrittenAnswerMode.NUMBERED)
+        assertTrue(StudyExerciseRules.errors(numberedNoImage).any {
+            it.contains("marcador")
+        })
+        val marked = free.copy(baseImageUri = "photo.jpg", solutions = listOf(
+            CanonicalSolution(text = "Uno",
+                points = listOf(ImagePoint(x = .2, y = .3, order = 1)))
+        ))
+        assertTrue(StudyExerciseRules.errors(marked).any { it.contains("sin orden") })
+    }
+
     @Test fun aliasesAndRepeatedCorrectAnswersCountOnlyOnce() {
         val ex = written(
             CanonicalSolution(id = "one", text = "Thomas Edison", aliases = listOf("Edison")),
