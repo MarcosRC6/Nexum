@@ -19,6 +19,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -152,7 +153,7 @@ internal fun WebQuickLinksManagerDialog(
                         singleLine = true
                     )
                 }
-                error?.let { Text(it, color = Color(0xFFFF8080)) }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 NeonButton(
                     onClick = {
                         val link = WebQuickLink(
@@ -212,7 +213,7 @@ internal fun WebQuickLinksManagerDialog(
                                 Text(if (link.hidden) "◉" else "◌", color = TestarioPrimary)
                             }
                             IconButton(onClick = { toDelete = link.id }) {
-                                Text("×", color = Color(0xFFFF9090))
+                                Text("×", color = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
@@ -233,7 +234,7 @@ internal fun WebQuickLinksManagerDialog(
                     store.delete(deleting.id)
                     if (editingId == deleting.id) resetForm()
                     toDelete = null
-                }) { Text("Eliminar", color = Color(0xFFFF8080)) }
+                }) { Text("Eliminar", color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { toDelete = null }) { Text("Cancelar") } }
         )

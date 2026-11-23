@@ -249,7 +249,7 @@ private fun TrendLineGraph(values: List<TrendSeriesPoint>) {
 private fun ExamHistoryReviewDialog(exam: DetailedExam, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = TestarioSurface,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         titleContentColor = TestarioText,
         title = { Text("Examen · ${examDate(exam.timestamp)}") },
         text = {

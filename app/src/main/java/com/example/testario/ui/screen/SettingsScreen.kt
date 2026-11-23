@@ -950,7 +950,7 @@ fun SettingsScreen(
                                                 val sel = database.topics.firstOrNull { it.id == selectedSingleTopicId }
                                                 ExposedDropdownMenuBox(expanded = singleDropdownExpanded, onExpandedChange = { singleDropdownExpanded = !singleDropdownExpanded }) {
                                                     OutlinedTextField(value = sel?.name ?: "Selecciona tema", onValueChange = {}, readOnly = true, modifier = Modifier.menuAnchor().fillMaxWidth(), shape = RoundedCornerShape(14.dp), colors = testarioTextFieldColors(), trailingIcon = { Text("▼") })
-                                                    ExposedDropdownMenu(expanded = singleDropdownExpanded, onDismissRequest = { singleDropdownExpanded = false }, containerColor = TestarioSurface) {
+                                                    ExposedDropdownMenu(expanded = singleDropdownExpanded, onDismissRequest = { singleDropdownExpanded = false }, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
                                                         sortedTopicsForExport.forEach { topic -> DropdownMenuItem(text = { Text(topic.name, color = TestarioText) }, onClick = { selectedSingleTopicId = topic.id; singleDropdownExpanded = false }) }
                                                     }
                                                 }
@@ -960,7 +960,7 @@ fun SettingsScreen(
                                                 val txt = "${selectedMultipleTopicIds.size} seleccionados"
                                                 ExposedDropdownMenuBox(expanded = multiDropdownExpanded, onExpandedChange = { multiDropdownExpanded = !multiDropdownExpanded }) {
                                                     OutlinedTextField(value = txt, onValueChange = {}, readOnly = true, modifier = Modifier.menuAnchor().fillMaxWidth(), shape = RoundedCornerShape(14.dp), colors = testarioTextFieldColors(), trailingIcon = { Text("▼") })
-                                                    ExposedDropdownMenu(expanded = multiDropdownExpanded, onDismissRequest = { multiDropdownExpanded = false }, containerColor = TestarioSurface) {
+                                                    ExposedDropdownMenu(expanded = multiDropdownExpanded, onDismissRequest = { multiDropdownExpanded = false }, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
                                                         sortedTopicsForExport.forEach { topic ->
                                                             val active = selectedMultipleTopicIds.contains(topic.id)
                                                             DropdownMenuItem(

@@ -1,5 +1,6 @@
 package com.example.testario.ui.screen
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -44,6 +45,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -84,12 +87,11 @@ fun TestarioTopBar(
                     .background(TestarioSurfaceLight, RoundedCornerShape(13.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(onClick = onBack) {
-                    Text(
-                        text = "‹",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = TestarioText
-                    )
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.semantics { contentDescription = "Atrás" }
+                ) {
+                    EstudarioIcon(EstudarioIconKind.BACK, TestarioText, Modifier.size(24.dp))
                 }
             }
         },
@@ -322,13 +324,21 @@ private fun MainBottomNavigationItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val tint = if (selected) TestarioPrimary else TestarioMutedText
+    // Colours ease between states instead of snapping. The unselected background
+    // is the same hue at alpha 0 so the fade does not pass through dark grey.
+    val tint by animateColorAsState(
+        if (selected) TestarioPrimary else TestarioMutedText, tween(180), label = "navTint"
+    )
+    val labelColor by animateColorAsState(
+        if (selected) TestarioText else TestarioMutedText, tween(180), label = "navLabel"
+    )
+    val pill by animateColorAsState(
+        if (selected) TestarioPrimaryDark else TestarioPrimaryDark.copy(alpha = 0f),
+        tween(180), label = "navPill"
+    )
     Column(
         modifier = modifier
-            .background(
-                color = if (selected) TestarioPrimaryDark else Color.Transparent,
-                shape = RoundedCornerShape(16.dp)
-            )
+            .background(color = pill, shape = RoundedCornerShape(16.dp))
             .then(
                 if (selected) Modifier.border(1.dp, TestarioPrimary.copy(alpha = 0.28f), RoundedCornerShape(16.dp))
                 else Modifier
@@ -341,7 +351,7 @@ private fun MainBottomNavigationItem(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = if (selected) TestarioText else TestarioMutedText,
+            color = labelColor,
             maxLines = 1
         )
     }
@@ -413,6 +423,10 @@ fun TestarioMainTopBar(
                 contentAlignment = Alignment.Center
             ) {
                 IconButton(
+                    modifier = Modifier.semantics {
+                        contentDescription = if (studySettings.notificationsEnabled)
+                            "Desactivar recordatorios" else "Activar recordatorios"
+                    },
                     onClick = {
                         val enabled = !studySettings.notificationsEnabled
                         PlanarioDependencies.studyRepository.setNotificationsEnabled(enabled)
@@ -433,7 +447,10 @@ fun TestarioMainTopBar(
                     .background(TestarioSurfaceLight, RoundedCornerShape(13.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(onClick = onSettings) {
+                IconButton(
+                    onClick = onSettings,
+                    modifier = Modifier.semantics { contentDescription = "Ajustes" }
+                ) {
                     EstudarioIcon(EstudarioIconKind.SETTINGS, TestarioText, Modifier.size(22.dp))
                 }
             }

@@ -695,7 +695,7 @@ fun LibraryTopicsScreen(
     if (showActionDialog) {
         AlertDialog(
             onDismissRequest = { showActionDialog = false },
-            containerColor = TestarioSurface,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             titleContentColor = TestarioText,
             title = { Text("Gestionar temas") },
             text = {
@@ -716,7 +716,7 @@ fun LibraryTopicsScreen(
     if (showCreateDialog) {
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
-            containerColor = TestarioSurface,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             titleContentColor = TestarioText,
             title = { Text("Nuevo tema") },
             text = { OutlinedTextField(value = newTopicName, onValueChange = { newTopicName = it }, label = { Text("Nombre del tema") }, singleLine = true, shape = RoundedCornerShape(14.dp)) },
@@ -735,7 +735,7 @@ fun LibraryTopicsScreen(
     if (showCombineDialog) {
         AlertDialog(
             onDismissRequest = { showCombineDialog = false; combineTopicName = ""; selectedCombineTopicIds = emptySet() },
-            containerColor = TestarioSurface,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             titleContentColor = TestarioText,
             title = { Text("Combinar temas") },
             text = {
@@ -932,7 +932,7 @@ private fun TopicCard(
 
     if (showClearStatsDialog) {
         AlertDialog(
-            onDismissRequest = { showClearStatsDialog = false }, containerColor = TestarioSurface, titleContentColor = TestarioText, textContentColor = TestarioMutedText,
+            onDismissRequest = { showClearStatsDialog = false }, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh, titleContentColor = TestarioText, textContentColor = TestarioMutedText,
             title = { Text("Reiniciar estadísticas") }, text = { Text("¿Seguro que quieres poner a cero los aciertos, fallos y rachas del tema \"${topic.name}\"? Las preguntas no se borrarán.") },
             confirmButton = { Button(onClick = { onClearStats(); showClearStatsDialog = false }) { Text("Reiniciar") } },
             dismissButton = { TextButton(onClick = { showClearStatsDialog = false }) { Text("Cancelar") } }

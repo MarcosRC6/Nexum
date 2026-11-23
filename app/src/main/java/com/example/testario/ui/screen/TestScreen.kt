@@ -173,7 +173,7 @@ fun TestScreen(
     if (showReplaceSavedDialog) {
         AlertDialog(
             onDismissRequest = { showReplaceSavedDialog = false },
-            containerColor = TestarioSurface,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             title = { Text("Reemplazar test guardado") },
             text = {
                 Text(
@@ -191,7 +191,7 @@ fun TestScreen(
     if (showExitDialog) {
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
-            containerColor = TestarioSurface,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             titleContentColor = TestarioText,
             textContentColor = TestarioMutedText,
             title = { Text("Abandonar test") },

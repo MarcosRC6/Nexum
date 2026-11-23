@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.size
 
-enum class EstudarioIconKind { HOME, LIBRARY, TEST, PLAN, STATS, SETTINGS, NOTIFICATIONS, LOGO }
+enum class EstudarioIconKind { HOME, LIBRARY, TEST, PLAN, STATS, SETTINGS, NOTIFICATIONS, BACK, LOGO }
 
 @Composable
 fun EstudarioIcon(
@@ -96,6 +96,12 @@ fun EstudarioIcon(
                 drawPath(p, tint, style = stroke)
                 drawLine(tint, Offset(w * .28f, h * .68f), Offset(w * .72f, h * .68f), sw, StrokeCap.Round)
                 drawLine(tint, Offset(w * .45f, h * .77f), Offset(w * .55f, h * .77f), sw, StrokeCap.Round)
+            }
+            EstudarioIconKind.BACK -> {
+                // Same stroke weight as the rest of the set; the old "‹" text glyph
+                // depended on the system font and looked off-centre.
+                drawLine(tint, Offset(w * .60f, h * .22f), Offset(w * .32f, h * .50f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * .32f, h * .50f), Offset(w * .60f, h * .78f), sw, StrokeCap.Round)
             }
             EstudarioIconKind.LOGO -> Unit
         }

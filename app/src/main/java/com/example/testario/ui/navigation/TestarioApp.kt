@@ -2,6 +2,11 @@ package com.example.testario.ui.navigation
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -224,10 +229,16 @@ fun TestarioApp(
                 modifier = Modifier.fillMaxSize(),
                 darkTheme = darkTheme
             )
+            // The library default is a 700 ms cross-fade, which feels sluggish.
+            // A short fade plus a small slide gives direction without delay.
             NavHost(
                 navController = navController,
                 startDestination = Routes.HOME,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                enterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 14 } },
+                exitTransition = { fadeOut(tween(160)) },
+                popEnterTransition = { fadeIn(tween(220)) },
+                popExitTransition = { fadeOut(tween(160)) + slideOutHorizontally(tween(240)) { it / 14 } }
             ) {
             composable(Routes.HOME) {
                 BackHandler(enabled = timerState.studyTimerState == StudyTimerState.RUNNING) {
