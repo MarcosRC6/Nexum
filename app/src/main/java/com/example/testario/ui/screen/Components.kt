@@ -305,7 +305,6 @@ fun MainBottomNavigation(
             .background(TestarioBackground)
             .padding(horizontal = 10.dp, vertical = 8.dp)
             .background(TestarioNavBackground, RoundedCornerShape(22.dp))
-            .border(1.dp, TestarioOutline, RoundedCornerShape(22.dp))
             .padding(horizontal = 6.dp, vertical = 6.dp),
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
     ) {
@@ -339,10 +338,6 @@ private fun MainBottomNavigationItem(
     Column(
         modifier = modifier
             .background(color = pill, shape = RoundedCornerShape(16.dp))
-            .then(
-                if (selected) Modifier.border(1.dp, TestarioPrimary.copy(alpha = 0.28f), RoundedCornerShape(16.dp))
-                else Modifier
-            )
             .clickable(onClick = onClick)
             .padding(vertical = 7.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally

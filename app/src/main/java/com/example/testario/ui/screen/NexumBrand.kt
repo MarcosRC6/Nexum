@@ -24,10 +24,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.testario.ui.theme.TestarioMutedText
 
-private val NexumBlue = Color(0xFF526BFF)
-private val NexumViolet = Color(0xFF8B45FF)
-private val NexumLilac = Color(0xFFDDB9FF)
+private val NexumBrassLight = Color(0xFFF0D9A8)
+private val NexumBrassDeep = Color(0xFFB88A3E)
+private val NexumInk = Color(0xFF0B0D0C)
 
+// Monogram: a mitred N (sharp joins, flat ends) inside a hairline seal, with a rule
+// underneath. Same geometry as the launcher icon (ic_launcher_foreground.xml).
 @Composable
 fun NexumLogoMark(
     modifier: Modifier = Modifier,
@@ -40,67 +42,40 @@ fun NexumLogoMark(
         val top = (size.height - s) / 2f
         fun p(x: Float, y: Float) = Offset(left + s * x, top + s * y)
 
-        val nPath = Path().apply {
-            moveTo(p(.24f, .78f).x, p(.24f, .78f).y)
-            lineTo(p(.24f, .24f).x, p(.24f, .24f).y)
-            lineTo(p(.69f, .74f).x, p(.69f, .74f).y)
-            lineTo(p(.69f, .36f).x, p(.69f, .36f).y)
-        }
-        val logoBrush = if (monochrome) {
+        val brush = if (monochrome) {
             Brush.linearGradient(listOf(Color.White, Color.White))
         } else {
             Brush.linearGradient(
-                colors = listOf(NexumBlue, NexumViolet),
-                start = p(.16f, .24f),
-                end = p(.78f, .80f)
+                colors = listOf(NexumBrassLight, NexumBrassDeep),
+                start = p(.2f, .15f),
+                end = p(.8f, .9f)
             )
+        }
+        drawCircle(
+            brush = brush,
+            radius = s * .46f,
+            center = p(.5f, .5f),
+            alpha = .55f,
+            style = Stroke(width = s * .012f)
+        )
+        val n = Path().apply {
+            moveTo(p(.30f, .72f).x, p(.30f, .72f).y)
+            lineTo(p(.30f, .28f).x, p(.30f, .28f).y)
+            lineTo(p(.70f, .72f).x, p(.70f, .72f).y)
+            lineTo(p(.70f, .28f).x, p(.70f, .28f).y)
         }
         drawPath(
-            path = nPath,
-            brush = logoBrush,
-            style = Stroke(
-                width = s * .17f,
-                cap = StrokeCap.Round,
-                join = StrokeJoin.Round
-            )
+            path = n,
+            brush = brush,
+            style = Stroke(width = s * .11f, cap = StrokeCap.Butt, join = StrokeJoin.Miter)
         )
-
-        val check = Path().apply {
-            moveTo(p(.59f, .28f).x, p(.59f, .28f).y)
-            lineTo(p(.69f, .38f).x, p(.69f, .38f).y)
-            lineTo(p(.87f, .17f).x, p(.87f, .17f).y)
-        }
-        drawPath(
-            path = check,
-            color = if (monochrome) Color.White else NexumLilac,
-            style = Stroke(
-                width = s * .095f,
-                cap = StrokeCap.Round,
-                join = StrokeJoin.Round
-            )
+        drawLine(
+            brush = brush,
+            start = p(.30f, .80f),
+            end = p(.70f, .80f),
+            strokeWidth = s * .02f,
+            alpha = .8f
         )
-
-        val progress = Path().apply {
-            moveTo(p(.18f, .72f).x, p(.18f, .72f).y)
-            cubicTo(
-                p(.34f, .64f).x, p(.34f, .64f).y,
-                p(.48f, .62f).x, p(.48f, .62f).y,
-                p(.64f, .56f).x, p(.64f, .56f).y
-            )
-        }
-        drawPath(
-            path = progress,
-            color = if (monochrome) Color.White else NexumLilac,
-            alpha = if (monochrome) .92f else .90f,
-            style = Stroke(width = s * .026f, cap = StrokeCap.Round)
-        )
-        listOf(p(.22f, .70f), p(.43f, .64f), p(.64f, .56f)).forEachIndexed { index, point ->
-            drawCircle(
-                color = if (monochrome) Color.White else if (index == 2) NexumLilac else Color(0xFFB990FF),
-                radius = s * if (index == 2) .052f else .036f,
-                center = point
-            )
-        }
     }
 }
 
@@ -124,7 +99,7 @@ fun NexumSplashScreen() {
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color(0xFF070A16), Color(0xFF0B1023), Color(0xFF080B17))
+                    colors = listOf(NexumInk, Color(0xFF111412), NexumInk)
                 )
             ),
         contentAlignment = Alignment.Center
@@ -136,12 +111,12 @@ fun NexumSplashScreen() {
             NexumLogoMark(modifier = Modifier.size(150.dp))
             Text(
                 text = "NEXUM",
-                color = Color.White,
+                color = NexumBrassLight,
                 style = MaterialTheme.typography.headlineLarge,
-                letterSpacing = 7.sp
+                letterSpacing = 9.sp
             )
             Text(
-                text = "plan  •  test  •  progreso",
+                text = "plan  ·  test  ·  progreso",
                 color = TestarioMutedText,
                 style = MaterialTheme.typography.bodyMedium,
                 letterSpacing = 1.4.sp

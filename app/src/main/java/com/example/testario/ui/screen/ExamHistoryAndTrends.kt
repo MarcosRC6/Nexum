@@ -81,7 +81,6 @@ fun ExamHistoryAndTrends(database: TestarioDatabase) {
                     modifier = Modifier.fillMaxWidth().clickable { openedExamId = exam.id },
                     colors = CardDefaults.cardColors(containerColor = TestarioSurface),
                     shape = RoundedCornerShape(18.dp),
-                    border = BorderStroke(1.dp, TestarioSurfaceLight)
                 ) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("${examDate(exam.timestamp)} · Examen", color = TestarioText, style = MaterialTheme.typography.titleMedium)

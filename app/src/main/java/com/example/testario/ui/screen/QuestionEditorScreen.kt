@@ -256,7 +256,6 @@ fun QuestionEditorScreen(
                     onClick = { answers = answers + Answer(id = UUID.randomUUID().toString(), text = "") },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(18.dp),
-                    border = BorderStroke(1.dp, TestarioPrimary)
                 ) { Text("+ Añadir respuesta") }
             }
 
@@ -439,7 +438,6 @@ private fun DifficultyButton(text: String, selected: Boolean, color: Color, modi
     Button(
         onClick = onClick, modifier = modifier.height(46.dp), shape = RoundedCornerShape(16.dp),
         selected = selected,
-        border = BorderStroke(1.4.dp, TestarioPrimary),
         contentPadding = PaddingValues(horizontal = 6.dp)
     ) { Text(text, color = if (selected) TestarioPrimary else TestarioText) }
 }

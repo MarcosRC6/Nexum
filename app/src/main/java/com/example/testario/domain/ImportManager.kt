@@ -347,6 +347,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
         decisions: List<ImportBatchDecision>,
         importedRawJson: String? = null
     ): ImportBatchPlan {
+        NexumProgress.set("Comprobando los temas", 0.15f)
         val before = localStore.database.value
         require(before.version == DatabaseSchema.CURRENT_VERSION) {
             "Base de datos incompatible: no se puede importar."
@@ -354,6 +355,7 @@ class ImportManager(private val context: Context, private val localStore: Testar
         decisions.forEach { validateStudyExercises(listOf(it.topic)) }
         // Ensure every new exercise image is available before writing any user data.
         validateStudyMediaForImport(decisions.map { it.topic })
+        NexumProgress.set("Preparando ${decisions.size} temas", 0.4f)
         val plan = ImportBatchPlanner.prepare(before.topics, decisions) { topic ->
             resolveTopicImagePaths(regenerateTopicIds(topic))
         }
@@ -370,7 +372,9 @@ class ImportManager(private val context: Context, private val localStore: Testar
                 importedDatabase.testTemplates.isNotEmpty())) {
             ImportOrganizationMerge.merge(before, importedDatabase, decisions, plan)
         } else before.copy(topics = plan.topics)
+        NexumProgress.set("Guardando temas e imágenes", 0.7f)
         commitBatchAndImages(before, replacement)
+        NexumProgress.set("Terminando", 1f)
         return plan
     }
 

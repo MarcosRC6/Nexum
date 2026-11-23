@@ -166,7 +166,7 @@ internal fun StudyVisualImage(
                     val pinColor = when (state) {
                         true -> Color(0xFF239A65)
                         false -> Color(0xFFE43F59)
-                        null -> Color(0xFFA85AFF)
+                        null -> Color(0xFFD8B880)
                     }
                     Box(
                         modifier = Modifier.offset(
@@ -204,7 +204,7 @@ internal fun StudyVisualImage(
             onDismissRequest = dismissFullscreen,
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            Box(Modifier.fillMaxSize().background(Color(0xFF090C15))) {
+            Box(Modifier.fillMaxSize().background(Color(0xFF0B0D0C))) {
                 Box(
                     Modifier.fillMaxSize().clipToBounds()
                         .pointerInput(imageUri) {
@@ -239,7 +239,7 @@ internal fun StudyVisualImage(
                 ) {
                     IconButton(
                         onClick = dismissFullscreen,
-                        modifier = Modifier.background(Color(0xD9090C15), CircleShape)
+                        modifier = Modifier.background(Color(0xD90B0D0C), CircleShape)
                     ) {
                         Text("✕", color = Color.White)
                     }

@@ -235,9 +235,11 @@ fun LibraryTopicsScreen(
                                     isDeleteMode = false
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = TestarioRed),
+                                border = BorderStroke(1.dp, TestarioRed),
+                                selected = false,
                                 enabled = selectedTopicIdsForDelete.isNotEmpty()
                             ) {
-                                Text("Eliminar", color = TestarioBackground)
+                                Text("Eliminar", color = TestarioRed)
                             }
                         }
                     }
@@ -258,7 +260,6 @@ fun LibraryTopicsScreen(
                         onClick = { showActionDialog = true },
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, TestarioPrimary)
                     ) {
                         Text("Gestionar")
                     }
@@ -281,7 +282,7 @@ fun LibraryTopicsScreen(
                         }
                     )
                 },
-                leadingIcon = { Text("🔍") },
+                leadingIcon = { SearchIcon() },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(18.dp),
@@ -786,7 +787,6 @@ private fun GlobalSearchActions(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-        border = BorderStroke(1.dp, TestarioPrimary)
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -812,7 +812,6 @@ private fun GlobalSearchActions(
                     enabled = selectedCount > 0,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, TestarioPrimary)
                 ) { Text("Crear tema") }
             }
         }
@@ -836,7 +835,7 @@ private fun GlobalQuestionSearchCard(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface),
-        border = BorderStroke(1.4.dp, TestarioPrimary)
+        border = if (selected) BorderStroke(1.5.dp, TestarioPrimary) else null
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),

@@ -85,7 +85,7 @@ class NexumQuickTestWidgetConfigurationActivity : ComponentActivity() {
 
             TestarioTheme(darkTheme = true) {
                 Column(
-                    modifier = Modifier.fillMaxSize().background(Color(0xFF070A16))
+                    modifier = Modifier.fillMaxSize().background(Color(0xFF0B0D0C))
                         .verticalScroll(rememberScrollState()).padding(20.dp),
                     verticalArrangement = Arrangement.Top
                 ) {
@@ -95,17 +95,17 @@ class NexumQuickTestWidgetConfigurationActivity : ComponentActivity() {
                         "Puedes iniciar un test de un tema concreto, elegir cuántas preguntas " +
                             "contiene o usar una plantilla con sus opciones completas. " +
                             "El engranaje permite modificarlo después.",
-                        color = Color(0xFFCFD2E6)
+                        color = Color(0xFFD9D2C0)
                     )
                     Spacer(Modifier.height(16.dp))
 
                     Card(
                         shape = RoundedCornerShape(15.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF121324)),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF151816)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(Modifier.padding(14.dp)) {
-                            Text("VISTA PREVIA · NEXUM", color = Color(0xFFD9BCFF))
+                            Text("VISTA PREVIA · NEXUM", color = Color(0xFFE8D3A6))
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 if (valid) selection.label(database)
@@ -114,7 +114,7 @@ class NexumQuickTestWidgetConfigurationActivity : ComponentActivity() {
                             )
                             Spacer(Modifier.height(6.dp))
                             Text("▶ Iniciar test             ⚙ Configurar",
-                                color = Color(0xFFB46BFF))
+                                color = Color(0xFFD8B880))
                         }
                     }
                     Spacer(Modifier.height(18.dp))
@@ -134,7 +134,7 @@ class NexumQuickTestWidgetConfigurationActivity : ComponentActivity() {
 
                     Spacer(Modifier.height(12.dp))
                     if (mode == QuickWidgetMode.TOPIC) {
-                        Text("Tema", color = Color(0xFFD9BCFF))
+                        Text("Tema", color = Color(0xFFE8D3A6))
                         Spacer(Modifier.height(6.dp))
                         Box {
                             OutlinedButton(onClick = { topicsMenu = true }) {
@@ -162,7 +162,7 @@ class NexumQuickTestWidgetConfigurationActivity : ComponentActivity() {
                     }
 
                     if (mode == QuickWidgetMode.TEMPLATE) {
-                        Text("Plantilla", color = Color(0xFFD9BCFF))
+                        Text("Plantilla", color = Color(0xFFE8D3A6))
                         Spacer(Modifier.height(6.dp))
                         Box {
                             OutlinedButton(onClick = { templatesMenu = true }) {
@@ -190,7 +190,7 @@ class NexumQuickTestWidgetConfigurationActivity : ComponentActivity() {
                         Text(
                             "La plantilla decide los temas, el número de preguntas y el modo " +
                                 "de test. Puedes editarla desde Testario.",
-                            color = Color(0xFFCFD2E6)
+                            color = Color(0xFFD9D2C0)
                         )
                     } else {
                         OutlinedTextField(

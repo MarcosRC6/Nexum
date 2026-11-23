@@ -253,7 +253,7 @@ internal fun StudySketchCanvas(
             onDismissRequest = { fullScreen = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            Box(Modifier.fillMaxSize().background(Color(0xFF090C15))) {
+            Box(Modifier.fillMaxSize().background(Color(0xFF0B0D0C))) {
                 Box(Modifier.fillMaxSize().clipToBounds().pointerInput(Unit) {
                     detectTransformGestures { _, pan, zoom, _ ->
                         val next = (previewZoom * zoom).coerceIn(1f, 6f)
@@ -279,7 +279,7 @@ internal fun StudySketchCanvas(
                 Box(Modifier.fillMaxWidth().padding(10.dp),
                     contentAlignment = Alignment.TopEnd) {
                     IconButton(onClick = { fullScreen = false },
-                        modifier = Modifier.background(Color(0xD9090C15), CircleShape)) {
+                        modifier = Modifier.background(Color(0xD90B0D0C), CircleShape)) {
                         Text("✕", color = Color.White)
                     }
                 }

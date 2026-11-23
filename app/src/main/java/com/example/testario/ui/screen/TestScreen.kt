@@ -413,7 +413,6 @@ fun TestScreen(
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, TestarioPrimary)
                 ) { Text("Revisar preguntas") }
                 Button(onClick = onFinish, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp)) { Text("Volver al Inicio") }
             }
@@ -642,10 +641,9 @@ private fun ExplanationCard(explanation: String, correctionImageUri: String?, an
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = TestarioPrimaryDark.copy(alpha = 0.5f)),
-        border = BorderStroke(1.dp, TestarioPrimary)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Text("💡 Explicación", style = MaterialTheme.typography.labelMedium, color = TestarioPrimary)
+            Text("Explicación", style = MaterialTheme.typography.labelMedium, color = TestarioPrimary)
             if (explanation.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(explanation, color = TestarioText, style = MaterialTheme.typography.bodyMedium)

@@ -16,7 +16,7 @@
         android:maxLines="1"
         android:text="Tema activo"
         android:textSize="10sp"
-        android:textColor="#CBD5E1" />
+        android:textColor="#CFC7B5" />
 
     <TextView
         android:id="@+id/widgetCompactObjectives"
@@ -28,7 +28,7 @@
         android:text="Sin tema activo"
         android:textStyle="bold"
         android:textSize="13sp"
-        android:textColor="#F8FAFC" />
+        android:textColor="#F2EBDC" />
 
     <TextView
         android:id="@+id/widgetCompactProgress"
@@ -39,7 +39,7 @@
         android:ellipsize="end"
         android:text="0 min / 6 h"
         android:textSize="12sp"
-        android:textColor="#F8FAFC" />
+        android:textColor="#F2EBDC" />
 
     <ProgressBar
         android:id="@+id/widgetCompactBar"

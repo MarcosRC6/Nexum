@@ -53,9 +53,9 @@ android {
         }
         getByName("debug") {
             if (nexumPreviewBuild) {
-                applicationIdSuffix = ".neon"
-                versionNameSuffix = "-neon-preview"
-                manifestPlaceholders["nexumAppLabel"] = "NEXUM Neón"
+                applicationIdSuffix = ".laton"
+                versionNameSuffix = "-laton-preview"
+                manifestPlaceholders["nexumAppLabel"] = "NEXUM Latón"
             }
         }
     }
