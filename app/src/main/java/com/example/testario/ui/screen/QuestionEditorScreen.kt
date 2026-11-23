@@ -99,6 +99,14 @@ fun QuestionEditorScreen(
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
     val existingQuestion = topic?.questions?.firstOrNull { it.id == questionId }
+    // Do not initialise an empty retained draft while the real topic or
+    // existing question is still loading into the Library StateFlow.
+    if (topic == null || (questionId != null && existingQuestion == null)) {
+        Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            Text("Cargando pregunta…", color = TestarioMutedText)
+        }
+        return
+    }
 
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
