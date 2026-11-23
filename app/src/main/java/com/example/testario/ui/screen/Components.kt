@@ -45,6 +45,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -85,12 +87,11 @@ fun TestarioTopBar(
                     .background(TestarioSurfaceLight, RoundedCornerShape(13.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(onClick = onBack) {
-                    Text(
-                        text = "‹",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = TestarioText
-                    )
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.semantics { contentDescription = "Atrás" }
+                ) {
+                    EstudarioIcon(EstudarioIconKind.BACK, TestarioText, Modifier.size(24.dp))
                 }
             }
         },
@@ -422,6 +423,10 @@ fun TestarioMainTopBar(
                 contentAlignment = Alignment.Center
             ) {
                 IconButton(
+                    modifier = Modifier.semantics {
+                        contentDescription = if (studySettings.notificationsEnabled)
+                            "Desactivar recordatorios" else "Activar recordatorios"
+                    },
                     onClick = {
                         val enabled = !studySettings.notificationsEnabled
                         PlanarioDependencies.studyRepository.setNotificationsEnabled(enabled)
@@ -442,7 +447,10 @@ fun TestarioMainTopBar(
                     .background(TestarioSurfaceLight, RoundedCornerShape(13.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(onClick = onSettings) {
+                IconButton(
+                    onClick = onSettings,
+                    modifier = Modifier.semantics { contentDescription = "Ajustes" }
+                ) {
                     EstudarioIcon(EstudarioIconKind.SETTINGS, TestarioText, Modifier.size(22.dp))
                 }
             }

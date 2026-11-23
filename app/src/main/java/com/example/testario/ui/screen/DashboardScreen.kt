@@ -754,7 +754,7 @@ fun HomeScreen(
     if (showRestartStudyDialog) {
         AlertDialog(
             onDismissRequest = { showRestartStudyDialog = false },
-            containerColor = TestarioSurface,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             titleContentColor = TestarioText,
             textContentColor = TestarioMutedText,
             title = { Text("Reiniciar sesión de estudio") },

@@ -378,7 +378,7 @@ fun QuestionEditorScreen(
     if (showDeleteDialog && existingQuestion != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            containerColor = TestarioSurface,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             titleContentColor = TestarioText,
             textContentColor = TestarioMutedText,
             title = { Text("Eliminar pregunta") },

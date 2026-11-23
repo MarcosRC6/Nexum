@@ -1,5 +1,7 @@
 package com.example.testario.ui.theme
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,6 +24,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 
 /**
@@ -55,13 +61,28 @@ private fun neonActionBorder(enabled: Boolean, border: BorderStroke?): BorderStr
     }
 
 @Composable
-private fun glowModifier(modifier: Modifier, enabled: Boolean, shape: Shape): Modifier =
-    modifier.shadow(
-        elevation = if (enabled) 3.dp else 0.dp,
-        shape = shape,
-        ambientColor = TestarioPrimary.copy(alpha = 0.36f),
-        spotColor = TestarioPrimary.copy(alpha = 0.43f)
-    )
+private fun rememberSource(given: MutableInteractionSource?): MutableInteractionSource =
+    given ?: remember { MutableInteractionSource() }
+
+// Presses shrink the control a few percent so every neon action feels tactile.
+@Composable
+private fun glowModifier(
+    modifier: Modifier,
+    enabled: Boolean,
+    shape: Shape,
+    source: MutableInteractionSource
+): Modifier {
+    val pressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed && enabled) 0.97f else 1f, tween(90), label = "neonPress")
+    return modifier
+        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .shadow(
+            elevation = if (enabled) 3.dp else 0.dp,
+            shape = shape,
+            ambientColor = TestarioPrimary.copy(alpha = 0.36f),
+            spotColor = TestarioPrimary.copy(alpha = 0.43f)
+        )
+}
 
 @Composable
 fun NeonButton(
@@ -77,16 +98,17 @@ fun NeonButton(
     selected: Boolean = false,
     content: @Composable RowScope.() -> Unit
 ) {
+    val source = rememberSource(interactionSource)
     MaterialButton(
         onClick = onClick,
-        modifier = glowModifier(modifier, enabled, shape),
+        modifier = glowModifier(modifier, enabled, shape, source),
         enabled = enabled,
         shape = shape,
         colors = neonActionColors(selected),
         elevation = elevation,
         border = neonActionBorder(enabled, border),
         contentPadding = contentPadding,
-        interactionSource = interactionSource,
+        interactionSource = source,
         content = content
     )
 }
@@ -105,16 +127,17 @@ fun NeonOutlinedButton(
     selected: Boolean = false,
     content: @Composable RowScope.() -> Unit
 ) {
+    val source = rememberSource(interactionSource)
     MaterialOutlinedButton(
         onClick = onClick,
-        modifier = glowModifier(modifier, enabled, shape),
+        modifier = glowModifier(modifier, enabled, shape, source),
         enabled = enabled,
         shape = shape,
         colors = neonActionColors(selected),
         elevation = elevation,
         border = neonActionBorder(enabled, border),
         contentPadding = contentPadding,
-        interactionSource = interactionSource,
+        interactionSource = source,
         content = content
     )
 }
@@ -133,16 +156,17 @@ fun NeonTextButton(
     selected: Boolean = false,
     content: @Composable RowScope.() -> Unit
 ) {
+    val source = rememberSource(interactionSource)
     MaterialTextButton(
         onClick = onClick,
-        modifier = glowModifier(modifier, enabled, shape),
+        modifier = glowModifier(modifier, enabled, shape, source),
         enabled = enabled,
         shape = shape,
         colors = neonActionColors(selected),
         elevation = elevation,
         border = neonActionBorder(enabled, border),
         contentPadding = contentPadding,
-        interactionSource = interactionSource,
+        interactionSource = source,
         content = content
     )
 }
@@ -161,16 +185,17 @@ fun NeonTonalButton(
     selected: Boolean = false,
     content: @Composable RowScope.() -> Unit
 ) {
+    val source = rememberSource(interactionSource)
     MaterialFilledTonalButton(
         onClick = onClick,
-        modifier = glowModifier(modifier, enabled, shape),
+        modifier = glowModifier(modifier, enabled, shape, source),
         enabled = enabled,
         shape = shape,
         colors = neonActionColors(selected),
         elevation = elevation,
         border = neonActionBorder(enabled, border),
         contentPadding = contentPadding,
-        interactionSource = interactionSource,
+        interactionSource = source,
         content = content
     )
 }
@@ -185,9 +210,10 @@ fun NeonIconButton(
     content: @Composable () -> Unit
 ) {
     val shape = RoundedCornerShape(12.dp)
+    val source = rememberSource(interactionSource)
     MaterialIconButton(
         onClick = onClick,
-        modifier = glowModifier(modifier, enabled, shape).border(
+        modifier = glowModifier(modifier, enabled, shape, source).border(
             width = 1.4.dp,
             color = if (enabled) TestarioPrimary else TestarioOutline.copy(alpha = 0.42f),
             shape = shape
@@ -199,7 +225,7 @@ fun NeonIconButton(
             disabledContainerColor = TestarioNeonSurface.copy(alpha = 0.50f),
             disabledContentColor = TestarioMutedText.copy(alpha = 0.67f)
         ),
-        interactionSource = interactionSource,
+        interactionSource = source,
         content = content
     )
 }

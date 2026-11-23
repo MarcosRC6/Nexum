@@ -39,8 +39,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -233,7 +236,10 @@ private fun MonthNavigationRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            FilledTonalButton(onClick = onPreviousMonth) {
+            FilledTonalButton(
+                onClick = onPreviousMonth,
+                modifier = Modifier.semantics { contentDescription = "Mes anterior" }
+            ) {
                 Text(text = "‹")
             }
 
@@ -244,7 +250,10 @@ private fun MonthNavigationRow(
                 textAlign = TextAlign.Center
             )
 
-            FilledTonalButton(onClick = onNextMonth) {
+            FilledTonalButton(
+                onClick = onNextMonth,
+                modifier = Modifier.semantics { contentDescription = "Mes siguiente" }
+            ) {
                 Text(text = "›")
             }
         }
@@ -419,7 +428,7 @@ private fun SelectedDayCard(
                             OutlinedButton(
                                 onClick = onToggleRestDay,
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color(0xFFB91C1C)
+                                    contentColor = MaterialTheme.colorScheme.error
                                 ),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -471,12 +480,12 @@ private fun SelectedDayStatusCard(
                     text = "Estado",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF172554)
+                    color = calendarStrong()
                 )
 
                 Surface(
                     shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.75f),
+                    color = if (isCalendarDark()) Color.Black.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.75f),
                     border = BorderStroke(
                         width = 1.dp,
                         color = selectedDay.status.toCalendarBorderColor()
@@ -495,7 +504,7 @@ private fun SelectedDayStatusCard(
             Text(
                 text = selectedDay.freeDayDescription,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF475569)
+                color = calendarMuted()
             )
         }
     }
@@ -515,21 +524,11 @@ private fun SelectedDayObjectivesBlock(
             color = MaterialTheme.colorScheme.onSurface
         )
 
+        val tone = if (completedFixedObjectiveCount > 0) DayStatus.COMPLETED else DayStatus.EMPTY
         Surface(
             shape = MaterialTheme.shapes.medium,
-            color = if (completedFixedObjectiveCount > 0) {
-                Color(0xFFDCFCE7)
-            } else {
-                Color(0xFFE5E7EB)
-            },
-            border = BorderStroke(
-                width = 1.dp,
-                color = if (completedFixedObjectiveCount > 0) {
-                    Color(0xFF86EFAC)
-                } else {
-                    Color(0xFFCBD5E1)
-                }
-            ),
+            color = tone.toCalendarBackgroundColor(),
+            border = BorderStroke(width = 1.dp, color = tone.toCalendarBorderColor()),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
@@ -540,11 +539,7 @@ private fun SelectedDayObjectivesBlock(
                 },
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (completedFixedObjectiveCount > 0) {
-                    Color(0xFF166534)
-                } else {
-                    Color(0xFF475569)
-                }
+                color = if (completedFixedObjectiveCount > 0) tone.toCalendarContentColor() else calendarMuted()
             )
         }
     }
@@ -557,11 +552,8 @@ private fun SelectedDayInfoRow(
 ) {
     Surface(
         shape = MaterialTheme.shapes.medium,
-        color = Color(0xFFE5E7EB),
-        border = BorderStroke(
-            width = 1.dp,
-            color = Color(0xFFCBD5E1)
-        ),
+        color = DayStatus.EMPTY.toCalendarBackgroundColor(),
+        border = BorderStroke(width = 1.dp, color = DayStatus.EMPTY.toCalendarBorderColor()),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -574,7 +566,7 @@ private fun SelectedDayInfoRow(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF475569)
+                color = calendarMuted()
             )
 
             Text(
@@ -582,7 +574,7 @@ private fun SelectedDayInfoRow(
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.End,
-                color = Color(0xFF172554)
+                color = calendarStrong()
             )
         }
     }
@@ -765,35 +757,51 @@ private fun ExpandableExplanation(
     }
 }
 
+// Light palette = the original pastel tiles. Dark palette = deep tinted tiles with
+// light text (all text pairs measured >= 5.7:1) so the calendar matches the rest of the app.
+@Composable
+private fun isCalendarDark(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+@Composable
+private fun calendarStrong(): Color =
+    if (isCalendarDark()) MaterialTheme.colorScheme.onSurface else Color(0xFF172554)
+
+@Composable
+private fun calendarMuted(): Color =
+    if (isCalendarDark()) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569)
+
 @Composable
 private fun DayStatus.toCalendarBackgroundColor(): Color {
+    val dark = isCalendarDark()
     return when (this) {
-        DayStatus.COMPLETED -> Color(0xFFDCFCE7)
-        DayStatus.IN_PROGRESS -> Color(0xFFDBEAFE)
-        DayStatus.REST -> Color(0xFFFFFFFF)
-        DayStatus.NOT_COMPLETED -> Color(0xFFFEE2E2)
-        DayStatus.EMPTY -> Color(0xFFE5E7EB)
+        DayStatus.COMPLETED -> if (dark) Color(0xFF143D2B) else Color(0xFFDCFCE7)
+        DayStatus.IN_PROGRESS -> if (dark) Color(0xFF16304F) else Color(0xFFDBEAFE)
+        DayStatus.REST -> if (dark) Color(0xFF202842) else Color(0xFFFFFFFF)
+        DayStatus.NOT_COMPLETED -> if (dark) Color(0xFF47202A) else Color(0xFFFEE2E2)
+        DayStatus.EMPTY -> if (dark) Color(0xFF131929) else Color(0xFFE5E7EB)
     }
 }
 
 @Composable
 private fun DayStatus.toCalendarContentColor(): Color {
+    val dark = isCalendarDark()
     return when (this) {
-        DayStatus.COMPLETED -> Color(0xFF166534)
-        DayStatus.IN_PROGRESS -> Color(0xFF1D4ED8)
-        DayStatus.REST -> Color(0xFF475569)
-        DayStatus.NOT_COMPLETED -> Color(0xFFB91C1C)
-        DayStatus.EMPTY -> Color(0xFF64748B)
+        DayStatus.COMPLETED -> if (dark) Color(0xFF7AE3A6) else Color(0xFF166534)
+        DayStatus.IN_PROGRESS -> if (dark) Color(0xFF8FC2FF) else Color(0xFF1D4ED8)
+        DayStatus.REST -> if (dark) Color(0xFFB4BED2) else Color(0xFF475569)
+        DayStatus.NOT_COMPLETED -> if (dark) Color(0xFFFF8F9B) else Color(0xFFB91C1C)
+        DayStatus.EMPTY -> if (dark) Color(0xFF8B97AE) else Color(0xFF64748B)
     }
 }
 
 @Composable
 private fun DayStatus.toCalendarBorderColor(): Color {
+    val dark = isCalendarDark()
     return when (this) {
-        DayStatus.COMPLETED -> Color(0xFF86EFAC)
-        DayStatus.IN_PROGRESS -> Color(0xFF93C5FD)
-        DayStatus.REST -> Color(0xFFCBD5E1)
-        DayStatus.NOT_COMPLETED -> Color(0xFFFCA5A5)
-        DayStatus.EMPTY -> Color(0xFFCBD5E1)
+        DayStatus.COMPLETED -> if (dark) Color(0xFF27664A) else Color(0xFF86EFAC)
+        DayStatus.IN_PROGRESS -> if (dark) Color(0xFF2C5A94) else Color(0xFF93C5FD)
+        DayStatus.REST -> if (dark) Color(0xFF39435A) else Color(0xFFCBD5E1)
+        DayStatus.NOT_COMPLETED -> if (dark) Color(0xFF7A3341) else Color(0xFFFCA5A5)
+        DayStatus.EMPTY -> if (dark) Color(0xFF2C3850) else Color(0xFFCBD5E1)
     }
 }

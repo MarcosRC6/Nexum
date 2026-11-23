@@ -840,7 +840,7 @@ private fun TemplateDropdown(
             colors = testarioTextFieldColors(),
             trailingIcon = { Text("▼", color = TestarioMutedText) }
         )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = TestarioSurface) {
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
             if (templates.isEmpty()) {
                 DropdownMenuItem(text = { Text("No hay plantillas guardadas", color = TestarioMutedText) }, onClick = { expanded = false }, enabled = false)
             } else {
@@ -966,7 +966,7 @@ private fun GroupAllocationRow(
                     colors = testarioTextFieldColors(),
                     trailingIcon = { Text("▼", color = TestarioMutedText) }
                 )
-                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = TestarioSurface) {
+                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
                     groups.forEach { group ->
                         DropdownMenuItem(
                             text = { Text(GroupHierarchy.path(allGroups, group.id), color = TestarioText) },
@@ -1077,7 +1077,7 @@ fun MultiSelectTopicDropdown(title: String, topics: List<Topic>, selectedTopicId
                 colors = testarioTextFieldColors(),
                 trailingIcon = { Text("▼", color = TestarioMutedText) }
             )
-            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = TestarioSurface) {
+            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 topics.forEach { topic ->
                     val checked = topic.id in selectedTopicIds
                     DropdownMenuItem(

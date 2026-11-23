@@ -155,7 +155,7 @@ fun StatsScreen(
                             colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = TestarioSurface, unfocusedContainerColor = TestarioSurface, focusedBorderColor = TestarioSurfaceLight, unfocusedBorderColor = TestarioSurfaceLight, focusedTextColor = TestarioText, unfocusedTextColor = TestarioText),
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
                         )
-                        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = TestarioSurface) {
+                        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
                             database.topics.forEach { topic ->
                                 DropdownMenuItem(text = { Text(topic.name, color = TestarioText) }, onClick = { selectedTopicId = topic.id; expanded = false })
                             }
