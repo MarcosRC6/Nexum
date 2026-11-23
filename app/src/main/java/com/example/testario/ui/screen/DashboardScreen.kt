@@ -11,7 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -634,21 +634,22 @@ fun HomeScreen(
                                                 ) {
                                                     slots.forEach { index ->
                                                         if (index == visibleWebLinks.size) {
-                                                            Card(
-                                                                modifier = Modifier.weight(1f).clickable(
-                                                                    onClickLabel = "Añadir enlace"
-                                                                ) { showManageWebLinks = true },
-                                                                shape = RoundedCornerShape(15.dp),
-                                                                colors = CardDefaults.cardColors(
-                                                                    containerColor = TestarioSurfaceLight),
-                                                                border = BorderStroke(1.5.dp, TestarioPrimary)
-                                                            ) {
-                                                                Box(
-                                                                    Modifier.fillMaxWidth().aspectRatio(1f),
-                                                                    contentAlignment = Alignment.Center
+                                                            // Compact square: same height as the link tiles
+                                                            // (~68 dp) instead of filling a third of the row.
+                                                            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                                                Card(
+                                                                    modifier = Modifier.size(68.dp).clickable(
+                                                                        onClickLabel = "Añadir enlace"
+                                                                    ) { showManageWebLinks = true },
+                                                                    shape = RoundedCornerShape(15.dp),
+                                                                    colors = CardDefaults.cardColors(
+                                                                        containerColor = TestarioSurfaceLight),
+                                                                    border = BorderStroke(1.5.dp, TestarioPrimary)
                                                                 ) {
-                                                                    Text("+", color = TestarioPrimary,
-                                                                        style = MaterialTheme.typography.headlineMedium)
+                                                                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                                        Text("+", color = TestarioPrimary,
+                                                                            style = MaterialTheme.typography.headlineSmall)
+                                                                    }
                                                                 }
                                                             }
                                                         } else {
