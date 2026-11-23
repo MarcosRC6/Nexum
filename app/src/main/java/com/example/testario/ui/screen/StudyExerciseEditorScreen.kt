@@ -62,6 +62,11 @@ fun StudyExerciseEditorScreen(
     var solutions by drafts.state(scope, "solutions") {
         original?.solutions ?: listOf(CanonicalSolution(text = ""))
     }
+    var writtenAnswerMode by drafts.state(scope, "writtenAnswerMode") {
+        original?.writtenAnswerMode ?: if (original?.solutions?.any {
+            it.points.isNotEmpty()
+        } == true) WrittenAnswerMode.NUMBERED else WrittenAnswerMode.UNORDERED
+    }
     var selectedSolutionId by drafts.state(scope, "selectedSolutionId") {
         original?.solutions?.firstOrNull()?.id
     }
@@ -162,6 +167,7 @@ fun StudyExerciseEditorScreen(
                 ?: CanonicalSolution(text = "").also { available = available + it }
         runCatching { WrittenMarkerRules.place(available, target.id, x, y) }
             .onSuccess { placed ->
+                writtenAnswerMode = WrittenAnswerMode.NUMBERED
                 solutions = placed
                 selectedSolutionId = placed.firstOrNull { it.points.isEmpty() }?.id
                 error = null
@@ -249,7 +255,9 @@ fun StudyExerciseEditorScreen(
             sketch = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI && sketchEnabled)
                 SketchDrawing(strokes = sketchStrokes) else null,
             revision = original?.revision ?: 1, draft = draft,
-            flagged = original?.flagged ?: false
+            flagged = original?.flagged ?: false,
+            writtenAnswerMode = if (exerciseKind == StudyExerciseKind.WRITTEN_MULTI)
+                writtenAnswerMode else null
         )
     }
 
@@ -395,6 +403,39 @@ fun StudyExerciseEditorScreen(
                         label = { Text("Texto del enunciado") },
                         modifier = Modifier.fillMaxWidth(), minLines = 3,
                         shape = RoundedCornerShape(18.dp)
+                    )
+                    Text("Cómo se corregirán las respuestas", color = TestarioText,
+                        style = MaterialTheme.typography.titleSmall)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(
+                            selected = writtenAnswerMode == WrittenAnswerMode.UNORDERED,
+                            onClick = {
+                                if (solutions.any { it.points.isNotEmpty() }) {
+                                    error = "Elimina primero los números vinculados a la imagen para usar respuestas sin orden."
+                                } else {
+                                    writtenAnswerMode = WrittenAnswerMode.UNORDERED
+                                    error = null
+                                }
+                            },
+                            label = { Text("Sin orden", maxLines = 1) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        FilterChip(
+                            selected = writtenAnswerMode == WrittenAnswerMode.NUMBERED,
+                            onClick = {
+                                writtenAnswerMode = WrittenAnswerMode.NUMBERED
+                                error = null
+                            },
+                            label = { Text("Por números", maxLines = 1) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Text(
+                        if (writtenAnswerMode == WrittenAnswerMode.UNORDERED)
+                            "Las soluciones pueden escribirse en cualquier orden. No necesitas añadir imagen."
+                        else
+                            "Añade una imagen o dibujo y coloca un número en cada solución. Se corregirá cada respuesta en su posición.",
+                        color = TestarioMutedText, style = MaterialTheme.typography.bodySmall
                     )
                 }
                 if (sketchEnabled) {
