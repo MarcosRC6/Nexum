@@ -30,6 +30,8 @@ import com.example.testario.domain.StudyExerciseRules
 import com.example.testario.domain.ClozeMarkupEngine
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.LibraryViewModel
+import com.example.testario.viewmodel.EditorDraftViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import java.util.UUID
 
 /**
@@ -50,70 +52,88 @@ fun StudyExerciseEditorScreen(
     val database by libraryViewModel.database.collectAsState()
     val topic = database.topics.firstOrNull { it.id == topicId }
     val original = topic?.exercises?.firstOrNull { it.id == exerciseId }
-    var exerciseKind by remember(exerciseId, initialKind) { mutableStateOf(original?.kind ?: initialKind) }
-    var prompt by remember(exerciseId) { mutableStateOf(original?.prompt.orEmpty()) }
-    var solutions by remember(exerciseId) {
-        mutableStateOf(original?.solutions ?: listOf(CanonicalSolution(text = "")))
+    // The same navigation-scoped ViewModel survives multi-window resize and
+    // orientation changes. The explicit kind namespace prevents the written
+    // and Anki drafts from ever overwriting each other's fields or saves.
+    val drafts: EditorDraftViewModel = viewModel()
+    val scope = "exercise:${initialKind.name}:$topicId:${exerciseId ?: "new"}"
+    var exerciseKind by drafts.state(scope, "exerciseKind") { original?.kind ?: initialKind }
+    var prompt by drafts.state(scope, "prompt") { original?.prompt.orEmpty() }
+    var solutions by drafts.state(scope, "solutions") {
+        original?.solutions ?: listOf(CanonicalSolution(text = ""))
     }
-    var selectedSolutionId by remember(exerciseId) {
-        mutableStateOf(original?.solutions?.firstOrNull()?.id)
+    var selectedSolutionId by drafts.state(scope, "selectedSolutionId") {
+        original?.solutions?.firstOrNull()?.id
     }
-    var sketchEnabled by remember(exerciseId) {
-        mutableStateOf(original?.sketch != null || original?.diagram != null)
+    var sketchEnabled by drafts.state(scope, "sketchEnabled") {
+        original?.sketch != null || original?.diagram != null
     }
-    var sketchStrokes by remember(exerciseId) {
-        mutableStateOf(original?.sketch?.strokes ?: original?.diagram?.let { d ->
+    var sketchStrokes by drafts.state(scope, "sketchStrokes") {
+        original?.sketch?.strokes ?: original?.diagram?.let { d ->
             listOf(SketchStroke(points = listOf(
                 SketchPoint(d.startX, d.startY), SketchPoint(d.endX, d.endY))))
-        }.orEmpty())
+        }.orEmpty()
     }
-    var sketchColor by remember(exerciseId) { mutableLongStateOf(0xFFA855F7L) }
-    var sketchToolHighlighter by remember(exerciseId) { mutableStateOf(false) }
-    var sketchWidthMultiplier by remember(exerciseId) { mutableFloatStateOf(1f) }
-    var sketchOpacity by remember(exerciseId) { mutableFloatStateOf(.34f) }
-    var sketchZoom by remember(exerciseId) { mutableFloatStateOf(1f) }
-    var sketchMode by remember(exerciseId) { mutableStateOf(SketchMode.DRAW) }
-    var sketchUndo by remember(exerciseId) { mutableStateOf<List<List<SketchStroke>>>(emptyList()) }
-    var sketchRedo by remember(exerciseId) { mutableStateOf<List<List<SketchStroke>>>(emptyList()) }
-    var confirmClearSketch by remember(exerciseId) { mutableStateOf(false) }
-    var pendingMarkerId by remember(exerciseId) { mutableStateOf<String?>(null) }
-    var expandedMarkersSolutionId by remember(exerciseId) { mutableStateOf<String?>(null) }
-    var showOptionalAliases by remember(exerciseId) { mutableStateOf(false) }
-    var front by remember(exerciseId) {
-        mutableStateOf(TextFieldValue(
+    var sketchColor by drafts.state(scope, "sketchColor") { 0xFFA855F7L }
+    var sketchToolHighlighter by drafts.state(scope, "sketchToolHighlighter") { false }
+    var sketchWidthMultiplier by drafts.state(scope, "sketchWidthMultiplier") { 1f }
+    var sketchOpacity by drafts.state(scope, "sketchOpacity") { .34f }
+    var sketchZoom by drafts.state(scope, "sketchZoom") { 1f }
+    var sketchMode by drafts.state(scope, "sketchMode") { SketchMode.DRAW }
+    var sketchUndo by drafts.state(scope, "sketchUndo") { emptyList<List<SketchStroke>>() }
+    var sketchRedo by drafts.state(scope, "sketchRedo") { emptyList<List<SketchStroke>>() }
+    var confirmClearSketch by drafts.state(scope, "confirmClearSketch") { false }
+    var pendingMarkerId by drafts.state<String?>(scope, "pendingMarkerId") { null }
+    var expandedMarkersSolutionId by drafts.state<String?>(scope, "expandedMarkersSolutionId") { null }
+    var showOptionalAliases by drafts.state(scope, "showOptionalAliases") { false }
+    var front by drafts.state(scope, "front") {
+        TextFieldValue(
             if (original?.flashcard?.kind == FlashcardKind.CLOZE)
                 runCatching { ClozeMarkupEngine.encode(
                     original.flashcard.front, original.flashcard.gaps
                 ) }.getOrDefault(original.flashcard.front)
             else original?.flashcard?.front.orEmpty()
-        ))
+        )
     }
-    var back by remember(exerciseId) { mutableStateOf(original?.flashcard?.back.orEmpty()) }
-    var flashKind by remember(exerciseId) { mutableStateOf(original?.flashcard?.kind ?: FlashcardKind.BASIC) }
-    var gaps by remember(exerciseId) { mutableStateOf(original?.flashcard?.gaps.orEmpty()) }
-    var ankiHelpExpanded by remember(exerciseId) { mutableStateOf(false) }
-    var showClozeMarkerDialog by remember(exerciseId) { mutableStateOf(false) }
-    var clozeAlways by remember(exerciseId) { mutableStateOf(true) }
-    var showAnkiImageOptions by remember(exerciseId) { mutableStateOf(false) }
-    var showAnkiImageSourceOptions by remember(exerciseId) { mutableStateOf(false) }
-    var ankiImageSlot by remember(exerciseId) { mutableStateOf("front") }
-
-    var clozeTurnInput by remember(exerciseId) { mutableStateOf("1") }
-    var previewRevealed by remember(exerciseId) { mutableStateOf(false) }
-    var masks by remember(exerciseId) { mutableStateOf(original?.flashcard?.masks.orEmpty()) }
-    var aliasesText by remember(exerciseId) { mutableStateOf(original?.flashcard?.acceptedAnswers?.joinToString(", ").orEmpty()) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var showPreview by remember { mutableStateOf(false) }
-    var imageUri by remember(exerciseId) { mutableStateOf(original?.baseImageUri) }
-    var frontImageUri by remember(exerciseId) { mutableStateOf(original?.flashcard?.frontImageUri) }
-    var backImageUri by remember(exerciseId) { mutableStateOf(original?.flashcard?.backImageUri) }
-    var baseAnnotations by remember(exerciseId) { mutableStateOf(original?.baseAnnotations ?: ImageAnnotations()) }
-    var frontAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.frontAnnotations ?: ImageAnnotations()) }
-    var backAnnotations by remember(exerciseId) { mutableStateOf(original?.flashcard?.backAnnotations ?: ImageAnnotations()) }
-    var photoMarkerMode by remember(exerciseId) { mutableStateOf(false) }
-    var showImageOptions by remember { mutableStateOf(false) }
-    var showOcclusionEditor by remember(exerciseId) { mutableStateOf(false) }
-    var pickerTarget by remember { mutableStateOf("written") }
+    var back by drafts.state(scope, "back") { original?.flashcard?.back.orEmpty() }
+    var flashKind by drafts.state(scope, "flashKind") {
+        original?.flashcard?.kind ?: FlashcardKind.BASIC
+    }
+    var gaps by drafts.state(scope, "gaps") { original?.flashcard?.gaps.orEmpty() }
+    var ankiHelpExpanded by drafts.state(scope, "ankiHelpExpanded") { false }
+    var showClozeMarkerDialog by drafts.state(scope, "showClozeMarkerDialog") { false }
+    var clozeAlways by drafts.state(scope, "clozeAlways") { true }
+    var showAnkiImageOptions by drafts.state(scope, "showAnkiImageOptions") { false }
+    var showAnkiImageSourceOptions by drafts.state(scope, "showAnkiImageSourceOptions") { false }
+    var ankiImageSlot by drafts.state(scope, "ankiImageSlot") { "front" }
+    var clozeTurnInput by drafts.state(scope, "clozeTurnInput") { "1" }
+    var previewRevealed by drafts.state(scope, "previewRevealed") { false }
+    var masks by drafts.state(scope, "masks") { original?.flashcard?.masks.orEmpty() }
+    var aliasesText by drafts.state(scope, "aliasesText") {
+        original?.flashcard?.acceptedAnswers?.joinToString(", ").orEmpty()
+    }
+    var error by drafts.state<String?>(scope, "error") { null }
+    var showPreview by drafts.state(scope, "showPreview") { false }
+    var imageUri by drafts.state(scope, "imageUri") { original?.baseImageUri }
+    var frontImageUri by drafts.state(scope, "frontImageUri") {
+        original?.flashcard?.frontImageUri
+    }
+    var backImageUri by drafts.state(scope, "backImageUri") {
+        original?.flashcard?.backImageUri
+    }
+    var baseAnnotations by drafts.state(scope, "baseAnnotations") {
+        original?.baseAnnotations ?: ImageAnnotations()
+    }
+    var frontAnnotations by drafts.state(scope, "frontAnnotations") {
+        original?.flashcard?.frontAnnotations ?: ImageAnnotations()
+    }
+    var backAnnotations by drafts.state(scope, "backAnnotations") {
+        original?.flashcard?.backAnnotations ?: ImageAnnotations()
+    }
+    var photoMarkerMode by drafts.state(scope, "photoMarkerMode") { false }
+    var showImageOptions by drafts.state(scope, "showImageOptions") { false }
+    var showOcclusionEditor by drafts.state(scope, "showOcclusionEditor") { false }
+    var pickerTarget by drafts.state(scope, "pickerTarget") { "written" }
     LaunchedEffect(exerciseId, solutions.size) {
         if (selectedSolutionId == null || solutions.none { it.id == selectedSolutionId }) {
             selectedSolutionId = solutions.firstOrNull()?.id
