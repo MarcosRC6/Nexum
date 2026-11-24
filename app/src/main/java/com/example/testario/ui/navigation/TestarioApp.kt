@@ -9,6 +9,13 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
+import com.example.testario.ui.screen.LocalNexumRail
+import com.example.testario.ui.screen.MainSection
+import com.example.testario.ui.screen.NexumNavRail
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -229,12 +236,37 @@ fun TestarioApp(
                 modifier = Modifier.fillMaxSize(),
                 darkTheme = darkTheme
             )
+            // En pantallas anchas la navegación principal es un carril lateral;
+            // en móvil sigue siendo la cápsula inferior de cada pantalla.
+            val route = currentBackStackEntry?.destination?.route
+            val railSection = when {
+                route == Routes.HOME -> MainSection.HOME
+                route == Routes.LIBRARY || route == Routes.GROUPS -> MainSection.LIBRARY
+                route == Routes.TEST_CONFIG -> MainSection.TEST
+                route == Routes.PLAN -> MainSection.PLAN
+                route == Routes.STATS -> MainSection.STATS
+                else -> null
+            }
+            val showRail = railSection != null && LocalConfiguration.current.screenWidthDp >= 600
+            Row(Modifier.fillMaxSize()) {
+            if (showRail && railSection != null) {
+                NexumNavRail(
+                    selected = railSection,
+                    onHome = { goHome() },
+                    onLibrary = { goLibrary() },
+                    onTest = { goTest() },
+                    onPlan = { goPlan() },
+                    onStats = { goStats() },
+                    onSettings = { goSettings() }
+                )
+            }
+            CompositionLocalProvider(LocalNexumRail provides showRail) {
             // The library default is a 700 ms cross-fade, which feels sluggish.
             // A short fade plus a small slide gives direction without delay.
             NavHost(
                 navController = navController,
                 startDestination = Routes.HOME,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 enterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 14 } },
                 exitTransition = { fadeOut(tween(160)) },
                 popEnterTransition = { fadeIn(tween(220)) },
@@ -461,6 +493,8 @@ fun TestarioApp(
                     onStats = { navController.navigate(Routes.STATS) { launchSingleTop = true } },
                     openHomeSettingsInitially = true
                 )
+            }
+            }
             }
             }
         }

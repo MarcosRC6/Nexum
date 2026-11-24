@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.size
 
-enum class EstudarioIconKind { HOME, LIBRARY, TEST, PLAN, STATS, SETTINGS, NOTIFICATIONS, BACK, CHEVRON_UP, CHEVRON_DOWN, EDIT, SEARCH, LOGO }
+enum class EstudarioIconKind { HOME, LIBRARY, TEST, PLAN, STATS, SETTINGS, NOTIFICATIONS, BACK, CHEVRON_UP, CHEVRON_DOWN, EDIT, SEARCH, CLOSE, FLAG, CLOCK, LOGO }
 
 @Composable
 fun EstudarioIcon(
@@ -118,6 +118,27 @@ fun EstudarioIcon(
             EstudarioIconKind.SEARCH -> {
                 drawCircle(tint, radius = w * .22f, center = Offset(w * .44f, h * .44f), style = stroke)
                 drawLine(tint, Offset(w * .60f, h * .60f), Offset(w * .80f, h * .80f), sw, StrokeCap.Round)
+            }
+            EstudarioIconKind.CLOSE -> {
+                drawLine(tint, Offset(w * .28f, h * .28f), Offset(w * .72f, h * .72f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * .72f, h * .28f), Offset(w * .28f, h * .72f), sw, StrokeCap.Round)
+            }
+            EstudarioIconKind.FLAG -> {
+                // Marcador de pregunta: banderín sobre un asta.
+                drawLine(tint, Offset(w * .30f, h * .18f), Offset(w * .30f, h * .84f), sw, StrokeCap.Round)
+                val p = Path().apply {
+                    moveTo(w * .30f, h * .22f)
+                    lineTo(w * .78f, h * .22f)
+                    lineTo(w * .66f, h * .38f)
+                    lineTo(w * .78f, h * .54f)
+                    lineTo(w * .30f, h * .54f)
+                }
+                drawPath(p, tint, style = stroke)
+            }
+            EstudarioIconKind.CLOCK -> {
+                drawCircle(tint, radius = w * .34f, center = Offset(w * .50f, h * .50f), style = stroke)
+                drawLine(tint, Offset(w * .50f, h * .30f), Offset(w * .50f, h * .50f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * .50f, h * .50f), Offset(w * .63f, h * .58f), sw, StrokeCap.Round)
             }
             EstudarioIconKind.LOGO -> Unit
         }

@@ -1,6 +1,17 @@
 package com.example.testario.ui.screen
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -290,6 +301,9 @@ fun String.naturalCompareTo(other: String): Int {
 }
 enum class MainSection { HOME, LIBRARY, TEST, PLAN, STATS }
 
+/** Verdadero cuando TestarioApp muestra el carril lateral: la cápsula inferior se oculta. */
+val LocalNexumRail = androidx.compose.runtime.compositionLocalOf { false }
+
 @Composable
 fun MainBottomNavigation(
     selected: MainSection,
@@ -299,56 +313,130 @@ fun MainBottomNavigation(
     onPlan: () -> Unit,
     onStats: () -> Unit
 ) {
-    Row(
+    if (LocalNexumRail.current) return
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(TestarioBackground)
-            .padding(horizontal = 10.dp, vertical = 8.dp)
-            .background(TestarioNavBackground, RoundedCornerShape(22.dp))
-            .padding(horizontal = 6.dp, vertical = 6.dp),
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        MainBottomNavigationItem(EstudarioIconKind.HOME, "Inicio", selected == MainSection.HOME, onHome, Modifier.weight(1f))
-        MainBottomNavigationItem(EstudarioIconKind.LIBRARY, "Biblioteca", selected == MainSection.LIBRARY, onLibrary, Modifier.weight(1f))
-        MainBottomNavigationItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest, Modifier.weight(1f))
-        MainBottomNavigationItem(EstudarioIconKind.PLAN, "Plan", selected == MainSection.PLAN, onPlan, Modifier.weight(1f))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(TestarioNavBackground, RoundedCornerShape(26.dp))
+                .padding(6.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CapsuleNavItem(EstudarioIconKind.HOME, "Inicio", selected == MainSection.HOME, onHome)
+            CapsuleNavItem(EstudarioIconKind.LIBRARY, "Biblioteca", selected == MainSection.LIBRARY, onLibrary)
+            CapsuleNavItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest)
+            CapsuleNavItem(EstudarioIconKind.PLAN, "Plan", selected == MainSection.PLAN, onPlan)
+        }
+    }
+}
+
+/** Solo el destino activo muestra su nombre; los demás son iconos de 56 x 52 dp. */
+@Composable
+private fun CapsuleNavItem(
+    icon: EstudarioIconKind,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val pill by animateColorAsState(
+        if (selected) TestarioNeonSelected else TestarioNeonSelected.copy(alpha = 0f),
+        tween(180), label = "capsulePill"
+    )
+    val tint by animateColorAsState(
+        if (selected) TestarioPrimary else TestarioMutedText, tween(180), label = "capsuleTint"
+    )
+    Row(
+        modifier = Modifier
+            .height(52.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(pill)
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            .padding(horizontal = 16.dp)
+            .semantics { contentDescription = label },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        EstudarioIcon(icon, tint = tint, modifier = Modifier.size(24.dp))
+        AnimatedVisibility(
+            visible = selected,
+            enter = expandHorizontally(tween(180)) + fadeIn(tween(180)),
+            exit = shrinkHorizontally(tween(180)) + fadeOut(tween(120))
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = TestarioPrimary,
+                maxLines = 1,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
+    }
+}
+
+/** Navegación de pantallas anchas (tablet): sustituye a la cápsula inferior. */
+@Composable
+fun NexumNavRail(
+    selected: MainSection,
+    onHome: () -> Unit,
+    onLibrary: () -> Unit,
+    onTest: () -> Unit,
+    onPlan: () -> Unit,
+    onStats: () -> Unit,
+    onSettings: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(88.dp)
+            .background(TestarioNavBackground)
+            .windowInsetsPadding(WindowInsets.systemBars)
+            .padding(horizontal = 8.dp, vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)
+    ) {
+        NexumLogoMark(modifier = Modifier.size(36.dp))
+        Box(Modifier.height(18.dp))
+        RailNavItem(EstudarioIconKind.HOME, "Inicio", selected == MainSection.HOME, onHome)
+        RailNavItem(EstudarioIconKind.LIBRARY, "Biblioteca", selected == MainSection.LIBRARY, onLibrary)
+        RailNavItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest)
+        RailNavItem(EstudarioIconKind.PLAN, "Plan", selected == MainSection.PLAN, onPlan)
+        RailNavItem(EstudarioIconKind.STATS, "Estadísticas", selected == MainSection.STATS, onStats)
+        Box(Modifier.weight(1f))
+        RailNavItem(EstudarioIconKind.SETTINGS, "Ajustes", false, onSettings)
     }
 }
 
 @Composable
-private fun MainBottomNavigationItem(
+private fun RailNavItem(
     icon: EstudarioIconKind,
     label: String,
     selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
-    // Colours ease between states instead of snapping. The unselected background
-    // is the same hue at alpha 0 so the fade does not pass through dark grey.
-    val tint by animateColorAsState(
-        if (selected) TestarioPrimary else TestarioMutedText, tween(180), label = "navTint"
-    )
-    val labelColor by animateColorAsState(
-        if (selected) TestarioText else TestarioMutedText, tween(180), label = "navLabel"
-    )
     val pill by animateColorAsState(
-        if (selected) TestarioPrimaryDark else TestarioPrimaryDark.copy(alpha = 0f),
-        tween(180), label = "navPill"
+        if (selected) TestarioNeonSelected else TestarioNeonSelected.copy(alpha = 0f),
+        tween(180), label = "railPill"
+    )
+    val tint by animateColorAsState(
+        if (selected) TestarioPrimary else TestarioMutedText, tween(180), label = "railTint"
     )
     Column(
-        modifier = modifier
-            .background(color = pill, shape = RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 7.dp, horizontal = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(pill)
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            .padding(vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
     ) {
         EstudarioIcon(icon, tint = tint, modifier = Modifier.size(24.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = labelColor,
-            maxLines = 1
-        )
+        Text(label, style = MaterialTheme.typography.labelSmall, color = tint, maxLines = 1)
     }
 }
 

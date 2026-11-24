@@ -38,3 +38,13 @@ val EstudarioTypography = Typography(
     labelMedium = style(FontWeight.Medium, 12, 16, 0.3f),
     labelSmall = style(FontWeight.Medium, 11, 15, 0.4f)
 )
+
+/** Cifras de tiempo y marcadores: sans ligera con dígitos de ancho fijo. */
+val NexumNumeral = TextStyle(
+    fontFamily = FontFamily.SansSerif,
+    fontWeight = FontWeight.Light,
+    fontSize = 56.sp,
+    lineHeight = 60.sp,
+    letterSpacing = (-1.5f).sp,
+    fontFeatureSettings = "tnum"
+)

@@ -19,6 +19,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.sp
+import com.example.testario.ui.theme.NexumNumeral
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -288,38 +296,28 @@ fun HomeScreen(
                     ) {
                     when (widgetId) {
                         HomeSettingsViewModel.WIDGET_TODAY -> {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(22.dp),
-                                colors = CardDefaults.cardColors(containerColor = TestarioSurface)
+                            // Sin tarjeta: la cifra de hoy es la pieza principal de Inicio.
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text("Hoy", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                                            Text(studyState.dateText, color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
-                                        }
-                                        Text(studyState.statusText, color = TestarioPrimary)
-                                    }
-
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        "${studyState.studiedTimeText} / ${studyState.dailyGoalText}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = TestarioText
-                                    )
-                                    LinearProgressIndicator(
-                                        progress = { studyState.progress },
-                                        modifier = Modifier.fillMaxWidth().height(8.dp),
-                                        color = TestarioPrimary,
-                                        trackColor = TestarioSurfaceLight
-                                    )
-                                    Text(
-                                        if (studyState.isFreeDay) "Día libre" else "Restante: ${studyState.remainingTimeText}",
+                                        "HOY · ${studyState.dateText.uppercase()}",
+                                        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.6.sp),
                                         color = TestarioMutedText,
-                                        style = MaterialTheme.typography.bodySmall
+                                        modifier = Modifier.weight(1f)
                                     )
-
-                                    Text("Acciones del día", style = MaterialTheme.typography.labelLarge, color = TestarioMutedText)
+                                    Text(studyState.statusText, color = TestarioPrimary, style = MaterialTheme.typography.labelLarge)
+                                }
+                                TodayFigure(studyState.totalTodayMinutesIncludingCurrent)
+                                Text(
+                                    if (studyState.isFreeDay) "Día libre"
+                                    else "de ${studyState.dailyGoalText} de objetivo · quedan ${studyState.remainingTimeText}",
+                                    color = TestarioMutedText,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                TickProgress(studyState.progress, Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 6.dp))
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         val primaryLabel = if (studyState.studyTimerState == StudyTimerState.STOPPED) {
                                             "Iniciar estudio"
@@ -418,7 +416,6 @@ fun HomeScreen(
                                         }
                                     }
                                 }
-                            }
                         }
 
                         HomeSettingsViewModel.WIDGET_TOPIC -> {
@@ -786,6 +783,56 @@ fun HomeScreen(
             },
             confirmButton = {}
         )
+    }
+}
+
+/** Tiempo estudiado hoy en grande: cifras ligeras con las unidades pequeñas y apagadas. */
+@Composable
+private fun TodayFigure(totalMinutes: Int) {
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    val unit = SpanStyle(fontSize = 22.sp, color = TestarioMutedText, letterSpacing = 0.sp)
+    Text(
+        text = buildAnnotatedString {
+            if (hours > 0) {
+                append("$hours")
+                withStyle(unit) { append(" h ") }
+            }
+            append("$minutes")
+            withStyle(unit) { append(" min") }
+        },
+        style = NexumNumeral,
+        color = TestarioText
+    )
+}
+
+/** Objetivo diario en 24 tramos; cada tramo se llena con el avance de hoy. */
+@Composable
+private fun TickProgress(progress: Float, modifier: Modifier = Modifier, ticks: Int = 24) {
+    val shown by animateFloatAsState(progress.coerceIn(0f, 1f), tween(700), label = "todayTicks")
+    val filled = shown * ticks
+    Row(
+        modifier = modifier
+            .height(26.dp)
+            .semantics { contentDescription = "Progreso de hoy: ${(progress.coerceIn(0f, 1f) * 100).toInt()} %" },
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        repeat(ticks) { i ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(TestarioSurfaceLight)
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth((filled - i).coerceIn(0f, 1f))
+                        .background(TestarioPrimary)
+                )
+            }
+        }
     }
 }
 
