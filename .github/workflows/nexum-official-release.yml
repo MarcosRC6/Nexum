@@ -125,25 +125,22 @@ jobs:
           El APK está firmado con la clave permanente de NEXUM y se puede
           instalar encima de la versión oficial anterior conservando los datos.
 
-          Novedades de NEXUM 1.8:
-          - Widgets del escritorio de Android redimensionables, con formatos
-            compactos y ampliados y diseños adaptables a las celdas disponibles.
-          - Widget Hoy compacto: tema activo, tiempo de estudio de hoy,
-            objetivo y barra de progreso. Al ampliarlo muestra los objetivos
-            diarios y sus estados y conserva el acceso al test vinculado.
-          - Test rápido configurable por instancia: preguntas de todos los
-            temas, un tema concreto con cantidad de preguntas a elegir, o
-            plantilla guardada con todas sus opciones.
-          - Reloj de estudio y Pomodoro con diseño compacto, sin accesos en
-            las esquinas; al pulsar la esfera se abre la pantalla Reloj.
-            Controles de iniciar, pausar, reanudar y guardar independientes.
-          - El widget Pomodoro utiliza la duración que tengas configurada
-            en Plan y muestra los minutos en pausa sin perder un segundo
-            visualmente por la latencia del launcher.
-          - Se conservan los bancos de preguntas, el estudio acumulado,
-            ajustes y backups. No cambia el identificador Android ni la firma.
+          Novedades de NEXUM 3.0 (rediseño "Cuaderno de latón", sin funciones nuevas):
+          - Nueva identidad visual: tinta oscura con acento de latón, cifras
+            ligeras, menos marcos y botones tonales en toda la app.
+          - Navegación fluida: desliza entre Inicio, Biblioteca (Temas y
+            Grupos), Plan (Plan, Reloj y Calendario) y Test, con la barra
+            inferior siguiendo el dedo. En tablet, barra lateral.
+          - Test, Estadísticas, Calendario, editores y ajustes rediseñados.
+          - Accesos rápidos configurables con el lápiz.
+          - Nuevo ajuste en Comportamiento de la app para ocultar el tema de
+            origen de las preguntas.
+          - Mensajes de importación y restauración más cortos y barra de
+            progreso visible.
+          - Se conservan bancos de preguntas, estadísticas, ajustes y copias.
+            No cambia el identificador Android ni la firma.
 
-          Para actualizar, instala NEXUM 1.8 encima de la versión oficial
+          Para actualizar, instala NEXUM 3.0 encima de la versión oficial
           anterior, sin desinstalar. Recomendamos exportar previamente una
           copia global de seguridad.
           Si tu launcher conserva tamaños antiguos de widgets, elimina y
