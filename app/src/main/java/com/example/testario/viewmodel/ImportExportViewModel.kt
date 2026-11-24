@@ -7,6 +7,7 @@ import com.example.testario.data.model.DuplicateTopicAction
 import com.example.testario.data.model.ImportPreview
 import com.example.testario.data.model.Topic
 import com.example.testario.domain.ExportManager
+import com.example.testario.domain.ExportResult
 import com.example.testario.domain.ImportBatchDecision
 import com.example.testario.domain.ImportManager
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +20,7 @@ class ImportExportViewModel(application: Application) : AndroidViewModel(applica
     private val importManager = ImportManager(application, localStore)
     private val exportManager = ExportManager(application, localStore)
 
-    suspend fun exportCompleteZip(outputStream: OutputStream, topicIds: List<String>? = null) = withContext(Dispatchers.IO) {
+    suspend fun exportCompleteZip(outputStream: OutputStream, topicIds: List<String>? = null): ExportResult = withContext(Dispatchers.IO) {
         exportManager.exportCompleteZip(outputStream, topicIds)
     }
 

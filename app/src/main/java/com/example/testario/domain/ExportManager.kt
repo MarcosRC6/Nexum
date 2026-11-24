@@ -17,14 +17,17 @@ import java.io.OutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
+/** Fotos que no estaban en el móvil y se dejaron fuera del ZIP, por tema. */
+data class ExportResult(val omittedPhotosByTopic: Map<String, Int> = emptyMap())
+
 class ExportManager(private val context: Context, private val localStore: TestarioLocalStore) {
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true; encodeDefaults = true }
     private val imagesDir = File(context.filesDir, "question_images")
 
-    fun exportCompleteZip(outputStream: OutputStream, topicIds: List<String>? = null) {
+    fun exportCompleteZip(outputStream: OutputStream, topicIds: List<String>? = null): ExportResult {
         val db = localStore.database.value
         val topicsToExport = if (topicIds != null) db.topics.filter { it.id in topicIds } else db.topics
-        val cleanTopics = topicsToExport.map { topic ->
+        val cleanTopicsWithPhotos = topicsToExport.map { topic ->
             topic.copy(
                 isPinned = false,
                 exercises = topic.exercises.filterNot { it.draft },
@@ -33,6 +36,18 @@ class ExportManager(private val context: Context, private val localStore: Testar
                 }
             )
         }
+        // Una foto que ya no existe en el móvil no debe impedir exportar el resto:
+        // se omite del ZIP (queda reflejada en el resultado) para que el archivo
+        // siga siendo válido al importarlo.
+        val root = imagesDir.canonicalPath + File.separator
+        val missing = LibraryMediaReferences.paths(cleanTopicsWithPhotos).filterNot { path ->
+            val file = File(path)
+            file.isFile && file.canonicalPath.startsWith(root)
+        }.toSet()
+        val cleanTopics = LibraryMediaReferences.withoutMissing(cleanTopicsWithPhotos, missing)
+        val omitted = cleanTopicsWithPhotos
+            .associate { it.name to LibraryMediaReferences.paths(listOf(it)).count { p -> p in missing } }
+            .filterValues { it > 0 }
         // La exportación de biblioteca conserva la organización, aunque nunca
         // exporta estadísticas, favoritos ni sesiones de examen.
         val exportedTopicIds = cleanTopics.mapTo(hashSetOf()) { it.id }
@@ -52,20 +67,12 @@ class ExportManager(private val context: Context, private val localStore: Testar
                 testTemplates = exportedTemplates
             )
         )
-        // A library export must not silently drop either a classic Test
-        // photograph or a new exercise/Anki picture.
-        val root = imagesDir.canonicalPath + File.separator
-        val paths = LibraryMediaReferences.paths(cleanTopics)
-        paths.forEach { path ->
-            val file = File(path)
-            require(file.isFile && file.canonicalPath.startsWith(root)) {
-                "No se puede exportar: falta una fotografía interna de una pregunta o ejercicio. " +
-                    "Comprueba y reimporta la imagen desde el editor."
-            }
-        }
-        val referencedImageNames = paths.mapTo(linkedSetOf()) { File(it).name }
+        // Nunca se omite una foto en silencio: las que faltan se devuelven al llamador.
+        val referencedImageNames = LibraryMediaReferences.paths(cleanTopics)
+            .mapTo(linkedSetOf()) { File(it).name }
 
         packageZip(outputStream, jsonString, referencedImageNames)
+        return ExportResult(omitted)
     }
 
     fun exportBackupZip(outputStream: OutputStream) {

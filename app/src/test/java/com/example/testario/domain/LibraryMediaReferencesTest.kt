@@ -47,4 +47,18 @@ class LibraryMediaReferencesTest {
         ))
         assertEquals(listOf("/a.png"), LibraryMediaReferences.paths(listOf(reused)))
     }
+
+    @Test fun missingPhotosAreRemovedFromTheExportCopyOnly() {
+        val q = Question(
+            id = "q1", text = "Pregunta",
+            answers = listOf(Answer("a", "Sí"), Answer("b", "No")),
+            correctAnswerId = "a",
+            explanationImageUri = "/p/question_images/falta.png",
+            correctionImageUri = "/p/question_images/existe.png"
+        )
+        val topic = Topic(name = "Tema", questions = listOf(q))
+        val clean = LibraryMediaReferences.withoutMissing(listOf(topic), setOf("/p/question_images/falta.png"))
+        assertEquals(listOf("/p/question_images/existe.png"), LibraryMediaReferences.paths(clean))
+        assertEquals("/p/question_images/falta.png", topic.questions.single().explanationImageUri)
+    }
 }

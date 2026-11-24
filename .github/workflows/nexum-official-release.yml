@@ -125,22 +125,17 @@ jobs:
           El APK está firmado con la clave permanente de NEXUM y se puede
           instalar encima de la versión oficial anterior conservando los datos.
 
-          Novedades de NEXUM 3.0 (rediseño "Cuaderno de latón", sin funciones nuevas):
-          - Nueva identidad visual: tinta oscura con acento de latón, cifras
-            ligeras, menos marcos y botones tonales en toda la app.
-          - Navegación fluida: desliza entre Inicio, Biblioteca (Temas y
-            Grupos), Plan (Plan, Reloj y Calendario) y Test, con la barra
-            inferior siguiendo el dedo. En tablet, barra lateral.
-          - Test, Estadísticas, Calendario, editores y ajustes rediseñados.
-          - Accesos rápidos configurables con el lápiz.
-          - Nuevo ajuste en Comportamiento de la app para ocultar el tema de
-            origen de las preguntas.
-          - Mensajes de importación y restauración más cortos y barra de
-            progreso visible.
+          Novedades de NEXUM 3.0.1 (corrección):
+          - Exportar temas a ZIP ya no se bloquea cuando alguna pregunta
+            apunta a una foto que ya no está en el móvil: el ZIP se genera
+            sin esa foto y la app avisa de cuántas se omitieron y de qué temas.
+          - Si la exportación falla por otro motivo, el mensaje muestra la
+            causa real en lugar de un error genérico.
+          - Incluye todo el rediseño "Cuaderno de latón" de la 3.0.
           - Se conservan bancos de preguntas, estadísticas, ajustes y copias.
             No cambia el identificador Android ni la firma.
 
-          Para actualizar, instala NEXUM 3.0 encima de la versión oficial
+          Para actualizar, instala NEXUM 3.0.1 encima de la versión oficial
           anterior, sin desinstalar. Recomendamos exportar previamente una
           copia global de seguridad.
           Si tu launcher conserva tamaños antiguos de widgets, elimina y
