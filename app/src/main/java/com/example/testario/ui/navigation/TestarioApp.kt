@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.example.testario.ui.screen.NexumCapsule
 import com.example.testario.ui.theme.TestarioBackground
 import androidx.compose.ui.platform.LocalConfiguration
