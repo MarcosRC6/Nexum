@@ -403,6 +403,31 @@ private fun CapsuleNavItem(
     }
 }
 
+/** Botón tonal sin borde: acento latón sobre superficie seleccionada, o neutro. Alto 52 dp. */
+@Composable
+fun NexumTonalButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+    enabled: Boolean = true
+) {
+    val container = if (primary) TestarioNeonSelected else TestarioSurfaceLight
+    val content = if (primary) TestarioPrimary else TestarioText
+    Box(
+        modifier = modifier
+            .height(52.dp)
+            .alpha(if (enabled) 1f else 0.4f)
+            .clip(RoundedCornerShape(16.dp))
+            .background(container)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, style = MaterialTheme.typography.labelLarge, color = content, maxLines = 1)
+    }
+}
+
 /** Navegación de pantallas anchas (tablet): sustituye a la cápsula inferior. */
 @Composable
 fun NexumNavRail(
