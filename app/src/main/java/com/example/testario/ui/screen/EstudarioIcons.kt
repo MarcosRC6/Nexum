@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.size
 
-enum class EstudarioIconKind { HOME, LIBRARY, TEST, PLAN, STATS, SETTINGS, NOTIFICATIONS, BACK, CHEVRON_UP, CHEVRON_DOWN, EDIT, SEARCH, CLOSE, FLAG, CLOCK, LOGO }
+enum class EstudarioIconKind { HOME, LIBRARY, TEST, PLAN, STATS, SETTINGS, NOTIFICATIONS, BACK, CHEVRON_UP, CHEVRON_DOWN, EDIT, SEARCH, CLOSE, FLAG, CLOCK, CHECK, LOGO }
 
 @Composable
 fun EstudarioIcon(
@@ -139,6 +139,10 @@ fun EstudarioIcon(
                 drawCircle(tint, radius = w * .34f, center = Offset(w * .50f, h * .50f), style = stroke)
                 drawLine(tint, Offset(w * .50f, h * .30f), Offset(w * .50f, h * .50f), sw, StrokeCap.Round)
                 drawLine(tint, Offset(w * .50f, h * .50f), Offset(w * .63f, h * .58f), sw, StrokeCap.Round)
+            }
+            EstudarioIconKind.CHECK -> {
+                drawLine(tint, Offset(w * .24f, h * .52f), Offset(w * .43f, h * .70f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * .43f, h * .70f), Offset(w * .77f, h * .30f), sw, StrokeCap.Round)
             }
             EstudarioIconKind.LOGO -> Unit
         }

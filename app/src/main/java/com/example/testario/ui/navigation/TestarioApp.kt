@@ -247,7 +247,9 @@ fun TestarioApp(
                 route == Routes.STATS -> MainSection.STATS
                 else -> null
             }
-            val showRail = railSection != null && LocalConfiguration.current.screenWidthDp >= 600
+            val cfg = LocalConfiguration.current
+            // El carril necesita ~500 dp de alto: un móvil horizontal usa la cápsula.
+            val showRail = railSection != null && cfg.screenWidthDp >= 600 && cfg.screenHeightDp >= 480
             Row(Modifier.fillMaxSize()) {
             if (showRail && railSection != null) {
                 NexumNavRail(

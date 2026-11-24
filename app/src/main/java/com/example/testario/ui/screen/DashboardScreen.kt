@@ -64,6 +64,8 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -192,11 +194,12 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .padding(padding)
-                .fillMaxSize()
+                .fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
         ) {
             LazyColumn(
                 state = homeListState,
-                modifier = Modifier.fillMaxSize().onGloballyPositioned {
+                modifier = Modifier.fillMaxHeight().widthIn(max = 680.dp).fillMaxWidth().onGloballyPositioned {
                     listTopInRoot = it.positionInRoot().y
                 },
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
@@ -303,8 +306,8 @@ fun HomeScreen(
                             ) {
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        "HOY · ${studyState.dateText.uppercase()}",
-                                        style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.6.sp),
+                                        studyState.dateText,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         color = TestarioMutedText,
                                         modifier = Modifier.weight(1f)
                                     )
@@ -324,7 +327,9 @@ fun HomeScreen(
                                         } else {
                                             "Reiniciar"
                                         }
-                                        Button(
+                                        NexumTonalButton(
+                                            text = primaryLabel,
+                                            primary = true,
                                             onClick = {
                                                 if (studyState.studyTimerState == StudyTimerState.STOPPED) {
                                                     studyViewModel.startStudyFromHome()
@@ -335,14 +340,15 @@ fun HomeScreen(
                                             },
                                             enabled = !studyState.isFreeDay,
                                             modifier = Modifier.weight(1f)
-                                        ) { Text(primaryLabel) }
+                                        )
 
                                         val secondaryLabel = if (studyState.studyTimerState == StudyTimerState.PAUSED) {
                                             "Reanudar"
                                         } else {
                                             "Pausar"
                                         }
-                                        OutlinedButton(
+                                        NexumTonalButton(
+                                            text = secondaryLabel,
                                             onClick = {
                                                 when (studyState.studyTimerState) {
                                                     StudyTimerState.RUNNING -> studyViewModel.pauseStudyFromHome()
@@ -355,7 +361,7 @@ fun HomeScreen(
                                             },
                                             enabled = studyState.studyTimerState != StudyTimerState.STOPPED && !studyState.isFreeDay,
                                             modifier = Modifier.weight(1f)
-                                        ) { Text(secondaryLabel) }
+                                        )
                                     }
 
                                     if (homeSettingsViewModel.showStudyObjectives && studyState.fixedObjectives.isNotEmpty()) {
@@ -437,8 +443,10 @@ fun HomeScreen(
                                         Text(topic.name, style = MaterialTheme.typography.headlineSmall, color = TestarioText)
                                         Text("Vuelta ${topic.round}", color = TestarioMutedText)
                                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            OutlinedButton(onClick = onPlan, modifier = Modifier.weight(1f)) { Text("Ver plan") }
-                                            Button(
+                                            NexumTonalButton(text = "Ver plan", onClick = onPlan, modifier = Modifier.weight(1f))
+                                            NexumTonalButton(
+                                                primary = true,
+                                                text = if (activeLinkedTopics.isEmpty() && activeQuickLink?.templateId == null) "Vincular test" else "Test rápido",
                                                 onClick = {
                                                     val link = activeQuickLink
                                                     if (link != null && (activeLinkedTopics.isNotEmpty() || link.templateId != null)) {
@@ -448,9 +456,7 @@ fun HomeScreen(
                                                     }
                                                 },
                                                 modifier = Modifier.weight(1f)
-                                            ) {
-                                                Text(if (activeLinkedTopics.isEmpty() && activeQuickLink?.templateId == null) "Vincular test" else "Test rápido")
-                                            }
+                                            )
                                         }
                                         }
                                     }
@@ -475,7 +481,11 @@ fun HomeScreen(
                                             color = TestarioMutedText
                                         )
                                     }
-                                    Text("›", style = MaterialTheme.typography.headlineMedium, color = TestarioPrimary)
+                                    EstudarioIcon(
+                                        EstudarioIconKind.BACK,
+                                        tint = TestarioPrimary,
+                                        modifier = Modifier.size(24.dp).rotate(180f)
+                                    )
                                 }
                             }
                         }
@@ -526,7 +536,11 @@ fun HomeScreen(
                                         Text("Preguntas en Fallos", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                                         Text("Tienes $failures pendientes de repaso.", color = TestarioMutedText)
                                     }
-                                    Text("›", style = MaterialTheme.typography.headlineMedium, color = TestarioPrimary)
+                                    EstudarioIcon(
+                                        EstudarioIconKind.BACK,
+                                        tint = TestarioPrimary,
+                                        modifier = Modifier.size(24.dp).rotate(180f)
+                                    )
                                 }
                             }
                         }
@@ -560,7 +574,11 @@ fun HomeScreen(
                                                         Text(template.name, color = TestarioText, style = MaterialTheme.typography.titleMedium)
                                                         Text("${template.questionCount} preguntas · ${template.mode.name.lowercase().replaceFirstChar { it.uppercase() }}", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                                                     }
-                                                    Text("›", style = MaterialTheme.typography.headlineMedium, color = TestarioPrimary)
+                                                    EstudarioIcon(
+                                        EstudarioIconKind.BACK,
+                                        tint = TestarioPrimary,
+                                        modifier = Modifier.size(24.dp).rotate(180f)
+                                    )
                                                 }
                                             }
                                         }
