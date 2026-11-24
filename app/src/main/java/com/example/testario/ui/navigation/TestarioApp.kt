@@ -304,7 +304,15 @@ fun TestarioApp(
                 if (target >= 0 && target != pagerState.currentPage) {
                     pagerDriven[0] = true
                     try {
-                        if (animate) pagerState.animateScrollToPage(target) else pagerState.scrollToPage(target)
+                        if (animate) {
+                            // En saltos largos no se dibujan las pantallas intermedias: se salta
+                            // junto a la de destino y solo se anima el último tramo.
+                            val distance = target - pagerState.currentPage
+                            if (kotlin.math.abs(distance) > 1) {
+                                pagerState.scrollToPage(target - Integer.signum(distance))
+                            }
+                            pagerState.animateScrollToPage(target)
+                        } else pagerState.scrollToPage(target)
                     } finally {
                         pagerDriven[0] = false
                     }
@@ -354,7 +362,10 @@ fun TestarioApp(
                     modifier = Modifier
                         .fillMaxSize()
                         .then(if (showCapsule) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier),
-                    key = { it }
+                    key = { it },
+                    // Las páginas vecinas ya están compuestas al empezar a arrastrar, así que
+                    // el gesto no paga el coste de dibujar una pantalla entera.
+                    beyondViewportPageCount = 1
                 ) { page ->
                     pageStateHolder.SaveableStateProvider(page) {
                         when (page) {
