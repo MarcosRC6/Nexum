@@ -219,11 +219,14 @@ fun SettingsScreen(
             isLoading = true
             try {
                 val report = importExportViewModel.importBatchProcessed(choices, pendingImportText)
-                message = "Importación completa: ${report.outcomes.size} temas analizados; " +
-                    "${report.created} nuevos, ${report.merged} fusionados, " +
-                    "${report.identical} idénticos. " +
-                    "${report.addedQuestions} preguntas y ${report.addedExercises} ejercicios nuevos; " +
-                    "${report.duplicatedQuestions} preguntas y ${report.duplicatedExercises} ejercicios duplicados."
+                val topicsDone = report.created + report.merged
+                val itemsDone = report.addedQuestions + report.addedExercises
+                message = if (topicsDone == 0 && itemsDone == 0) {
+                    "No había nada nuevo que importar."
+                } else {
+                    "Listo: ${if (topicsDone == 1) "1 tema" else "$topicsDone temas"} y " +
+                        "${if (itemsDone == 1) "1 pregunta nueva" else "$itemsDone preguntas nuevas"}."
+                }
                 pendingImportText = null
                 pendingImportFileName = null
                 pendingImportPreview = null
@@ -1200,8 +1203,7 @@ fun SettingsScreen(
                                 }
                                 result.onSuccess { recoveryName ->
                                     PlanarioDependencies.schedulePlanarioNotifications()
-                                    message = "Copia global restaurada. Se ha conservado el estado previo en " +
-                                        "$recoveryName. Reinicia NEXUM para recargar todos los ajustes."
+                                    message = "Copia restaurada. Reinicia NEXUM para ver todos los cambios."
                                 }.onFailure { failure ->
                                     message = "Restauración cancelada o fallida: " +
                                         (failure.message ?: "Se ha conservado una copia de recuperación.")
@@ -1238,7 +1240,7 @@ fun SettingsScreen(
                                 }
                                 message = restore.fold(
                                     onSuccess = { backupName ->
-                                        "Biblioteca restaurada. Copia del estado anterior: $backupName."
+                                        "Biblioteca restaurada."
                                     },
                                     onFailure = { failure ->
                                         "No se restauró la Biblioteca: ${failure.message ?: "Error de integridad."}"
@@ -1276,7 +1278,7 @@ fun SettingsScreen(
 
                     if (ok) {
                         PlanarioDependencies.schedulePlanarioNotifications()
-                        message = "Planificación importada correctamente."
+                        message = "Plan importado."
                     } else {
                         message = "Error: copia de planificación no válida."
                     }
@@ -1297,7 +1299,7 @@ fun SettingsScreen(
                 coroutineScope.launch {
                     try {
                         importExportViewModel.restoreBackup(text)
-                        message = "Backup restaurado correctamente."
+                        message = "Copia restaurada."
                     } catch(e: Exception) {
                         message = "Error: Archivo corrupto."
                     } finally {

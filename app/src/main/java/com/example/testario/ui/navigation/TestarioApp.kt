@@ -22,7 +22,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.example.testario.ui.screen.NexumCapsule
-import com.example.testario.ui.screen.NexumInnerSwipe
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.animation.core.FastOutSlowInEasing
 import com.example.testario.ui.theme.TestarioBackground
 import androidx.compose.ui.platform.LocalConfiguration
@@ -128,6 +133,12 @@ fun TestarioApp(
         }
     }
 
+    // Las cinco secciones principales viven en un paginador que sigue al dedo.
+    // La ruta sigue siendo la fuente de verdad: navegar mueve el paginador, y soltar el
+    // paginador en otra página navega a su ruta.
+    val pagerState = rememberPagerState(pageCount = { MAIN_ROUTES.size })
+    val pageStateHolder = rememberSaveableStateHolder()
+
     val darkTheme = when (themeViewModel.themeMode) {
         ThemeViewModel.ThemeMode.LIGHT -> false
         ThemeViewModel.ThemeMode.DARK -> true
@@ -161,6 +172,7 @@ fun TestarioApp(
         }
     }
 
+    // "keep" navega a Plan sin cambiar la pestaña que tenía abierta.
     fun goPlan(tab: String = "plan") {
         navController.navigate(Routes.plan(tab)) {
             popUpTo(Routes.HOME) { inclusive = false }
@@ -272,6 +284,52 @@ fun TestarioApp(
             val cfg = LocalConfiguration.current
             // El carril necesita ~500 dp de alto: un móvil horizontal usa la cápsula.
             val showRail = railSection != null && cfg.screenWidthDp >= 600 && cfg.screenHeightDp >= 480
+            val isMainRoute = route == null || route in MAIN_ROUTES
+            // El paginador sigue compuesto un instante tras abrir una pantalla de detalle para
+            // que la transición no deje el fondo vacío.
+            var keepPager by remember { mutableStateOf(true) }
+            LaunchedEffect(isMainRoute) {
+                if (isMainRoute) keepPager = true else { kotlinx.coroutines.delay(450); keepPager = false }
+            }
+            val showPager = isMainRoute || keepPager
+            val pagerDriven = remember { booleanArrayOf(false) }
+            var previousWasMain by remember { mutableStateOf(true) }
+            val currentRoute by rememberUpdatedState(route)
+
+            // Navegar (cápsula, botones, enlaces) mueve el paginador.
+            LaunchedEffect(route) {
+                val target = MAIN_ROUTES.indexOf(route)
+                val animate = previousWasMain
+                previousWasMain = target >= 0
+                if (target >= 0 && target != pagerState.currentPage) {
+                    pagerDriven[0] = true
+                    try {
+                        if (animate) pagerState.animateScrollToPage(target) else pagerState.scrollToPage(target)
+                    } finally {
+                        pagerDriven[0] = false
+                    }
+                }
+            }
+            // Soltar el paginador en otra página navega a su ruta.
+            LaunchedEffect(pagerState) {
+                snapshotFlow { pagerState.settledPage }.collect { page ->
+                    val now = currentRoute
+                    if (!pagerDriven[0] && now in MAIN_ROUTES && MAIN_ROUTES[page] != now) {
+                        when (page) {
+                            0 -> goHome()
+                            1 -> goLibrary()
+                            2 -> goGroups()
+                            3 -> goPlan("keep")
+                            else -> goTest()
+                        }
+                    }
+                }
+            }
+            // Posición fraccionaria de la cápsula: Biblioteca y Grupos comparten sección, y
+            // Plan, Reloj y Calendario también.
+            val capsulePosition = remember(pagerState) {
+                { pageToCapsule(pagerState.currentPage + pagerState.currentPageOffsetFraction) }
+            }
             Row(Modifier.fillMaxSize()) {
             if (showRail && railSection != null) {
                 NexumNavRail(
@@ -287,120 +345,120 @@ fun TestarioApp(
             val showCapsule = !showRail && capsuleSection != null
             CompositionLocalProvider(LocalNexumRail provides (showRail || capsuleSection != null)) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
-            // En móvil, deslizar el dedo recorre Inicio → Biblioteca → Grupos → Plan → Test.
-            val swipeThreshold = with(LocalDensity.current) { 72.dp.toPx() }
-            val swipeBy: (Int) -> Unit = { delta ->
-                val target = SWIPE_ORDER.getOrNull(SWIPE_ORDER.indexOf(route) + delta)
-                val consumedByScreen = route == Routes.PLAN && NexumInnerSwipe.handler?.invoke(delta) == true
-                if (!consumedByScreen && route in SWIPE_ORDER && target != null) when (target) {
-                    Routes.HOME -> goHome()
-                    Routes.LIBRARY -> goLibrary()
-                    Routes.GROUPS -> goGroups()
-                    // Venir de Test aterriza en la última pestaña (Calendario).
-                    Routes.PLAN -> goPlan(if (delta < 0) "calendar" else "plan")
-                    else -> goTest()
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+            if (showPager) {
+                val planArgs = if (route == Routes.PLAN) currentBackStackEntry?.arguments?.getString("tab") else null
+                val configEntry = if (route == Routes.TEST_CONFIG) currentBackStackEntry else null
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(if (showCapsule) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier),
+                    key = { it }
+                ) { page ->
+                    pageStateHolder.SaveableStateProvider(page) {
+                        when (page) {
+                            0 -> HomeScreen(
+                                libraryViewModel = libraryViewModel,
+                                homeSettingsViewModel = homeSettingsViewModel,
+                                onLibrary = { goLibrary() },
+                                onGroups = { navController.navigate(Routes.GROUPS) { launchSingleTop = true } },
+                                onCreateTest = { goTest() },
+                                onPlan = { goPlan() },
+                                onOpenTimer = { goPlan("timer") },
+                                onStartQuickTest = { topicIds, count, templateId ->
+                                    launchLinkedQuickTest(topicIds, count, templateId)
+                                },
+                                onOpenTemplate = { templateId -> navController.navigate(Routes.testConfig(templateId = templateId)) },
+                                onStats = { goStats() },
+                                onSettings = { goSettings() },
+                                onCustomizeHome = { goHomeSettings() },
+                                savedTestSessionViewModel = sessionViewModel,
+                                onResumeSavedTest = {
+                                    if (sessionViewModel.resumeSavedSession()) {
+                                        navController.navigate(Routes.TEST_SCREEN) { launchSingleTop = true }
+                                    } else {
+                                        Toast.makeText(context, "No se pudo recuperar el test guardado.", Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                                focusTodayRequestId = if (requestedDestinationRoute == "home_today")
+                                    navigationRequestId else null
+                            )
+                            1 -> LibraryTopicsScreen(
+                                libraryViewModel = libraryViewModel,
+                                statsViewModel = statsViewModel,
+                                onOpenTopic = { navController.navigate(Routes.topicDetail(it)) },
+                                onHome = { goHome() },
+                                onCreateTest = { goTest() },
+                                onPlan = { goPlan() },
+                                onGroups = { goGroups() },
+                                onStats = { goStats() },
+                                onSettings = { goSettings() }
+                            )
+                            2 -> GroupsScreen(
+                                libraryViewModel = libraryViewModel,
+                                onHome = { goHome() },
+                                onTopics = { goLibrary() },
+                                onCreateTest = { goTest() },
+                                onPlan = { goPlan() },
+                                onStats = { goStats() },
+                                onSettings = { goSettings() }
+                            )
+                            3 -> UnifiedPlanScreen(
+                                libraryViewModel = libraryViewModel,
+                                initialTab = planArgs,
+                                onHome = { goHome() },
+                                onLibrary = { goLibrary() },
+                                onTest = { goTest() },
+                                onStats = { goStats() },
+                                onSettings = { goSettings() },
+                                onStartQuickTest = { topicIds, count, templateId ->
+                                    launchLinkedQuickTest(topicIds, count, templateId)
+                                }
+                            )
+                            else -> {
+                                val topicArg = configEntry?.arguments?.getString("preselectedTopicId")
+                                val templateArg = configEntry?.arguments?.getString("templateId")
+                                key(topicArg, templateArg) {
+                                    TestConfigScreen(
+                                        libraryViewModel = libraryViewModel,
+                                        sessionViewModel = sessionViewModel,
+                                        mixedSessionViewModel = mixedSessionViewModel,
+                                        preselectedTopicId = topicArg,
+                                        preselectedTemplateId = templateArg,
+                                        onBack = { goBack() },
+                                        onHome = { goHome() },
+                                        onLibrary = { goLibrary() },
+                                        onPlan = { goPlan() },
+                                        onStats = { goStats() },
+                                        onSettings = { goSettings() },
+                                        onStart = { navController.navigate(Routes.TEST_SCREEN) },
+                                        onStartMixed = { navController.navigate(Routes.MIXED_SESSION) }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            // The library default is a 700 ms cross-fade, which feels sluggish.
-            // Entre secciones principales la pantalla se desplaza según el sentido del gesto.
+            // Las secciones principales se dibujan en el paginador de arriba: sus destinos
+            // solo existen para la pila de navegación y quedan vacíos.
             NavHost(
                 navController = navController,
                 startDestination = Routes.HOME,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .then(if (showCapsule) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier)
-                    .pointerInput(showCapsule, route) {
-                        if (!showCapsule) return@pointerInput
-                        var total = 0f
-                        detectHorizontalDragGestures(
-                            onDragStart = { total = 0f },
-                            onDragCancel = { total = 0f },
-                            onDragEnd = {
-                                if (total <= -swipeThreshold) swipeBy(1)
-                                else if (total >= swipeThreshold) swipeBy(-1)
-                            },
-                            onHorizontalDrag = { _, dx -> total += dx }
-                        )
-                    },
-                enterTransition = {
-                    val d = swipeDirection(initialState.destination.route, targetState.destination.route)
-                    if (d != 0) slideIntoContainer(slideSide(d), tween(360, easing = FastOutSlowInEasing)) + fadeIn(tween(240))
-                    else fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 14 }
-                },
-                exitTransition = {
-                    val d = swipeDirection(initialState.destination.route, targetState.destination.route)
-                    if (d != 0) slideOutOfContainer(slideSide(d), tween(360, easing = FastOutSlowInEasing)) { it / 3 } + fadeOut(tween(240))
-                    else fadeOut(tween(160))
-                },
-                popEnterTransition = {
-                    val d = swipeDirection(initialState.destination.route, targetState.destination.route)
-                    if (d != 0) slideIntoContainer(slideSide(d), tween(360, easing = FastOutSlowInEasing)) + fadeIn(tween(240))
-                    else fadeIn(tween(220))
-                },
-                popExitTransition = {
-                    val d = swipeDirection(initialState.destination.route, targetState.destination.route)
-                    if (d != 0) slideOutOfContainer(slideSide(d), tween(360, easing = FastOutSlowInEasing)) { it / 3 } + fadeOut(tween(240))
-                    else fadeOut(tween(160)) + slideOutHorizontally(tween(240)) { it / 14 }
-                }
+                modifier = Modifier.fillMaxSize(),
+                enterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 14 } },
+                exitTransition = { fadeOut(tween(160)) },
+                popEnterTransition = { fadeIn(tween(220)) },
+                popExitTransition = { fadeOut(tween(160)) + slideOutHorizontally(tween(240)) { it / 14 } }
             ) {
             composable(Routes.HOME) {
                 BackHandler(enabled = timerState.studyTimerState == StudyTimerState.RUNNING) {
                     showTimerExitDialog = true
                 }
-                HomeScreen(
-                    libraryViewModel = libraryViewModel,
-                    homeSettingsViewModel = homeSettingsViewModel,
-                    onLibrary = { goLibrary() },
-                    onGroups = { navController.navigate(Routes.GROUPS) { launchSingleTop = true } },
-                    onCreateTest = { goTest() },
-                    onPlan = { goPlan() },
-                    onOpenTimer = { goPlan("timer") },
-                    onStartQuickTest = { topicIds, count, templateId ->
-                        launchLinkedQuickTest(topicIds, count, templateId)
-                    },
-                    onOpenTemplate = { templateId -> navController.navigate(Routes.testConfig(templateId = templateId)) },
-                    onStats = { goStats() },
-                    onSettings = { goSettings() },
-                    onCustomizeHome = { goHomeSettings() },
-                    savedTestSessionViewModel = sessionViewModel,
-                    onResumeSavedTest = {
-                        if (sessionViewModel.resumeSavedSession()) {
-                            navController.navigate(Routes.TEST_SCREEN) { launchSingleTop = true }
-                        } else {
-                            Toast.makeText(context, "No se pudo recuperar el test guardado.", Toast.LENGTH_LONG).show()
-                        }
-                    },
-                    focusTodayRequestId = if (requestedDestinationRoute == "home_today")
-                        navigationRequestId else null
-                )
             }
-
-            composable(Routes.LIBRARY) {
-                LibraryTopicsScreen(
-                    libraryViewModel = libraryViewModel,
-                    statsViewModel = statsViewModel,
-                    onOpenTopic = { navController.navigate(Routes.topicDetail(it)) },
-                    onHome = { goHome() },
-                    onCreateTest = { goTest() },
-                    onPlan = { goPlan() },
-                    onGroups = { navController.navigate(Routes.GROUPS) { launchSingleTop = true } },
-                    onStats = { goStats() },
-                    onSettings = { goSettings() }
-                )
-            }
-
-            composable(Routes.GROUPS) {
-                GroupsScreen(
-                    libraryViewModel = libraryViewModel,
-                    onHome = { goHome() },
-                    onTopics = { goLibrary() },
-                    onCreateTest = { goTest() },
-                    onPlan = { goPlan() },
-                    onStats = { goStats() },
-                    onSettings = { goSettings() }
-                )
-            }
+            composable(Routes.LIBRARY) { }
+            composable(Routes.GROUPS) { }
 
             composable(Routes.TOPIC_DETAIL) { b ->
                 val id = b.arguments?.getString("topicId") ?: return@composable
@@ -456,25 +514,7 @@ fun TestarioApp(
                     selectedExerciseId = entry.arguments?.getString("exerciseId"))
             }
 
-            composable(Routes.TEST_CONFIG) { backStackEntry ->
-                val preselectedTopicId = backStackEntry.arguments?.getString("preselectedTopicId")
-                val preselectedTemplateId = backStackEntry.arguments?.getString("templateId")
-                TestConfigScreen(
-                    libraryViewModel = libraryViewModel,
-                    sessionViewModel = sessionViewModel,
-                    mixedSessionViewModel = mixedSessionViewModel,
-                    preselectedTopicId = preselectedTopicId,
-                    preselectedTemplateId = preselectedTemplateId,
-                    onBack = { goBack() },
-                    onHome = { goHome() },
-                    onLibrary = { goLibrary() },
-                    onPlan = { goPlan() },
-                    onStats = { goStats() },
-                    onSettings = { goSettings() },
-                    onStart = { navController.navigate(Routes.TEST_SCREEN) },
-                    onStartMixed = { navController.navigate(Routes.MIXED_SESSION) }
-                )
-            }
+            composable(Routes.TEST_CONFIG) { }
 
             composable(Routes.TEST_SCREEN) {
                 TestScreen(
@@ -496,21 +536,7 @@ fun TestarioApp(
                 )
             }
 
-            composable(Routes.PLAN) { backStackEntry ->
-                val tab = backStackEntry.arguments?.getString("tab")
-                UnifiedPlanScreen(
-                    libraryViewModel = libraryViewModel,
-                    initialTab = tab,
-                    onHome = { goHome() },
-                    onLibrary = { goLibrary() },
-                    onTest = { goTest() },
-                    onStats = { goStats() },
-                    onSettings = { goSettings() },
-                    onStartQuickTest = { topicIds, count, templateId ->
-                        launchLinkedQuickTest(topicIds, count, templateId)
-                    }
-                )
-            }
+            composable(Routes.PLAN) { }
 
             composable(Routes.STATS) {
                 StatsScreen(
@@ -567,6 +593,7 @@ fun TestarioApp(
                 )
             }
             }
+            }
             if (showCapsule && capsuleSection != null) {
                 Box(
                     Modifier
@@ -575,7 +602,7 @@ fun TestarioApp(
                         .windowInsetsPadding(WindowInsets.navigationBars)
                 ) {
                     NexumCapsule(
-                        selected = capsuleSection,
+                        position = capsulePosition,
                         onHome = { goHome() },
                         onLibrary = { goLibrary() },
                         onPlan = { goPlan() },
@@ -676,16 +703,13 @@ fun TestarioApp(
     }
 }
 
-/** Orden de las secciones al deslizar: Inicio, Biblioteca, Grupos, Plan y Test. */
-private val SWIPE_ORDER = listOf(Routes.HOME, Routes.LIBRARY, Routes.GROUPS, Routes.PLAN, Routes.TEST_CONFIG)
+/** Páginas del paginador principal, en orden, con la ruta que representa cada una. */
+private val MAIN_ROUTES = listOf(Routes.HOME, Routes.LIBRARY, Routes.GROUPS, Routes.PLAN, Routes.TEST_CONFIG)
 
-/** +1 si el destino queda a la derecha del origen, -1 a la izquierda, 0 si no son secciones principales. */
-private fun swipeDirection(from: String?, to: String?): Int {
-    val a = SWIPE_ORDER.indexOf(from)
-    val b = SWIPE_ORDER.indexOf(to)
-    return if (a < 0 || b < 0) 0 else b.compareTo(a)
+/** Página fraccionaria -> posición en la cápsula (Inicio 0, Biblioteca 1, Plan 2, Test 3). */
+private fun pageToCapsule(page: Float): Float {
+    val sections = floatArrayOf(0f, 1f, 1f, 2f, 3f)
+    val p = page.coerceIn(0f, sections.lastIndex.toFloat())
+    val i = p.toInt().coerceAtMost(sections.lastIndex - 1)
+    return sections[i] + (sections[i + 1] - sections[i]) * (p - i)
 }
-
-private fun slideSide(direction: Int) =
-    if (direction > 0) AnimatedContentTransitionScope.SlideDirection.Left
-    else AnimatedContentTransitionScope.SlideDirection.Right

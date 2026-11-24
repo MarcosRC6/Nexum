@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.layout
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.semantics.Role
 import androidx.compose.animation.core.animateFloatAsState
@@ -315,18 +317,31 @@ fun MainBottomNavigation(
     onStats: () -> Unit
 ) {
     if (LocalNexumRail.current) return
-    NexumCapsule(selected, onHome, onLibrary, onPlan, onTest)
+    val index = when (selected) {
+        MainSection.HOME -> 0f
+        MainSection.LIBRARY -> 1f
+        MainSection.PLAN -> 2f
+        MainSection.TEST -> 3f
+        MainSection.STATS -> -1f
+    }
+    NexumCapsule({ index }, onHome, onLibrary, onPlan, onTest)
 }
 
-/** Cápsula inferior: Inicio, Biblioteca, Plan, Test. La dibuja TestarioApp una sola vez. */
+/**
+ * Cápsula inferior: Inicio, Biblioteca, Plan, Test. La dibuja TestarioApp una sola vez y
+ * [position] es la posición fraccionaria (0 a 3) que le da el paginador, de modo que la
+ * pastilla y la etiqueta se mueven a la vez que el dedo.
+ */
 @Composable
 fun NexumCapsule(
-    selected: MainSection,
+    position: () -> Float,
     onHome: () -> Unit,
     onLibrary: () -> Unit,
     onPlan: () -> Unit,
     onTest: () -> Unit
 ) {
+    val pos = position()
+    fun weight(i: Int) = (1f - kotlin.math.abs(pos - i)).coerceIn(0f, 1f)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -341,78 +356,50 @@ fun NexumCapsule(
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CapsuleNavItem(EstudarioIconKind.HOME, "Inicio", selected == MainSection.HOME, onHome)
-            CapsuleNavItem(EstudarioIconKind.LIBRARY, "Biblioteca", selected == MainSection.LIBRARY, onLibrary)
-            CapsuleNavItem(EstudarioIconKind.PLAN, "Plan", selected == MainSection.PLAN, onPlan)
-            CapsuleNavItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest)
+            CapsuleNavItem(EstudarioIconKind.HOME, "Inicio", weight(0), onHome)
+            CapsuleNavItem(EstudarioIconKind.LIBRARY, "Biblioteca", weight(1), onLibrary)
+            CapsuleNavItem(EstudarioIconKind.PLAN, "Plan", weight(2), onPlan)
+            CapsuleNavItem(EstudarioIconKind.TEST, "Test", weight(3), onTest)
         }
     }
 }
 
-/** Solo el destino activo muestra su nombre; los demás son iconos de 56 x 52 dp. */
+/** Solo el destino activo muestra su nombre; [amount] (0 a 1) es cuánto lo está ahora mismo. */
 @Composable
 private fun CapsuleNavItem(
     icon: EstudarioIconKind,
     label: String,
-    selected: Boolean,
+    amount: Float,
     onClick: () -> Unit
 ) {
-    val pill by animateColorAsState(
-        if (selected) TestarioNeonSelected else TestarioNeonSelected.copy(alpha = 0f),
-        tween(300, easing = FastOutSlowInEasing), label = "capsulePill"
-    )
-    val tint by animateColorAsState(
-        if (selected) TestarioPrimary else TestarioMutedText, tween(300, easing = FastOutSlowInEasing), label = "capsuleTint"
-    )
+    val tint = androidx.compose.ui.graphics.lerp(TestarioMutedText, TestarioPrimary, amount)
     Row(
         modifier = Modifier
             .height(52.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(pill)
-            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            .background(TestarioNeonSelected.copy(alpha = amount))
+            .selectable(selected = amount > 0.5f, role = Role.Tab, onClick = onClick)
             .padding(horizontal = 16.dp)
             .semantics { contentDescription = label },
         verticalAlignment = Alignment.CenterVertically
     ) {
         EstudarioIcon(icon, tint = tint, modifier = Modifier.size(24.dp))
-        AnimatedVisibility(
-            visible = selected,
-            enter = expandHorizontally(tween(320, easing = FastOutSlowInEasing)) + fadeIn(tween(260)),
-            exit = shrinkHorizontally(tween(320, easing = FastOutSlowInEasing)) + fadeOut(tween(160))
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                color = TestarioPrimary,
-                maxLines = 1,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
-    }
-}
-
-/** Botón tonal sin borde: acento latón sobre superficie seleccionada, o neutro. Alto 52 dp. */
-@Composable
-fun NexumTonalButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    primary: Boolean = false,
-    enabled: Boolean = true
-) {
-    val container = if (primary) TestarioNeonSelected else TestarioSurfaceLight
-    val content = if (primary) TestarioPrimary else TestarioText
-    Box(
-        modifier = modifier
-            .height(52.dp)
-            .alpha(if (enabled) 1f else 0.4f)
-            .clip(RoundedCornerShape(16.dp))
-            .background(container)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text, style = MaterialTheme.typography.labelLarge, color = content, maxLines = 1)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = TestarioPrimary,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier
+                .layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = androidx.compose.ui.unit.Constraints.Infinity))
+                    val width = (placeable.width * amount).roundToInt()
+                    layout(width, placeable.height) { placeable.place(0, 0) }
+                }
+                .clipToBounds()
+                .alpha(amount)
+                .padding(start = 8.dp)
+        )
     }
 }
 

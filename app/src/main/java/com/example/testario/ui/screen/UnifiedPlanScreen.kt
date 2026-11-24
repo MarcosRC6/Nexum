@@ -26,15 +26,10 @@ import androidx.compose.material3.Text
 import com.example.testario.ui.theme.NeonTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,7 +58,6 @@ import com.example.testario.ui.theme.TestarioSurface
 import com.example.testario.ui.theme.TestarioText
 import com.example.testario.viewmodel.LibraryViewModel
 
-private enum class PlanTab { PLAN, TIMER, CALENDAR }
 
 @Composable
 fun UnifiedPlanScreen(
@@ -82,27 +76,17 @@ fun UnifiedPlanScreen(
     val planTopics by PlanarioDependencies.studyRepository.topics.collectAsState()
     val linkManager = remember { QuickTestLinkManager(context.applicationContext) }
 
-    var selectedTab by remember(initialTab) {
-        mutableStateOf(
-            when (initialTab) {
-                "timer" -> PlanTab.TIMER
-                "calendar" -> PlanTab.CALENDAR
-                else -> PlanTab.PLAN
-            }
-        )
+    // Plan, Reloj y Calendario son páginas de un paginador: siguen al dedo y, al llegar
+    // al borde, el gesto pasa al paginador de secciones de TestarioApp.
+    val requestedPage = when (initialTab) { "plan" -> 0; "timer" -> 1; "calendar" -> 2; else -> null }
+    val tabPager = rememberPagerState(initialPage = requestedPage ?: 0, pageCount = { 3 })
+    val tabScope = rememberCoroutineScope()
+    LaunchedEffect(initialTab) {
+        if (requestedPage != null && tabPager.currentPage != requestedPage) {
+            tabPager.animateScrollToPage(requestedPage)
+        }
     }
     var showLinkDialog by remember { mutableStateOf(false) }
-
-    // Deslizar recorre Plan → Reloj → Calendario antes de pasar a la sección siguiente.
-    DisposableEffect(Unit) {
-        val handler: (Int) -> Boolean = { delta ->
-            val tabs = PlanTab.values()
-            val next = selectedTab.ordinal + delta
-            if (next in tabs.indices) { selectedTab = tabs[next]; true } else false
-        }
-        NexumInnerSwipe.handler = handler
-        onDispose { if (NexumInnerSwipe.handler === handler) NexumInnerSwipe.handler = null }
-    }
 
     LaunchedEffect(planTopics, database.topics) {
         linkManager.prune(
@@ -137,37 +121,32 @@ fun UnifiedPlanScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = { selectedTab = PlanTab.PLAN },
+                    onClick = { tabScope.launch { tabPager.animateScrollToPage(0) } },
                     modifier = Modifier.weight(1f),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
-                    selected = selectedTab == PlanTab.PLAN
+                    selected = tabPager.currentPage == 0
                 ) { Text("Plan", maxLines = 1) }
                 Button(
-                    onClick = { selectedTab = PlanTab.TIMER },
+                    onClick = { tabScope.launch { tabPager.animateScrollToPage(1) } },
                     modifier = Modifier.weight(1f),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
-                    selected = selectedTab == PlanTab.TIMER
+                    selected = tabPager.currentPage == 1
                 ) { Text("Reloj", maxLines = 1) }
                 Button(
-                    onClick = { selectedTab = PlanTab.CALENDAR },
+                    onClick = { tabScope.launch { tabPager.animateScrollToPage(2) } },
                     modifier = Modifier.weight(1f),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
-                    selected = selectedTab == PlanTab.CALENDAR
+                    selected = tabPager.currentPage == 2
                 ) { Text("Calendario", maxLines = 1) }
             }
 
-            AnimatedContent(
-                targetState = selectedTab,
+            HorizontalPager(
+                state = tabPager,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                transitionSpec = {
-                    val dir = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                    (slideInHorizontally(tween(340, easing = FastOutSlowInEasing)) { it * dir } + fadeIn(tween(240))) togetherWith
-                        (slideOutHorizontally(tween(340, easing = FastOutSlowInEasing)) { -it * dir / 3 } + fadeOut(tween(200)))
-                },
-                label = "planTabs"
+                key = { it }
             ) { tab ->
             Column(Modifier.fillMaxSize()) {
-            if (tab == PlanTab.PLAN) {
+            if (tab == 0) {
                 activeTopic?.let { active ->
                     val link = linkManager.get(active.id)
                     val linkedTopics = database.topics.filter { it.id in link.libraryTopicIds }
@@ -222,7 +201,7 @@ fun UnifiedPlanScreen(
                         onStartLinkedTest = onStartQuickTest
                     )
                 }
-            } else if (tab == PlanTab.TIMER) {
+            } else if (tab == 1) {
                 Column(Modifier.weight(1f)) {
                     TimerScreen()
                 }
