@@ -14,4 +14,29 @@ internal object LibraryMediaReferences {
                 listOfNotNull(question.explanationImageUri, question.correctionImageUri)
             } + topic.exercises.flatMap { it.referencedImageUris() }
         }.filter(String::isNotBlank).distinct()
+
+    /** Copia de los temas sin las referencias a fotos que ya no existen en el móvil. */
+    fun withoutMissing(topics: List<Topic>, missing: Set<String>): List<Topic> {
+        if (missing.isEmpty()) return topics
+        fun String?.keep() = this?.takeIf { it !in missing }
+        return topics.map { topic ->
+            topic.copy(
+                questions = topic.questions.map { q ->
+                    q.copy(
+                        explanationImageUri = q.explanationImageUri.keep(),
+                        correctionImageUri = q.correctionImageUri.keep()
+                    )
+                },
+                exercises = topic.exercises.map { e ->
+                    e.copy(
+                        baseImageUri = e.baseImageUri.keep(),
+                        flashcard = e.flashcard?.copy(
+                            frontImageUri = e.flashcard.frontImageUri.keep(),
+                            backImageUri = e.flashcard.backImageUri.keep()
+                        )
+                    )
+                }
+            )
+        }
+    }
 }

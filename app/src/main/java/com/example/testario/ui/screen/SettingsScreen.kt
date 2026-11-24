@@ -281,12 +281,18 @@ fun SettingsScreen(
         isLoading = true
         coroutineScope.launch {
             try {
+                var omitted = emptyMap<String, Int>()
                 context.contentResolver.openOutputStream(uri)?.use { stream ->
-                    importExportViewModel.exportCompleteZip(stream, pendingExportTopicIds)
+                    omitted = importExportViewModel.exportCompleteZip(stream, pendingExportTopicIds).omittedPhotosByTopic
                 }
-                message = "Temas y recursos exportados correctamente."
-            } catch (_: Exception) {
-                message = "Error al exportar temas."
+                message = if (omitted.isEmpty()) {
+                    "Temas y recursos exportados correctamente."
+                } else {
+                    "Exportado. ${omitted.values.sum()} foto(s) ya no estaban en el móvil y se dejaron fuera (" +
+                        omitted.entries.joinToString { "${it.key}: ${it.value}" } + ")."
+                }
+            } catch (e: Exception) {
+                message = "Error al exportar temas: " + (e.localizedMessage ?: e.javaClass.simpleName)
             } finally {
                 isLoading = false
             }
