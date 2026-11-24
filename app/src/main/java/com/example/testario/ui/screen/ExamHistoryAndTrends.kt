@@ -21,7 +21,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import com.example.testario.ui.theme.NeonButton as Button
@@ -81,7 +81,6 @@ fun ExamHistoryAndTrends(database: TestarioDatabase) {
                     modifier = Modifier.fillMaxWidth().clickable { openedExamId = exam.id },
                     colors = CardDefaults.cardColors(containerColor = TestarioSurface),
                     shape = RoundedCornerShape(18.dp),
-                    border = BorderStroke(1.dp, TestarioSurfaceLight)
                 ) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("${examDate(exam.timestamp)} · Examen", color = TestarioText, style = MaterialTheme.typography.titleMedium)

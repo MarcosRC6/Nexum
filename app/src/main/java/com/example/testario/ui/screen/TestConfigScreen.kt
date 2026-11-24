@@ -35,7 +35,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -708,7 +708,6 @@ fun TestConfigScreen(
                 },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, TestarioPrimary)
             ) { Text("Guardar como plantilla") }
 
             Button(
@@ -838,7 +837,7 @@ private fun TemplateDropdown(
             modifier = Modifier.menuAnchor().fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
             colors = testarioTextFieldColors(),
-            trailingIcon = { Text("▼", color = TestarioMutedText) }
+            trailingIcon = { ChevronIcon(false, TestarioMutedText) }
         )
         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
             if (templates.isEmpty()) {
@@ -885,7 +884,7 @@ private fun GroupAllocationEditor(
             ) {
                 Text("${allocations.size} grupos configurados", color = TestarioMutedText, modifier = Modifier.weight(1f))
                 IconButton(onClick = { groupAllocationsExpanded = !groupAllocationsExpanded }, enabled = allocations.isNotEmpty()) {
-                    Text(if (groupAllocationsExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                    ChevronIcon(groupAllocationsExpanded)
                 }
             }
             if (groupAllocationsExpanded) {
@@ -964,7 +963,7 @@ private fun GroupAllocationRow(
                     modifier = Modifier.menuAnchor().fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = testarioTextFieldColors(),
-                    trailingIcon = { Text("▼", color = TestarioMutedText) }
+                    trailingIcon = { ChevronIcon(false, TestarioMutedText) }
                 )
                 ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
                     groups.forEach { group ->
@@ -1004,8 +1003,7 @@ fun SelectableBigCard(title: String, subtitle: String, selected: Boolean, modifi
     Card(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface),
-        border = BorderStroke(1.4.dp, TestarioPrimary)
+        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface)
     ) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = if (selected) TestarioPrimary else TestarioText)
@@ -1049,7 +1047,6 @@ fun DifficultyChip(text: String, selected: Boolean, color: Color, modifier: Modi
         shape = RoundedCornerShape(12.dp),
         modifier = modifier.height(38.dp),
         selected = selected,
-        border = BorderStroke(1.4.dp, TestarioPrimary),
         contentPadding = PaddingValues(0.dp)
     ) { Text(text, style = MaterialTheme.typography.bodySmall, color = if (selected) TestarioPrimary else TestarioText) }
 }
@@ -1075,7 +1072,7 @@ fun MultiSelectTopicDropdown(title: String, topics: List<Topic>, selectedTopicId
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
                 colors = testarioTextFieldColors(),
-                trailingIcon = { Text("▼", color = TestarioMutedText) }
+                trailingIcon = { ChevronIcon(false, TestarioMutedText) }
             )
             ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
                 topics.forEach { topic ->

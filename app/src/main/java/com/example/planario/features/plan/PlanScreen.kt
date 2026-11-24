@@ -1,5 +1,6 @@
 package com.example.planario.features.plan
 
+import com.example.testario.ui.screen.ChevronIcon
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -360,7 +361,7 @@ private fun ActiveTopicSection(
                     fontWeight = FontWeight.Bold
                 )
                 IconButton(onClick = { topicExpanded = !topicExpanded }) {
-                    Text(if (topicExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                    ChevronIcon(topicExpanded)
                 }
             }
 
@@ -414,7 +415,7 @@ private fun ActiveTopicSection(
             }
 
             ExpandableHelp(
-                title = "💡 ¿Qué es?",
+                title = "¿Qué es?",
                 expanded = helpExpanded,
                 onClick = { helpExpanded = !helpExpanded }
             ) {
@@ -472,7 +473,7 @@ private fun TopicQueueSection(
                 }
 
                 IconButton(onClick = { listExpanded = !listExpanded }) {
-                    Text(if (listExpanded) "⌃" else "⌄", color = TestarioPrimary, style = MaterialTheme.typography.titleLarge)
+                    ChevronIcon(listExpanded)
                 }
                 TextButton(onClick = onAddTopicClick) {
                     Text(text = "Añadir")
@@ -504,7 +505,7 @@ private fun TopicQueueSection(
 
             if (listExpanded) {
                 ExpandableHelp(
-                    title = "💡 ¿Qué es?",
+                    title = "¿Qué es?",
                     expanded = helpExpanded,
                     onClick = { helpExpanded = !helpExpanded }
                 ) {
@@ -716,11 +717,7 @@ private fun FixedObjectivesSection(
                 }
 
                 IconButton(onClick = { listExpanded = !listExpanded }) {
-                    Text(
-                        if (listExpanded) "⌃" else "⌄",
-                        color = TestarioPrimary,
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                    ChevronIcon(listExpanded)
                 }
                 TextButton(onClick = onAddObjectiveClick) {
                     Text(text = "Añadir")
@@ -751,7 +748,7 @@ private fun FixedObjectivesSection(
 
             if (listExpanded) {
                 ExpandableHelp(
-                    title = "💡 ¿Qué es?",
+                    title = "¿Qué es?",
                     expanded = helpExpanded,
                     onClick = { helpExpanded = !helpExpanded }
                 ) {
@@ -878,20 +875,18 @@ private fun FixedObjectiveRow(
                     )
                 }
 
-                OutlinedButton(
+                FilledTonalButton(
                     onClick = onDeleteClick,
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.16f),
                         contentColor = MaterialTheme.colorScheme.error
-                    ),
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.45f)
                     )
                 ) {
                     Text(
                         text = "Eliminar",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }

@@ -36,7 +36,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import com.example.testario.ui.theme.NeonLinearProgressIndicator as LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -219,11 +219,14 @@ fun SettingsScreen(
             isLoading = true
             try {
                 val report = importExportViewModel.importBatchProcessed(choices, pendingImportText)
-                message = "Importación completa: ${report.outcomes.size} temas analizados; " +
-                    "${report.created} nuevos, ${report.merged} fusionados, " +
-                    "${report.identical} idénticos. " +
-                    "${report.addedQuestions} preguntas y ${report.addedExercises} ejercicios nuevos; " +
-                    "${report.duplicatedQuestions} preguntas y ${report.duplicatedExercises} ejercicios duplicados."
+                val topicsDone = report.created + report.merged
+                val itemsDone = report.addedQuestions + report.addedExercises
+                message = if (topicsDone == 0 && itemsDone == 0) {
+                    "No había nada nuevo que importar."
+                } else {
+                    "Listo: ${if (topicsDone == 1) "1 tema" else "$topicsDone temas"} y " +
+                        "${if (itemsDone == 1) "1 pregunta nueva" else "$itemsDone preguntas nuevas"}."
+                }
                 pendingImportText = null
                 pendingImportFileName = null
                 pendingImportPreview = null
@@ -499,7 +502,7 @@ fun SettingsScreen(
                                 Text("Pantalla de inicio", style = MaterialTheme.typography.titleLarge, color = TestarioText)
                                 Text("Elige los bloques y accesos que aparecen en Inicio.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
-                            Text(if (showHomeSettings) "▲" else "▼", color = TestarioPrimary, style = MaterialTheme.typography.titleMedium)
+                            ChevronIcon(showHomeSettings)
                         }
 
                         AnimatedVisibility(visible = showHomeSettings) {
@@ -612,10 +615,10 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("Comportamiento de los ejercicios", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                                Text("Preguntas falladas, repaso y tarjetas Anki.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                Text("Comportamiento de la app", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                Text("Preguntas falladas, repaso, tarjetas Anki y origen de las preguntas.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
-                            Text(if (showBehaviorSettings) "▲" else "▼", color = TestarioPrimary)
+                            ChevronIcon(showBehaviorSettings)
                         }
 
                         AnimatedVisibility(visible = showBehaviorSettings) {
@@ -662,6 +665,13 @@ fun SettingsScreen(
                                     Checkbox(checked = database.ankiReviewEnabled, onCheckedChange = null)
                                 }
 
+                                HomeSettingToggle(
+                                    title = "Mostrar de dónde viene cada pregunta",
+                                    subtitle = "Si lo desactivas, solo verás el tema al que pertenece, sin el tema de origen.",
+                                    checked = behaviorSettingsViewModel.showQuestionOrigin,
+                                    onCheckedChange = behaviorSettingsViewModel::changeShowQuestionOrigin
+                                )
+
                                 Text("Salir de Fallos", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                                 val failureStreak = behaviorSettingsViewModel.failureExitCorrectStreak
                                 Text(
@@ -688,7 +698,7 @@ fun SettingsScreen(
                                     style = MaterialTheme.typography.bodySmall
                                 )
 
-                                if (!behaviorSettingsViewModel.prioritizeFailuresInNormalTests || failureStreak != 3) {
+                                if (!behaviorSettingsViewModel.prioritizeFailuresInNormalTests || failureStreak != 3 || !behaviorSettingsViewModel.showQuestionOrigin) {
                                     TextButton(
                                         onClick = { behaviorSettingsViewModel.restoreDefaults() },
                                         modifier = Modifier.align(Alignment.End)
@@ -696,7 +706,7 @@ fun SettingsScreen(
                                 }
 
                                 Text(
-                                    text = if (showBehaviorInstructions) "💡 ¿Cómo funcionan estos ajustes? ▲" else "💡 ¿Cómo funcionan estos ajustes? ▼",
+                                    text = if (showBehaviorInstructions) "¿Cómo funcionan estos ajustes? ▲" else "¿Cómo funcionan estos ajustes? ▼",
                                     color = TestarioPrimary,
                                     style = MaterialTheme.typography.labelLarge,
                                     modifier = Modifier
@@ -734,7 +744,7 @@ fun SettingsScreen(
                                 Text("Planificación y notificaciones", style = MaterialTheme.typography.titleLarge, color = TestarioText)
                                 Text("Objetivo diario, descansos y recordatorios.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
-                            Text(if (showStudySettings) "▲" else "▼", color = TestarioPrimary)
+                            ChevronIcon(showStudySettings)
                         }
                         AnimatedVisibility(showStudySettings) {
                             CompactScrollableColumn(height = 350.dp) {
@@ -885,7 +895,7 @@ fun SettingsScreen(
                                 Text("Datos", style = MaterialTheme.typography.titleLarge, color = TestarioText)
                                 Text("Copia completa, importación automática y exportación compatible.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
-                            Text(if (showDataOptions) "▲" else "▼", color = TestarioPrimary)
+                            ChevronIcon(showDataOptions)
                         }
 
                         AnimatedVisibility(showDataOptions) {
@@ -911,7 +921,6 @@ fun SettingsScreen(
                                     },
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
                                     shape = RoundedCornerShape(16.dp),
-                                    border = BorderStroke(1.dp, TestarioPrimary)
                                 ) { Text(if (showExportOptions) "Cerrar exportación" else "Exportar", color = TestarioPrimary) }
 
                                 AnimatedVisibility(showExportOptions) {
@@ -1001,7 +1010,6 @@ fun SettingsScreen(
                                     onClick = { showNearbySync = !showNearbySync },
                                     modifier = Modifier.fillMaxWidth().height(50.dp),
                                     shape = RoundedCornerShape(16.dp),
-                                    border = BorderStroke(1.dp, TestarioPrimary)
                                 ) {
                                     Text(
                                         if (showNearbySync) "Cerrar transferencia" else "Sincronizar dispositivos",
@@ -1057,10 +1065,10 @@ fun SettingsScreen(
 
                 NexumUpdateSettingsCard()
 
-                message?.let { Card(Modifier.fillMaxWidth(), RoundedCornerShape(14.dp), CardDefaults.cardColors(containerColor = if(it.startsWith("Error")) TestarioRedDark else TestarioGreenDark)) { Text(it, Modifier.padding(12.dp), color = TestarioText) } }
             }
         }
 
+        LaunchedEffect(isLoading) { if (!isLoading) com.example.testario.domain.NexumProgress.clear() }
         if (isLoading) {
             Box(
                 Modifier
@@ -1080,18 +1088,26 @@ fun SettingsScreen(
                             .width(260.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        val step by com.example.testario.domain.NexumProgress.current.collectAsState()
+                        val shown by androidx.compose.animation.core.animateFloatAsState(
+                            targetValue = step?.fraction ?: 0f, label = "progreso"
+                        )
                         Text("Cargando datos...", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                         Spacer(Modifier.height(14.dp))
-                        LinearProgressIndicator(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(10.dp)
-                                .clip(RoundedCornerShape(50)),
-                            color = TestarioPrimary,
-                            trackColor = TestarioSurfaceLight
-                        )
+                        val barModifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(50))
+                        if (step == null) {
+                            LinearProgressIndicator(modifier = barModifier, color = TestarioPrimary, trackColor = TestarioSurfaceLight)
+                        } else {
+                            LinearProgressIndicator(progress = { shown }, modifier = barModifier, color = TestarioPrimary, trackColor = TestarioSurfaceLight)
+                        }
                         Spacer(Modifier.height(8.dp))
-                        Text("Procesando archivos", style = MaterialTheme.typography.labelSmall, color = TestarioMutedText)
+                        Text(
+                            step?.let { "${it.label} · ${(shown * 100).toInt()} %" } ?: "Procesando archivos",
+                            style = MaterialTheme.typography.labelSmall, color = TestarioMutedText
+                        )
                     }
                 }
             }
@@ -1153,14 +1169,24 @@ fun SettingsScreen(
                         )
                         showClearPlanningDialog = false
                         message = "Datos de planificación borrados."
-                    },
-                    border = BorderStroke(1.dp, TestarioRed)
+                    }
                 ) { Text("Borrar", color = TestarioRed) }
             },
             dismissButton = { TextButton(onClick = { showClearPlanningDialog = false }) { Text("Cancelar") } }
         )
     }
 
+
+    // Results used to appear in a card at the bottom of the screen, out of sight right
+    // after picking a file in "Datos"; a dialog is always seen.
+    message?.let { text ->
+        AlertDialog(
+            onDismissRequest = { message = null },
+            title = { Text(if (listOf("Error", "No se", "Restauración cancelada", "Lote inválido", "Guarda y").any(text::startsWith)) "No se pudo completar" else "Hecho") },
+            text = { Text(text) },
+            confirmButton = { Button(onClick = { message = null }) { Text("Entendido") } }
+        )
+    }
 
     if (showUnifiedRestoreConfirm) {
         AlertDialog(
@@ -1174,6 +1200,8 @@ fun SettingsScreen(
                     onClick = {
                         val bytes = pendingUnifiedBytes
                         if (bytes != null) {
+                            // Cerrar el aviso ya: si no, tapa la barra de progreso.
+                            showUnifiedRestoreConfirm = false
                             isLoading = true
                             coroutineScope.launch {
                                 val result = runCatching {
@@ -1181,8 +1209,7 @@ fun SettingsScreen(
                                 }
                                 result.onSuccess { recoveryName ->
                                     PlanarioDependencies.schedulePlanarioNotifications()
-                                    message = "Copia global restaurada. Se ha conservado el estado previo en " +
-                                        "$recoveryName. Reinicia NEXUM para recargar todos los ajustes."
+                                    message = "Copia restaurada. Reinicia NEXUM para ver todos los cambios."
                                 }.onFailure { failure ->
                                     message = "Restauración cancelada o fallida: " +
                                         (failure.message ?: "Se ha conservado una copia de recuperación.")
@@ -1211,6 +1238,7 @@ fun SettingsScreen(
                     onClick = {
                         val bytes = pendingTestarioBackupBytes
                         if (bytes != null) {
+                            showTestarioBackupRestoreConfirm = false
                             isLoading = true
                             coroutineScope.launch {
                                 val restore = runCatching {
@@ -1218,7 +1246,7 @@ fun SettingsScreen(
                                 }
                                 message = restore.fold(
                                     onSuccess = { backupName ->
-                                        "Biblioteca restaurada. Copia del estado anterior: $backupName."
+                                        "Biblioteca restaurada."
                                     },
                                     onFailure = { failure ->
                                         "No se restauró la Biblioteca: ${failure.message ?: "Error de integridad."}"
@@ -1256,7 +1284,7 @@ fun SettingsScreen(
 
                     if (ok) {
                         PlanarioDependencies.schedulePlanarioNotifications()
-                        message = "Planificación importada correctamente."
+                        message = "Plan importado."
                     } else {
                         message = "Error: copia de planificación no válida."
                     }
@@ -1271,11 +1299,13 @@ fun SettingsScreen(
     if (showRestoreConfirmDialog) {
         AlertDialog(onDismissRequest = { showRestoreConfirmDialog = false; pendingRestoreText = null }, title = { Text("Restaurar copia de seguridad") }, text = { Text("Se sobreescribirán todos tus datos y recursos actuales. Esta acción no se puede deshacer.") }, confirmButton = {
             Button(onClick = {
+                val text = pendingRestoreText!!
+                showRestoreConfirmDialog = false
                 isLoading = true
                 coroutineScope.launch {
                     try {
-                        importExportViewModel.restoreBackup(pendingRestoreText!!)
-                        message = "Backup restaurado correctamente."
+                        importExportViewModel.restoreBackup(text)
+                        message = "Copia restaurada."
                     } catch(e: Exception) {
                         message = "Error: Archivo corrupto."
                     } finally {

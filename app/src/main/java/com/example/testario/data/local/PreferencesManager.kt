@@ -147,6 +147,13 @@ class PreferencesManager(context: Context) {
         prefs.edit().putBoolean("prioritize_failures_in_normal_tests", enabled).apply()
     }
 
+    /** Si es false, solo se muestra el tema actual y no el tema de origen de la pregunta. */
+    fun getShowQuestionOrigin(): Boolean = prefs.getBoolean("show_question_origin", true)
+
+    fun setShowQuestionOrigin(enabled: Boolean) {
+        prefs.edit().putBoolean("show_question_origin", enabled).apply()
+    }
+
     /**
      * Número de aciertos consecutivos necesarios para que una pregunta salga
      * automáticamente de la lista de Fallos.

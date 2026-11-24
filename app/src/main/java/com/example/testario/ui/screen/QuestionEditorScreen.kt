@@ -31,7 +31,7 @@ import androidx.compose.material3.CardDefaults
 import com.example.testario.ui.theme.NeonIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -256,7 +256,6 @@ fun QuestionEditorScreen(
                     onClick = { answers = answers + Answer(id = UUID.randomUUID().toString(), text = "") },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(18.dp),
-                    border = BorderStroke(1.dp, TestarioPrimary)
                 ) { Text("+ Añadir respuesta") }
             }
 
@@ -318,7 +317,7 @@ fun QuestionEditorScreen(
 
             if (error != null) {
                 item {
-                    Card(colors = CardDefaults.cardColors(containerColor = TestarioRedDark), border = BorderStroke(1.dp, TestarioRed), shape = RoundedCornerShape(18.dp)) {
+                    Card(colors = CardDefaults.cardColors(containerColor = TestarioRedDark), shape = RoundedCornerShape(18.dp)) {
                         Text(text = error ?: "", color = TestarioText, modifier = Modifier.padding(14.dp))
                     }
                 }
@@ -361,13 +360,7 @@ fun QuestionEditorScreen(
             if (existingQuestion != null) {
                 item {
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedButton(
-                        onClick = { showDeleteDialog = true },
-                        modifier = Modifier.fillMaxWidth().height(58.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TestarioRed),
-                        border = BorderStroke(1.dp, TestarioRed)
-                    ) { Text("Eliminar pregunta") }
+                    NexumTonalButton(text = "Eliminar pregunta", onClick = { showDeleteDialog = true }, danger = true, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
@@ -419,7 +412,7 @@ private fun AnswerEditorRow(
     Card(
         modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = if (isCorrect) TestarioNeonSelected else TestarioSurface),
-        border = BorderStroke(width = 1.dp, color = if (isCorrect) TestarioPrimary else TestarioSurfaceLight)
+        border = null
     ) {
         Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = CircleShape, color = TestarioSurfaceLight, modifier = Modifier.size(36.dp)) {
@@ -439,7 +432,6 @@ private fun DifficultyButton(text: String, selected: Boolean, color: Color, modi
     Button(
         onClick = onClick, modifier = modifier.height(46.dp), shape = RoundedCornerShape(16.dp),
         selected = selected,
-        border = BorderStroke(1.4.dp, TestarioPrimary),
         contentPadding = PaddingValues(horizontal = 6.dp)
     ) { Text(text, color = if (selected) TestarioPrimary else TestarioText) }
 }

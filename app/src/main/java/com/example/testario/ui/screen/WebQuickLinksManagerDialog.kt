@@ -21,7 +21,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -208,7 +208,7 @@ internal fun WebQuickLinksManagerDialog(
                                 icon = link.icon
                                 customIconLabel = link.customIconLabel.orEmpty()
                                 error = null
-                            }) { Text("✎", color = TestarioPrimary) }
+                            }) { EditIcon(TestarioPrimary) }
                             IconButton(onClick = { store.setHidden(link.id, !link.hidden) }) {
                                 Text(if (link.hidden) "◉" else "◌", color = TestarioPrimary)
                             }

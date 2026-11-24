@@ -32,7 +32,7 @@ import androidx.compose.material3.DropdownMenuItem
 import com.example.testario.ui.theme.NeonIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -218,8 +218,7 @@ fun LibraryTopicsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = TestarioRedDark),
-                    border = BorderStroke(1.dp, TestarioRed)
+                    colors = CardDefaults.cardColors(containerColor = TestarioRedDark)
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
@@ -235,9 +234,10 @@ fun LibraryTopicsScreen(
                                     isDeleteMode = false
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = TestarioRed),
+                                selected = false,
                                 enabled = selectedTopicIdsForDelete.isNotEmpty()
                             ) {
-                                Text("Eliminar", color = TestarioBackground)
+                                Text("Eliminar", color = TestarioRed)
                             }
                         }
                     }
@@ -258,7 +258,6 @@ fun LibraryTopicsScreen(
                         onClick = { showActionDialog = true },
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, TestarioPrimary)
                     ) {
                         Text("Gestionar")
                     }
@@ -281,7 +280,7 @@ fun LibraryTopicsScreen(
                         }
                     )
                 },
-                leadingIcon = { Text("🔍") },
+                leadingIcon = { SearchIcon() },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(18.dp),
@@ -700,11 +699,11 @@ fun LibraryTopicsScreen(
             title = { Text("Gestionar temas") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { showActionDialog = false; showCombineDialog = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, TestarioPrimary)) { Text("Combinar varios temas") }
+                    OutlinedButton(onClick = { showActionDialog = false; showCombineDialog = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) { Text("Combinar varios temas") }
                     OutlinedButton(
                         onClick = { showActionDialog = false; isDeleteMode = true; selectedTopicIdsForDelete = emptySet() },
                         modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TestarioRed), border = BorderStroke(1.dp, TestarioRed)
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TestarioRed)
                     ) { Text("Eliminar temas") }
                 }
             },
@@ -786,7 +785,6 @@ private fun GlobalSearchActions(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-        border = BorderStroke(1.dp, TestarioPrimary)
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -812,7 +810,6 @@ private fun GlobalSearchActions(
                     enabled = selectedCount > 0,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, TestarioPrimary)
                 ) { Text("Crear tema") }
             }
         }
@@ -826,7 +823,8 @@ private fun GlobalQuestionSearchCard(
     selected: Boolean,
     onToggle: () -> Unit
 ) {
-    val location = if (!question.originTopicName.isNullOrBlank() && !question.originTopicName.equals(topic.name, ignoreCase = true)) {
+    val showOrigin = LocalShowQuestionOrigin.current
+    val location = if (showOrigin && !question.originTopicName.isNullOrBlank() && !question.originTopicName.equals(topic.name, ignoreCase = true)) {
         "${topic.name} | ${question.originTopicName}"
     } else {
         topic.name
@@ -835,8 +833,7 @@ private fun GlobalQuestionSearchCard(
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface),
-        border = BorderStroke(1.4.dp, TestarioPrimary)
+        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -879,10 +876,9 @@ private fun TopicCard(
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable { if (isDeleteMode) onToggleSelection() else onOpen() },
-        elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(containerColor = if (isDeleteMode && isSelectedForDelete) TestarioRedDark.copy(alpha = 0.3f) else TestarioSurface),
-        shape = RoundedCornerShape(22.dp),
-        border = if (isDeleteMode && isSelectedForDelete) BorderStroke(1.dp, TestarioRed) else if (topic.isPinned) BorderStroke(1.dp, TestarioPrimary) else null
+        elevation = CardDefaults.cardElevation(0.dp),
+        colors = CardDefaults.cardColors(containerColor = if (isDeleteMode && isSelectedForDelete) TestarioRedDark.copy(alpha = 0.3f) else if (topic.isPinned) TestarioNeonSelected else TestarioSurface),
+        shape = RoundedCornerShape(22.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (isDeleteMode) {

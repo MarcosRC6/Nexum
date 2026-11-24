@@ -27,7 +27,7 @@ import androidx.compose.material3.DropdownMenuItem
 import com.example.testario.ui.theme.NeonIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -419,7 +419,7 @@ private fun GroupTreeNode(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-            border = if (depth == 0) BorderStroke(1.dp, TestarioSurfaceLight) else null
+            border = null
         ) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp),

@@ -26,6 +26,7 @@ import com.example.testario.domain.WrittenMarkerFeedback
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.MixedSessionViewModel
 import kotlinx.coroutines.launch
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 
 /**
  * Test, Enumerar and Anki inside the SAME configured session and four-tab app.
@@ -188,13 +189,13 @@ fun MixedSessionScreen(
                         current.responses[index].writtenAnswers.isNotEmpty() ||
                         current.responses[index].revealed
                     Surface(
-                        modifier = Modifier.size(42.dp).clickable {
+                        modifier = Modifier.size(48.dp).clickable {
                             if (!locked && persistDraft()) session.goTo(index)
                         },
                         shape = CircleShape,
                         color = if (chosen) TestarioPrimary else if (completed)
                             TestarioSurfaceLight else TestarioSurface,
-                        border = BorderStroke(1.dp, if (chosen) TestarioPrimary else TestarioSurfaceLight)
+                        border = null
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text("${index + 1}",
@@ -222,14 +223,12 @@ fun MixedSessionScreen(
                 ) {
             if (item.type != MixedItemType.TEST) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(item.topicName.uppercase(), color = TestarioPrimary,
+                    Text(item.topicName, color = TestarioMutedText,
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.weight(1f))
                     val marked = item.exercise?.flagged == true
                     IconButton(onClick = { session.toggleExerciseFlag() }) {
-                        Text(if (marked) "🚩" else "⚑",
-                            color = if (marked) TestarioPrimary else TestarioMutedText,
-                            style = MaterialTheme.typography.titleLarge)
+                        EstudarioIcon(EstudarioIconKind.FLAG, if (marked) TestarioPrimary else TestarioMutedText, Modifier.size(24.dp))
                     }
                 }
             }
@@ -238,8 +237,8 @@ fun MixedSessionScreen(
                     val question = requireNotNull(item.question)
                     var difficultyExpanded by remember(item.id) { mutableStateOf(false) }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(item.topicName.uppercase(), color = TestarioPrimary,
-                            style = MaterialTheme.typography.labelMedium,
+                        Text(item.topicName, color = TestarioMutedText,
+                            style = MaterialTheme.typography.labelLarge,
                             modifier = Modifier.weight(1f))
                         Box {
                             TextButton(onClick = { difficultyExpanded = true }) {
@@ -263,10 +262,10 @@ fun MixedSessionScreen(
                             }
                         }
                         IconButton(onClick = { onEditQuestion(item.topicId, question.id) }) {
-                            Text("✏️")
+                            EstudarioIcon(EstudarioIconKind.EDIT, TestarioMutedText, Modifier.size(22.dp))
                         }
                         IconButton(onClick = { session.toggleTestFlag() }) {
-                            Text(if (question.flagged) "🚩" else "🏳️")
+                            EstudarioIcon(EstudarioIconKind.FLAG, if (question.flagged) TestarioPrimary else TestarioMutedText, Modifier.size(24.dp))
                         }
                     }
                     Text(question.text, color = TestarioText,
@@ -299,7 +298,7 @@ fun MixedSessionScreen(
                             ) { session.selectTestAnswer(answer.id) },
                             shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(containerColor = background),
-                            border = BorderStroke(1.dp, borderColor)
+                            border = null
                         ) {
                             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Surface(shape = CircleShape, color = TestarioSurface,

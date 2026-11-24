@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -54,14 +55,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.testario.data.model.ImageAnnotations
 import com.example.testario.data.model.TestMode
+import com.example.testario.data.model.TestQuestionState
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioGreen
 import com.example.testario.ui.theme.TestarioGreenDark
 import com.example.testario.ui.theme.TestarioMutedText
+import com.example.testario.ui.theme.TestarioNavBackground
+import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioPrimary
 import com.example.testario.ui.theme.TestarioPrimaryDark
 import com.example.testario.ui.theme.TestarioRed
@@ -101,6 +111,8 @@ fun TestScreen(
 
     val listState = rememberLazyListState()
     val context = LocalContext.current
+    // En tablet las preguntas se navegan desde un panel lateral y no desde la fila superior.
+    val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 840
 
     BackHandler(enabled = !finished && !timeExpired) {
         showExitDialog = true
@@ -114,7 +126,7 @@ fun TestScreen(
     }
 
     LaunchedEffect(currentIndex) {
-        if (questions.isNotEmpty()) {
+        if (questions.isNotEmpty() && !wide) {
             listState.animateScrollToItem(maxOf(0, currentIndex - 2))
         }
     }
@@ -155,7 +167,8 @@ fun TestScreen(
         database.topics.firstOrNull { t -> t.questions.any { it.id == current.question.id } }?.id
     }
     val currentTopicName = database.topics.firstOrNull { it.id == topicId }?.name ?: "Tema desconocido"
-    val currentTopicDisplayName = topicDisplayName(currentTopicName, current.question.originTopicName)
+    val showOrigin = LocalShowQuestionOrigin.current
+    val currentTopicDisplayName = topicDisplayName(currentTopicName, current.question.originTopicName.takeIf { showOrigin })
 
     fun saveAndLeave() {
         if (sessionViewModel.saveForLater()) {
@@ -272,7 +285,7 @@ fun TestScreen(
                 topic.questions.any { it.id == reviewState.question.id }
             }
             val reviewTopicName = reviewTopic?.name ?: "Tema desconocido"
-            val reviewDisplayName = topicDisplayName(reviewTopicName, reviewState.question.originTopicName)
+            val reviewDisplayName = topicDisplayName(reviewTopicName, reviewState.question.originTopicName.takeIf { showOrigin })
 
             Scaffold(
                 containerColor = TestarioBackground,
@@ -297,10 +310,9 @@ fun TestScreen(
                             modifier = Modifier.padding(18.dp).verticalScroll(rememberScrollState())
                         ) {
                             Text(
-                                reviewDisplayName.uppercase(),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = TestarioPrimary
+                                reviewDisplayName,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = TestarioMutedText
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
@@ -333,7 +345,7 @@ fun TestScreen(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
                                     shape = RoundedCornerShape(14.dp),
                                     colors = CardDefaults.cardColors(containerColor = bg),
-                                    border = BorderStroke(1.dp, border)
+                                    border = null
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(14.dp),
@@ -413,7 +425,6 @@ fun TestScreen(
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, TestarioPrimary)
                 ) { Text("Revisar preguntas") }
                 Button(onClick = onFinish, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp)) { Text("Volver al Inicio") }
             }
@@ -426,7 +437,10 @@ fun TestScreen(
         topBar = {
             Surface(color = TestarioBackground) {
                 Row(modifier = Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { showExitDialog = true }) { Text("✕", style = MaterialTheme.typography.titleLarge, color = TestarioText) }
+                    IconButton(
+                        onClick = { showExitDialog = true },
+                        modifier = Modifier.semantics { contentDescription = "Salir del test" }
+                    ) { EstudarioIcon(EstudarioIconKind.CLOSE, TestarioText, Modifier.size(22.dp)) }
                     Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
                         Text(if(mode == TestMode.EXAM) "Modo Examen" else "Entrenamiento", style = MaterialTheme.typography.titleMedium, color = TestarioText)
 
@@ -435,20 +449,29 @@ fun TestScreen(
                             Text(" · ", style = MaterialTheme.typography.bodySmall, color = TestarioMutedText)
                             val formatMins = totalElapsedSeconds / 60
                             val formatSecs = totalElapsedSeconds % 60
-                            Text("⏱️ %02d:%02d".format(formatMins, formatSecs), style = MaterialTheme.typography.bodySmall, color = TestarioPrimary)
+                            EstudarioIcon(EstudarioIconKind.CLOCK, TestarioPrimary, Modifier.size(14.dp))
+                            Text(
+                                " %02d:%02d".format(formatMins, formatSecs),
+                                style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                                color = TestarioPrimary
+                            )
                         }
                     }
-                    remainingSeconds?.let { Text("%02d:%02d".format(it / 60, it % 60), color = if(it < 60) TestarioRed else TestarioText, style = MaterialTheme.typography.titleMedium) }
+                    remainingSeconds?.let { Text("%02d:%02d".format(it / 60, it % 60), color = if(it < 60) TestarioRed else TestarioText, style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum")) }
                 }
             }
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize()) {
+        Row(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Column(
+            modifier = Modifier.weight(1f).fillMaxHeight().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
 
-            LazyRow(
+            if (!wide) LazyRow(
                 state = listState,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(questions.size) { index ->
                     val qState = questions[index]
@@ -456,37 +479,18 @@ fun TestScreen(
                     val isFlagged = qState.question.flagged
                     val isAnswered = qState.selectedAnswerId != null
 
-                    val bgColor = if (isCurrent) TestarioPrimary else if (isAnswered) TestarioSurfaceLight else TestarioSurface
-                    val textColor = if (isCurrent) TestarioBackground else TestarioText
-                    val borderColor = if (isFlagged) TestarioRed else if (isCurrent) TestarioPrimary else TestarioSurfaceLight
-
-                    Surface(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clickable { sessionViewModel.goTo(index) },
-                        shape = CircleShape,
-                        color = bgColor,
-                        border = BorderStroke(if (isFlagged) 2.dp else 1.dp, borderColor)
-                    ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            Text((index + 1).toString(), color = textColor, style = MaterialTheme.typography.titleMedium)
-
-                            if (isFlagged) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(4.dp)
-                                        .size(8.dp)
-                                        .background(TestarioRed, CircleShape)
-                                )
-                            }
-                        }
-                    }
+                    QuestionChip(
+                        number = index + 1,
+                        isCurrent = isCurrent,
+                        isAnswered = isAnswered,
+                        isFlagged = isFlagged,
+                        modifier = Modifier.size(48.dp),
+                        onClick = { sessionViewModel.goTo(index) }
+                    )
                 }
             }
 
-            Card(modifier = Modifier.fillMaxWidth().weight(1f), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = TestarioSurface)) {
-                Column(modifier = Modifier.padding(18.dp).verticalScroll(rememberScrollState())) {
+            Column(modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 4.dp)) {
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -494,10 +498,9 @@ fun TestScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = currentTopicDisplayName.uppercase(),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = TestarioPrimary,
+                            text = currentTopicDisplayName,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = TestarioMutedText,
                             modifier = Modifier.weight(1f).padding(end = 8.dp)
                         )
 
@@ -531,19 +534,29 @@ fun TestScreen(
                                 }
                             }
 
-                            IconButton(onClick = {
-                                if (topicId != null) {
-                                    onEditQuestion(topicId, current.question.id)
-                                }
-                            }) { Text("✏️") }
+                            IconButton(
+                                onClick = {
+                                    if (topicId != null) {
+                                        onEditQuestion(topicId, current.question.id)
+                                    }
+                                },
+                                modifier = Modifier.semantics { contentDescription = "Editar pregunta" }
+                            ) { EstudarioIcon(EstudarioIconKind.EDIT, TestarioMutedText, Modifier.size(22.dp)) }
 
                             IconButton(
                                 onClick = {
                                     sessionViewModel.toggleFlag(current.question.id)
                                     libraryViewModel.toggleQuestionFlag(current.question.id)
+                                },
+                                modifier = Modifier.semantics {
+                                    contentDescription = if (current.question.flagged) "Quitar marca" else "Marcar pregunta"
                                 }
                             ) {
-                                Text(if (current.question.flagged) "🚩" else "🏳️")
+                                EstudarioIcon(
+                                    EstudarioIconKind.FLAG,
+                                    if (current.question.flagged) TestarioRed else TestarioMutedText,
+                                    Modifier.size(22.dp)
+                                )
                             }
                         }
                     }
@@ -551,7 +564,7 @@ fun TestScreen(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = current.question.text,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Normal, lineHeight = 28.sp),
                         color = TestarioText,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -565,26 +578,39 @@ fun TestScreen(
                     current.question.answers.forEachIndexed { i, ans ->
                         val active = current.selectedAnswerId == ans.id
                         val correct = current.question.correctAnswerId == ans.id
-                        val col = when { current.corrected && correct -> TestarioGreenDark; current.corrected && active -> TestarioRedDark; active -> TestarioPrimaryDark; else -> TestarioSurfaceLight }
-                        val border = when { current.corrected && correct -> TestarioGreen; current.corrected && active -> TestarioRed; active -> TestarioPrimary; else -> TestarioSurfaceLight }
+                        val col = when { current.corrected && correct -> TestarioGreenDark; current.corrected && active -> TestarioRedDark; active -> TestarioNeonSelected; else -> TestarioSurface }
+                        val badge = when { current.corrected && correct -> TestarioGreen; current.corrected && active -> TestarioRed; active -> TestarioPrimary; else -> TestarioSurfaceLight }
+                        val badgeText = if (badge == TestarioSurfaceLight) TestarioMutedText else TestarioBackground
 
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp)
-                                // NUEVO: Se desactiva el clic si la pregunta ya está corregida
-                                .clickable(enabled = !current.corrected) { sessionViewModel.selectAnswer(ans.id) },
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = col),
-                            border = BorderStroke(1.dp, border)
+                                .clip(RoundedCornerShape(18.dp))
+                                // Se desactiva el clic si la pregunta ya está corregida
+                                .selectable(
+                                    selected = active,
+                                    enabled = !current.corrected,
+                                    role = Role.RadioButton,
+                                    onClick = { sessionViewModel.selectAnswer(ans.id) }
+                                ),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = col)
                         ) {
-                            Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Surface(shape = CircleShape, color = TestarioSurface, modifier = Modifier.size(28.dp)) {
+                            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Surface(shape = CircleShape, color = badge, modifier = Modifier.size(28.dp)) {
                                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text(('A'+i).toString(), style = MaterialTheme.typography.bodySmall, color = TestarioText)
+                                        when {
+                                            current.corrected && correct ->
+                                                EstudarioIcon(EstudarioIconKind.CHECK, badgeText, Modifier.size(16.dp))
+                                            current.corrected && active ->
+                                                EstudarioIcon(EstudarioIconKind.CLOSE, badgeText, Modifier.size(16.dp))
+                                            else ->
+                                                Text(('A'+i).toString(), style = MaterialTheme.typography.labelLarge, color = badgeText)
+                                        }
                                     }
                                 }
-                                Spacer(Modifier.width(10.dp))
+                                Spacer(Modifier.width(14.dp))
                                 Text(ans.text, color = TestarioText, modifier = Modifier.weight(1f))
                             }
                         }
@@ -601,24 +627,133 @@ fun TestScreen(
                             annotations = current.question.correctionAnnotations
                         )
                     }
-                }
             }
             Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = { sessionViewModel.previous() }, enabled = currentIndex > 0, modifier = Modifier.weight(1f).height(50.dp), shape = RoundedCornerShape(16.dp)) { Text("Atrás") }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
+                NexumTonalButton("Atrás", onClick = { sessionViewModel.previous() }, enabled = currentIndex > 0, modifier = Modifier.weight(1f))
 
-                if(!isTraining) {
-                    OutlinedButton(
+                if (!isTraining) {
+                    NexumTonalButton(
+                        "Limpiar",
                         onClick = { sessionViewModel.leaveBlank() },
                         enabled = current.selectedAnswerId != null,
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) { Text("Limpiar") }
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
-                Button(onClick = { if(sessionViewModel.isLastQuestion()) finished = true else sessionViewModel.next() }, modifier = Modifier.weight(1f).height(50.dp), shape = RoundedCornerShape(16.dp)) {
-                    Text(if (sessionViewModel.isLastQuestion()) "Finalizar" else "Siguiente")
-                }
+                NexumTonalButton(
+                    if (sessionViewModel.isLastQuestion()) "Finalizar" else "Siguiente",
+                    primary = true,
+                    onClick = { if (sessionViewModel.isLastQuestion()) finished = true else sessionViewModel.next() },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+        if (wide) {
+            QuestionNavigatorPanel(
+                questions = questions,
+                currentIndex = currentIndex,
+                onGoTo = { sessionViewModel.goTo(it) }
+            )
+        }
+        }
+    }
+}
+
+/** Número de pregunta: fondo tonal, sin borde; el actual en latón y la marcada con un punto. */
+@Composable
+private fun QuestionChip(
+    number: Int,
+    isCurrent: Boolean,
+    isAnswered: Boolean,
+    isFlagged: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val bg = when { isCurrent -> TestarioNeonSelected; isAnswered -> TestarioSurfaceLight; else -> TestarioSurface }
+    val fg = when { isCurrent -> TestarioPrimary; isAnswered -> TestarioText; else -> TestarioMutedText }
+    Surface(
+        modifier = modifier
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Pregunta $number, " +
+                    (if (isAnswered) "respondida" else "sin responder") +
+                    (if (isFlagged) ", marcada" else "")
+                selected = isCurrent
+            }
+            .clickable(role = Role.Button, onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        color = bg
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            Text(
+                number.toString(),
+                color = fg,
+                style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum")
+            )
+            if (isFlagged) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .size(9.dp)
+                        .background(TestarioYellow, CircleShape)
+                )
+            }
+        }
+    }
+}
+
+/** Panel de tablet: todas las preguntas a la vista, sin revelar aciertos en pleno test. */
+@Composable
+private fun QuestionNavigatorPanel(
+    questions: List<TestQuestionState>,
+    currentIndex: Int,
+    onGoTo: (Int) -> Unit
+) {
+    val answered = questions.count { it.selectedAnswerId != null }
+    val flagged = questions.count { it.question.flagged }
+    Column(
+        modifier = Modifier
+            .width(340.dp)
+            .fillMaxHeight()
+            .background(TestarioNavBackground)
+            .padding(horizontal = 28.dp, vertical = 28.dp)
+    ) {
+        Text("Preguntas", style = MaterialTheme.typography.titleMedium, color = TestarioText)
+        Spacer(Modifier.height(14.dp))
+        val gridState = rememberLazyGridState()
+        LaunchedEffect(currentIndex) { gridState.animateScrollToItem(currentIndex) }
+        androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+            state = gridState,
+            columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(5),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            items(questions.size) { index ->
+                QuestionChip(
+                    number = index + 1,
+                    isCurrent = index == currentIndex,
+                    isAnswered = questions[index].selectedAnswerId != null,
+                    isFlagged = questions[index].question.flagged,
+                    modifier = Modifier.height(48.dp),
+                    onClick = { onGoTo(index) }
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+            Column {
+                Text("$answered", style = MaterialTheme.typography.headlineSmall.copy(fontFeatureSettings = "tnum"), color = TestarioText)
+                Text("respondidas", style = MaterialTheme.typography.bodySmall, color = TestarioMutedText)
+            }
+            Column {
+                Text("${questions.size - answered}", style = MaterialTheme.typography.headlineSmall.copy(fontFeatureSettings = "tnum"), color = TestarioText)
+                Text("por hacer", style = MaterialTheme.typography.bodySmall, color = TestarioMutedText)
+            }
+            Column {
+                Text("$flagged", style = MaterialTheme.typography.headlineSmall.copy(fontFeatureSettings = "tnum"), color = TestarioYellow)
+                Text("marcadas", style = MaterialTheme.typography.bodySmall, color = TestarioMutedText)
             }
         }
     }
@@ -642,10 +777,9 @@ private fun ExplanationCard(explanation: String, correctionImageUri: String?, an
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = TestarioPrimaryDark.copy(alpha = 0.5f)),
-        border = BorderStroke(1.dp, TestarioPrimary)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            Text("💡 Explicación", style = MaterialTheme.typography.labelMedium, color = TestarioPrimary)
+            Text("Explicación", style = MaterialTheme.typography.labelMedium, color = TestarioPrimary)
             if (explanation.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(explanation, color = TestarioText, style = MaterialTheme.typography.bodyMedium)

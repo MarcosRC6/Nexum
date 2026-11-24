@@ -31,7 +31,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -311,7 +311,6 @@ fun TopicDetailScreen(
                             .weight(1f)
                             .height(54.dp),
                         shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(1.dp, TestarioPrimary)
                     ) { Text("Hacer Test") }
                 }
             }
@@ -375,7 +374,6 @@ fun TopicDetailScreen(
                                     TestarioSurface
                                 }
                             ),
-                            border = BorderStroke(1.dp, TestarioSurfaceLight)
                         ) {
                             Box(
                                 contentAlignment = Alignment.Center,
@@ -442,7 +440,7 @@ fun TopicDetailScreen(
                             color = TestarioSurfaceLight
                         )
                         DropdownMenuItem(
-                            text = { Text("Solo marcadas 🚩") },
+                            text = { Text("Solo marcadas") },
                             trailingIcon = {
                                 Checkbox(checked = filterFlagged, onCheckedChange = null)
                             },
@@ -780,7 +778,6 @@ private fun SelectionActions(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-        border = BorderStroke(1.dp, TestarioPrimary)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -829,7 +826,6 @@ private fun SelectionActions(
                     enabled = selectedCount > 0,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, TestarioPrimary)
                 ) {
                     Text("Crear tema")
                 }
@@ -837,15 +833,7 @@ private fun SelectionActions(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedButton(
-                onClick = onDelete,
-                enabled = selectedCount > 0,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, TestarioRed)
-            ) {
-                Text("Eliminar", color = if (selectedCount > 0) TestarioRed else TestarioMutedText)
-            }
+            NexumTonalButton(text = "Eliminar", onClick = onDelete, enabled = selectedCount > 0, danger = true, modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -950,9 +938,7 @@ private fun StudyExerciseCard(
                         color = TestarioMutedText)
                 }
                 IconButton(onClick = { showFlagDialog = true }) {
-                    Text(if (exercise.flagged) "🚩" else "⚑",
-                        color = if (exercise.flagged) TestarioPrimary else TestarioMutedText,
-                        style = MaterialTheme.typography.titleLarge)
+                    EstudarioIcon(EstudarioIconKind.FLAG, if (exercise.flagged) TestarioPrimary else TestarioMutedText, Modifier.size(24.dp))
                 }
                 Box {
                     IconButton(onClick = { expanded = true }) {
@@ -1035,7 +1021,6 @@ private fun QuestionCard(
     }
 
     val cardBorder = when {
-        selected -> BorderStroke(2.dp, TestarioPrimary)
         question.stats.inFailures -> BorderStroke(1.dp, TestarioRed)
         else -> null
     }
@@ -1078,7 +1063,7 @@ private fun QuestionCard(
                         text = "${question.answers.size} respuestas",
                         color = TestarioMutedText
                     )
-                    if (!question.originTopicName.isNullOrBlank()) {
+                    if (LocalShowQuestionOrigin.current && !question.originTopicName.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Origen: ${question.originTopicName}",
@@ -1091,9 +1076,7 @@ private fun QuestionCard(
                 if (!selectionMode) {
                     IconButton(onClick = { showFlagDialog = true },
                         modifier = Modifier.size(40.dp)) {
-                        Text(if (question.flagged) "🚩" else "⚑",
-                            color = if (question.flagged) TestarioPrimary else TestarioMutedText,
-                            style = MaterialTheme.typography.titleLarge)
+                        EstudarioIcon(EstudarioIconKind.FLAG, if (question.flagged) TestarioPrimary else TestarioMutedText, Modifier.size(24.dp))
                     }
                     Box {
                         IconButton(onClick = { expanded = true }) {
@@ -1205,8 +1188,7 @@ private fun QuestionCard(
 private fun InfoPill(text: String, color: androidx.compose.ui.graphics.Color) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = TestarioSurfaceLight,
-        border = BorderStroke(1.dp, color)
+        color = color.copy(alpha = 0.14f)
     ) {
         Text(
             text = text,

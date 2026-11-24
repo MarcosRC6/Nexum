@@ -25,7 +25,7 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
     ) {
         Column(Modifier.fillMaxWidth().padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(item.topicName.uppercase(), color = TestarioPrimary,
+            Text(item.topicName, color = TestarioMutedText,
                 style = MaterialTheme.typography.labelLarge)
             when (item.type) {
                 MixedItemType.TEST -> {
@@ -46,11 +46,6 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
                         }
                         Card(
                             colors = CardDefaults.cardColors(containerColor = background),
-                            border = BorderStroke(1.dp, when {
-                                right -> TestarioGreen
-                                selected -> TestarioRed
-                                else -> TestarioSurfaceLight
-                            }),
                             shape = RoundedCornerShape(14.dp)
                         ) {
                             Row(Modifier.fillMaxWidth().padding(14.dp)) {

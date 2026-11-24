@@ -110,10 +110,18 @@ class NexumNearbyArchive(private val context: Context) {
         val expected = MessageDigest.getInstance("SHA-256").digest(bytes).hex()
         val prepared = stageReceiver(ByteArrayInputStream(bytes), expected, bytes.size.toLong())
         return try {
-            applyToReceiver(prepared)
+            applyToReceiver(prepared).also { toast("Copia restaurada. Reinicia NEXUM para ver todos los cambios.") }
+        } catch (error: Exception) {
+            toast(error.message ?: "La restauración ha fallado.")
+            throw error
         } finally {
             cleanup(prepared)
         }
+    }
+
+    // El diálogo de Ajustes se pierde si la pantalla se recompone durante la restauración.
+    private fun toast(text: String) = android.os.Handler(android.os.Looper.getMainLooper()).post {
+        android.widget.Toast.makeText(context.applicationContext, text, android.widget.Toast.LENGTH_LONG).show()
     }
 
     suspend fun applyToReceiver(archive: Prepared): String = withContext(Dispatchers.IO + NonCancellable) {
@@ -123,22 +131,28 @@ class NexumNearbyArchive(private val context: Context) {
         }
         require(archive.file.exists() && archive.file.length() == archive.size)
         require(digest(archive.file) == archive.sha256)
+        NexumProgress.set("Verificando la copia", 0.05f)
         requireValid(archive.file)
+        NexumProgress.set("Creando un punto de recuperación", 0.1f)
         val recovery = makeVerifiedRecovery()
+        UnifiedDataManager.lastRestoreFailure = null
         val result = runCatching {
             val bytes = readLimited(archive.file)
             val ok = unified.restoreGlobalBackup(bytes)
             if (ok) TestarioLocalStore.get(context).flushCurrentForSync()
             ok
+        }.onFailure {
+            UnifiedDataManager.lastRestoreFailure = "${it.javaClass.simpleName}: ${it.message}"
         }.getOrDefault(false)
         if (!result) {
+            val reason = UnifiedDataManager.lastRestoreFailure ?: "motivo desconocido"
             val undone = runCatching {
                 val ok = unified.restoreGlobalBackup(readLimited(recovery))
                 if (ok) TestarioLocalStore.get(context).flushCurrentForSync()
                 ok
             }.getOrDefault(false)
-            error(if (undone) "Falló la restauración: recuperado el estado anterior."
-                else "Falló la restauración. Se conserva una copia de recuperación; no borres los datos.")
+            error((if (undone) "Falló la restauración ($reason): recuperado el estado anterior."
+                else "Falló la restauración ($reason). Se conserva una copia de recuperación; no borres los datos."))
         }
         recoveryFiles().drop(3).forEach { runCatching { it.delete() } }
         recovery.name

@@ -1,6 +1,20 @@
 package com.example.testario.ui.screen
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.layout
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.ui.semantics.Role
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -54,6 +68,8 @@ import com.example.testario.ui.theme.TestarioNeonSurface
 import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioPrimary
+import com.example.testario.ui.theme.TestarioRedDark
+import com.example.testario.ui.theme.TestarioRed
 import com.example.testario.ui.theme.TestarioPrimaryDark
 import com.example.testario.ui.theme.TestarioOutline
 import com.example.testario.ui.theme.TestarioNavBackground
@@ -290,6 +306,12 @@ fun String.naturalCompareTo(other: String): Int {
 }
 enum class MainSection { HOME, LIBRARY, TEST, PLAN, STATS }
 
+/** Verdadero cuando TestarioApp muestra el carril lateral: la cápsula inferior se oculta. */
+val LocalNexumRail = androidx.compose.runtime.compositionLocalOf { false }
+
+/** Ajuste "mostrar de dónde viene cada pregunta"; true mantiene el comportamiento histórico. */
+val LocalShowQuestionOrigin = androidx.compose.runtime.compositionLocalOf { true }
+
 @Composable
 fun MainBottomNavigation(
     selected: MainSection,
@@ -299,61 +321,178 @@ fun MainBottomNavigation(
     onPlan: () -> Unit,
     onStats: () -> Unit
 ) {
-    Row(
+    if (LocalNexumRail.current) return
+    val index = when (selected) {
+        MainSection.HOME -> 0f
+        MainSection.LIBRARY -> 1f
+        MainSection.PLAN -> 2f
+        MainSection.TEST -> 3f
+        MainSection.STATS -> -1f
+    }
+    NexumCapsule({ index }, onHome, onLibrary, onPlan, onTest)
+}
+
+/**
+ * Cápsula inferior: Inicio, Biblioteca, Plan, Test. La dibuja TestarioApp una sola vez y
+ * [position] es la posición fraccionaria (0 a 3) que le da el paginador, de modo que la
+ * pastilla y la etiqueta se mueven a la vez que el dedo.
+ */
+@Composable
+fun NexumCapsule(
+    position: () -> Float,
+    onHome: () -> Unit,
+    onLibrary: () -> Unit,
+    onPlan: () -> Unit,
+    onTest: () -> Unit
+) {
+    val pos = position()
+    fun weight(i: Int) = (1f - kotlin.math.abs(pos - i)).coerceIn(0f, 1f)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(TestarioBackground)
-            .padding(horizontal = 10.dp, vertical = 8.dp)
-            .background(TestarioNavBackground, RoundedCornerShape(22.dp))
-            .border(1.dp, TestarioOutline, RoundedCornerShape(22.dp))
-            .padding(horizontal = 6.dp, vertical = 6.dp),
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
-        MainBottomNavigationItem(EstudarioIconKind.HOME, "Inicio", selected == MainSection.HOME, onHome, Modifier.weight(1f))
-        MainBottomNavigationItem(EstudarioIconKind.LIBRARY, "Biblioteca", selected == MainSection.LIBRARY, onLibrary, Modifier.weight(1f))
-        MainBottomNavigationItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest, Modifier.weight(1f))
-        MainBottomNavigationItem(EstudarioIconKind.PLAN, "Plan", selected == MainSection.PLAN, onPlan, Modifier.weight(1f))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(TestarioNavBackground, RoundedCornerShape(26.dp))
+                .padding(6.dp),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CapsuleNavItem(EstudarioIconKind.HOME, "Inicio", weight(0), onHome)
+            CapsuleNavItem(EstudarioIconKind.LIBRARY, "Biblioteca", weight(1), onLibrary)
+            CapsuleNavItem(EstudarioIconKind.PLAN, "Plan", weight(2), onPlan)
+            CapsuleNavItem(EstudarioIconKind.TEST, "Test", weight(3), onTest)
+        }
     }
 }
 
+/** Solo el destino activo muestra su nombre; [amount] (0 a 1) es cuánto lo está ahora mismo. */
 @Composable
-private fun MainBottomNavigationItem(
+private fun CapsuleNavItem(
     icon: EstudarioIconKind,
     label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    amount: Float,
+    onClick: () -> Unit
 ) {
-    // Colours ease between states instead of snapping. The unselected background
-    // is the same hue at alpha 0 so the fade does not pass through dark grey.
-    val tint by animateColorAsState(
-        if (selected) TestarioPrimary else TestarioMutedText, tween(180), label = "navTint"
-    )
-    val labelColor by animateColorAsState(
-        if (selected) TestarioText else TestarioMutedText, tween(180), label = "navLabel"
-    )
-    val pill by animateColorAsState(
-        if (selected) TestarioPrimaryDark else TestarioPrimaryDark.copy(alpha = 0f),
-        tween(180), label = "navPill"
-    )
-    Column(
-        modifier = modifier
-            .background(color = pill, shape = RoundedCornerShape(16.dp))
-            .then(
-                if (selected) Modifier.border(1.dp, TestarioPrimary.copy(alpha = 0.28f), RoundedCornerShape(16.dp))
-                else Modifier
-            )
-            .clickable(onClick = onClick)
-            .padding(vertical = 7.dp, horizontal = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    val tint = androidx.compose.ui.graphics.lerp(TestarioMutedText, TestarioPrimary, amount)
+    Row(
+        modifier = Modifier
+            .height(52.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(TestarioNeonSelected.copy(alpha = amount))
+            .selectable(selected = amount > 0.5f, role = Role.Tab, onClick = onClick)
+            .padding(horizontal = 16.dp)
+            .semantics { contentDescription = label },
+        verticalAlignment = Alignment.CenterVertically
     ) {
         EstudarioIcon(icon, tint = tint, modifier = Modifier.size(24.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = labelColor,
-            maxLines = 1
+            style = MaterialTheme.typography.labelLarge,
+            color = TestarioPrimary,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier
+                .layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = androidx.compose.ui.unit.Constraints.Infinity))
+                    val width = (placeable.width * amount).roundToInt()
+                    layout(width, placeable.height) { placeable.place(0, 0) }
+                }
+                .clipToBounds()
+                .alpha(amount)
+                .padding(start = 8.dp)
         )
+    }
+}
+
+/** Botón tonal sin borde: acento latón sobre superficie seleccionada, o neutro. Alto 52 dp. */
+@Composable
+fun NexumTonalButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+    enabled: Boolean = true,
+    danger: Boolean = false
+) {
+    val container = if (danger) TestarioRedDark else if (primary) TestarioNeonSelected else TestarioSurfaceLight
+    val content = if (danger) TestarioRed else if (primary) TestarioPrimary else TestarioText
+    Box(
+        modifier = modifier
+            .height(52.dp)
+            .alpha(if (enabled) 1f else 0.4f)
+            .clip(RoundedCornerShape(16.dp))
+            .background(container)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, style = MaterialTheme.typography.labelLarge, color = content, maxLines = 1)
+    }
+}
+
+/** Navegación de pantallas anchas (tablet): sustituye a la cápsula inferior. */
+@Composable
+fun NexumNavRail(
+    selected: MainSection,
+    onHome: () -> Unit,
+    onLibrary: () -> Unit,
+    onTest: () -> Unit,
+    onPlan: () -> Unit,
+    onStats: () -> Unit,
+    onSettings: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(88.dp)
+            .background(TestarioNavBackground)
+            .windowInsetsPadding(WindowInsets.systemBars)
+            .padding(horizontal = 8.dp, vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)
+    ) {
+        NexumLogoMark(modifier = Modifier.size(36.dp))
+        Box(Modifier.height(18.dp))
+        RailNavItem(EstudarioIconKind.HOME, "Inicio", selected == MainSection.HOME, onHome)
+        RailNavItem(EstudarioIconKind.LIBRARY, "Biblioteca", selected == MainSection.LIBRARY, onLibrary)
+        RailNavItem(EstudarioIconKind.PLAN, "Plan", selected == MainSection.PLAN, onPlan)
+        RailNavItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest)
+        RailNavItem(EstudarioIconKind.STATS, "Estadísticas", selected == MainSection.STATS, onStats)
+        Box(Modifier.weight(1f))
+        RailNavItem(EstudarioIconKind.SETTINGS, "Ajustes", false, onSettings)
+    }
+}
+
+@Composable
+private fun RailNavItem(
+    icon: EstudarioIconKind,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val pill by animateColorAsState(
+        if (selected) TestarioNeonSelected else TestarioNeonSelected.copy(alpha = 0f),
+        tween(180), label = "railPill"
+    )
+    val tint by animateColorAsState(
+        if (selected) TestarioPrimary else TestarioMutedText, tween(180), label = "railTint"
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(pill)
+            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            .padding(vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
+    ) {
+        EstudarioIcon(icon, tint = tint, modifier = Modifier.size(24.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = tint, maxLines = 1)
     }
 }
 

@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.size
 
-enum class EstudarioIconKind { HOME, LIBRARY, TEST, PLAN, STATS, SETTINGS, NOTIFICATIONS, BACK, LOGO }
+enum class EstudarioIconKind { HOME, LIBRARY, TEST, PLAN, STATS, SETTINGS, NOTIFICATIONS, BACK, CHEVRON_UP, CHEVRON_DOWN, EDIT, SEARCH, CLOSE, FLAG, CLOCK, CHECK, LINK, LOGO }
 
 @Composable
 fun EstudarioIcon(
@@ -103,7 +103,72 @@ fun EstudarioIcon(
                 drawLine(tint, Offset(w * .60f, h * .22f), Offset(w * .32f, h * .50f), sw, StrokeCap.Round)
                 drawLine(tint, Offset(w * .32f, h * .50f), Offset(w * .60f, h * .78f), sw, StrokeCap.Round)
             }
+            EstudarioIconKind.CHEVRON_UP -> {
+                drawLine(tint, Offset(w * .26f, h * .60f), Offset(w * .50f, h * .36f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * .50f, h * .36f), Offset(w * .74f, h * .60f), sw, StrokeCap.Round)
+            }
+            EstudarioIconKind.CHEVRON_DOWN -> {
+                drawLine(tint, Offset(w * .26f, h * .40f), Offset(w * .50f, h * .64f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * .50f, h * .64f), Offset(w * .74f, h * .40f), sw, StrokeCap.Round)
+            }
+            EstudarioIconKind.EDIT -> {
+                drawLine(tint, Offset(w * .24f, h * .76f), Offset(w * .70f, h * .30f), sw * 1.9f, StrokeCap.Round)
+                drawLine(tint, Offset(w * .22f, h * .82f), Offset(w * .46f, h * .82f), sw * .7f, StrokeCap.Round)
+            }
+            EstudarioIconKind.SEARCH -> {
+                drawCircle(tint, radius = w * .22f, center = Offset(w * .44f, h * .44f), style = stroke)
+                drawLine(tint, Offset(w * .60f, h * .60f), Offset(w * .80f, h * .80f), sw, StrokeCap.Round)
+            }
+            EstudarioIconKind.CLOSE -> {
+                drawLine(tint, Offset(w * .28f, h * .28f), Offset(w * .72f, h * .72f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * .72f, h * .28f), Offset(w * .28f, h * .72f), sw, StrokeCap.Round)
+            }
+            EstudarioIconKind.FLAG -> {
+                // Marcador de pregunta: banderín sobre un asta.
+                drawLine(tint, Offset(w * .30f, h * .18f), Offset(w * .30f, h * .84f), sw, StrokeCap.Round)
+                val p = Path().apply {
+                    moveTo(w * .30f, h * .22f)
+                    lineTo(w * .78f, h * .22f)
+                    lineTo(w * .66f, h * .38f)
+                    lineTo(w * .78f, h * .54f)
+                    lineTo(w * .30f, h * .54f)
+                }
+                drawPath(p, tint, style = stroke)
+            }
+            EstudarioIconKind.CLOCK -> {
+                drawCircle(tint, radius = w * .34f, center = Offset(w * .50f, h * .50f), style = stroke)
+                drawLine(tint, Offset(w * .50f, h * .30f), Offset(w * .50f, h * .50f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * .50f, h * .50f), Offset(w * .63f, h * .58f), sw, StrokeCap.Round)
+            }
+            EstudarioIconKind.CHECK -> {
+                drawLine(tint, Offset(w * .24f, h * .52f), Offset(w * .43f, h * .70f), sw, StrokeCap.Round)
+                drawLine(tint, Offset(w * .43f, h * .70f), Offset(w * .77f, h * .30f), sw, StrokeCap.Round)
+            }
+            EstudarioIconKind.LINK -> {
+                drawCircle(tint, radius = w * .20f, center = Offset(w * .36f, h * .50f), style = stroke)
+                drawCircle(tint, radius = w * .20f, center = Offset(w * .64f, h * .50f), style = stroke)
+            }
             EstudarioIconKind.LOGO -> Unit
         }
     }
 }
+
+/** Expand/collapse indicator drawn with the icon set (replaces the ⌃ ⌄ ▲ ▼ text glyphs). */
+@Composable
+fun ChevronIcon(
+    expanded: Boolean,
+    tint: Color = com.example.testario.ui.theme.TestarioPrimary,
+    modifier: Modifier = Modifier.size(22.dp)
+) = EstudarioIcon(
+    if (expanded) EstudarioIconKind.CHEVRON_UP else EstudarioIconKind.CHEVRON_DOWN,
+    tint,
+    modifier
+)
+
+@Composable
+fun EditIcon(tint: Color = com.example.testario.ui.theme.TestarioPrimary) =
+    EstudarioIcon(EstudarioIconKind.EDIT, tint, Modifier.size(20.dp))
+
+@Composable
+fun SearchIcon(tint: Color = com.example.testario.ui.theme.TestarioMutedText) =
+    EstudarioIcon(EstudarioIconKind.SEARCH, tint, Modifier.size(22.dp))

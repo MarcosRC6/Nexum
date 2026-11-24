@@ -1,5 +1,6 @@
 package com.example.planario.features.calendar
 
+import com.example.testario.ui.screen.ChevronIcon
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -444,7 +445,7 @@ private fun SelectedDayCard(
                         }
 
                         ExpandableExplanation(
-                            title = "💡 ¿Qué es?",
+                            title = "¿Qué es?",
                             text = "Este bloque resume el día seleccionado. Los días libres y descansos no exigen objetivo, no acumulan nada y no rompen el plan."
                         )
                     }
@@ -461,10 +462,6 @@ private fun SelectedDayStatusCard(
     Surface(
         shape = MaterialTheme.shapes.large,
         color = selectedDay.status.toCalendarBackgroundColor(),
-        border = BorderStroke(
-            width = 1.dp,
-            color = selectedDay.status.toCalendarBorderColor()
-        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -486,10 +483,6 @@ private fun SelectedDayStatusCard(
                 Surface(
                     shape = CircleShape,
                     color = if (isCalendarDark()) Color.Black.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.75f),
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = selectedDay.status.toCalendarBorderColor()
-                    )
                 ) {
                     Text(
                         text = selectedDay.status.toReadableText(),
@@ -528,7 +521,6 @@ private fun SelectedDayObjectivesBlock(
         Surface(
             shape = MaterialTheme.shapes.medium,
             color = tone.toCalendarBackgroundColor(),
-            border = BorderStroke(width = 1.dp, color = tone.toCalendarBorderColor()),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
@@ -553,7 +545,6 @@ private fun SelectedDayInfoRow(
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = DayStatus.EMPTY.toCalendarBackgroundColor(),
-        border = BorderStroke(width = 1.dp, color = DayStatus.EMPTY.toCalendarBorderColor()),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -634,7 +625,7 @@ private fun LegendCard() {
                     )
 
                     ExpandableExplanation(
-                        title = "💡 ¿Qué es?",
+                        title = "¿Qué es?",
                         text = "La leyenda explica los colores del calendario. Solo sirve como ayuda visual: no crea deuda ni cambia el plan."
                     )
                 }
@@ -707,12 +698,7 @@ private fun ExpandableCardHeader(
             )
         }
 
-        Text(
-            text = if (expanded) "⌃" else "⌄",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
-        )
+        ChevronIcon(expanded, MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -764,11 +750,11 @@ private fun isCalendarDark(): Boolean = MaterialTheme.colorScheme.background.lum
 
 @Composable
 private fun calendarStrong(): Color =
-    if (isCalendarDark()) MaterialTheme.colorScheme.onSurface else Color(0xFF172554)
+    if (isCalendarDark()) MaterialTheme.colorScheme.onSurface else Color(0xFF1B1A16)
 
 @Composable
 private fun calendarMuted(): Color =
-    if (isCalendarDark()) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF475569)
+    if (isCalendarDark()) MaterialTheme.colorScheme.onSurfaceVariant else Color(0xFF5E584B)
 
 @Composable
 private fun DayStatus.toCalendarBackgroundColor(): Color {
@@ -776,9 +762,9 @@ private fun DayStatus.toCalendarBackgroundColor(): Color {
     return when (this) {
         DayStatus.COMPLETED -> if (dark) Color(0xFF143D2B) else Color(0xFFDCFCE7)
         DayStatus.IN_PROGRESS -> if (dark) Color(0xFF16304F) else Color(0xFFDBEAFE)
-        DayStatus.REST -> if (dark) Color(0xFF202842) else Color(0xFFFFFFFF)
+        DayStatus.REST -> if (dark) Color(0xFF22251F) else Color(0xFFFBF8EF)
         DayStatus.NOT_COMPLETED -> if (dark) Color(0xFF47202A) else Color(0xFFFEE2E2)
-        DayStatus.EMPTY -> if (dark) Color(0xFF131929) else Color(0xFFE5E7EB)
+        DayStatus.EMPTY -> if (dark) Color(0xFF171A17) else Color(0xFFE9E4D6)
     }
 }
 
@@ -788,9 +774,9 @@ private fun DayStatus.toCalendarContentColor(): Color {
     return when (this) {
         DayStatus.COMPLETED -> if (dark) Color(0xFF7AE3A6) else Color(0xFF166534)
         DayStatus.IN_PROGRESS -> if (dark) Color(0xFF8FC2FF) else Color(0xFF1D4ED8)
-        DayStatus.REST -> if (dark) Color(0xFFB4BED2) else Color(0xFF475569)
+        DayStatus.REST -> if (dark) Color(0xFFB9B29F) else Color(0xFF5E584B)
         DayStatus.NOT_COMPLETED -> if (dark) Color(0xFFFF8F9B) else Color(0xFFB91C1C)
-        DayStatus.EMPTY -> if (dark) Color(0xFF8B97AE) else Color(0xFF64748B)
+        DayStatus.EMPTY -> if (dark) Color(0xFF9A9484) else Color(0xFF6B6558)
     }
 }
 
@@ -800,8 +786,8 @@ private fun DayStatus.toCalendarBorderColor(): Color {
     return when (this) {
         DayStatus.COMPLETED -> if (dark) Color(0xFF27664A) else Color(0xFF86EFAC)
         DayStatus.IN_PROGRESS -> if (dark) Color(0xFF2C5A94) else Color(0xFF93C5FD)
-        DayStatus.REST -> if (dark) Color(0xFF39435A) else Color(0xFFCBD5E1)
+        DayStatus.REST -> if (dark) Color(0xFF3A3E37) else Color(0xFFD3CBB8)
         DayStatus.NOT_COMPLETED -> if (dark) Color(0xFF7A3341) else Color(0xFFFCA5A5)
-        DayStatus.EMPTY -> if (dark) Color(0xFF2C3850) else Color(0xFFCBD5E1)
+        DayStatus.EMPTY -> if (dark) Color(0xFF2E322D) else Color(0xFFD9D2C0)
     }
 }

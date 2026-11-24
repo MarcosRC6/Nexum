@@ -99,9 +99,12 @@ class UnifiedDataManager(private val context: Context) {
         }.getOrElse { return false }
 
         // Refuse destructive restore unless the COMPLETE previous state is safe on disk.
+        NexumProgress.set("Guardando una copia de seguridad del estado actual", 0.25f)
         if (!protectBeforeRestore()) return false
+        NexumProgress.set("Extrayendo imágenes", 0.5f)
         if (!extractQuestionImages(bytes)) return false
 
+        NexumProgress.set("Restaurando la Biblioteca", 0.75f)
         return runCatching {
             ImportManager(context, localStore).restoreBackup(raw)
             true
@@ -167,12 +170,17 @@ class UnifiedDataManager(private val context: Context) {
         }
     }
 
+    private fun fail(reason: String): Boolean {
+        lastRestoreFailure = reason
+        return false
+    }
+
     fun restoreGlobalBackup(bytes: ByteArray): Boolean {
         // Never throw away a running OR paused timer during an unrelated restore.
         // UI must ask the user to finish/save before starting destructive restore.
         if (PlanarioDependencies.studyTimerController.state.value.studyTimerState !=
             StudyTimerState.STOPPED ||
-            PlanarioDependencies.studyTimerController.hasPendingStudyTimerCompletion()) return false
+            PlanarioDependencies.studyTimerController.hasPendingStudyTimerCompletion()) return fail("el cronómetro de estudio no está parado")
         val wanted = setOf(
             "manifest.json",
             "testario_database.json",
@@ -183,81 +191,87 @@ class UnifiedDataManager(private val context: Context) {
             "pending_test_session.json",
             "pending_mixed_session.json"
         )
-        val textEntries = runCatching { readZipTextEntries(bytes, wanted) }.getOrElse { return false }
+        val textEntries = runCatching { readZipTextEntries(bytes, wanted) }.getOrElse { return fail("no se pudo leer el ZIP: ${it.message}") }
 
-        val manifest = textEntries["manifest.json"] ?: return false
-        val manifestJson = runCatching { JSONObject(manifest) }.getOrNull() ?: return false
-        if (manifestJson.optString("format") != GLOBAL_FORMAT) return false
-        if (manifestJson.optInt("version", 0) !in 1..1) return false
+        val manifest = textEntries["manifest.json"] ?: return fail("falta manifest.json")
+        val manifestJson = runCatching { JSONObject(manifest) }.getOrNull() ?: return fail("manifest.json ilegible")
+        if (manifestJson.optString("format") != GLOBAL_FORMAT) return fail("el manifest no es de una copia completa")
+        if (manifestJson.optInt("version", 0) !in 1..1) return fail("versión de copia no admitida")
         // An emergency snapshot of corrupt Planario raw JSON is valuable for
         // forensics, but it MUST NOT be accepted as a restorable global ZIP.
-        if (manifestJson.optBoolean("recoveryOnly", false)) return false
+        if (manifestJson.optBoolean("recoveryOnly", false)) return fail("copia marcada solo de recuperación")
 
-        val dbRaw = textEntries["testario_database.json"] ?: return false
+        val dbRaw = textEntries["testario_database.json"] ?: return fail("falta testario_database.json")
         runCatching {
             DatabaseBackupValidator.requireLibraryShape(dbRaw)
             val migrated = MigrationManager.migrate(dbRaw)
             json.decodeFromString<TestarioDatabase>(migrated)
-        }.getOrElse { return false }
+        }.getOrElse { return fail("la biblioteca de la copia no es válida: ${it.message}") }
 
         val planRaw = textEntries["planario_backup.json"]
         if (planRaw != null && StudyLocalDataSource(context).importFromJson(planRaw) == null) {
-            return false
+            return fail("el plan de la copia no es válido")
         }
 
         val quickLinksRaw = textEntries["quick_test_links.json"]
         if (quickLinksRaw != null && runCatching { JSONObject(quickLinksRaw) }.isFailure) {
-            return false
+            return fail("los enlaces de test rápido no son válidos")
         }
 
         val webQuickLinksRaw = textEntries["quick_web_links.json"]
         if (webQuickLinksRaw != null &&
             runCatching { WebQuickLinkPolicy.parseBackup(webQuickLinksRaw) }.isFailure
-        ) return false
+        ) return fail("los enlaces web no son válidos")
 
         val settingsRaw = textEntries["testario_settings.json"]
         if (settingsRaw != null && runCatching { JSONObject(settingsRaw) }.isFailure) {
-            return false
+            return fail("los ajustes de la copia no son válidos")
         }
 
         val pendingTestRaw = textEntries["pending_test_session.json"]
         if (pendingTestRaw != null &&
             runCatching { SavedTestSessionStore(context).validate(pendingTestRaw) }.isFailure
-        ) return false
+        ) return fail("la sesión de test pendiente no es válida")
 
         val pendingMixedRaw = textEntries["pending_mixed_session.json"]
         if (pendingMixedRaw != null &&
             runCatching { SavedMixedSessionStore(context).validate(pendingMixedRaw) }.isFailure
-        ) return false
+        ) return fail("la sesión mixta pendiente no es válida")
 
         // Preserve the old database, Planario, session slots and every photo before
         // modifying anything. This is a durable recovery point, not an ACID guarantee.
-        if (!protectBeforeRestore()) return false
-        if (!extractQuestionImages(bytes)) return false
+        NexumProgress.set("Guardando una copia de seguridad del estado actual", 0.2f)
+        if (!protectBeforeRestore()) return fail(lastRestoreFailure ?: "no se pudo crear la copia previa de seguridad")
+        NexumProgress.set("Extrayendo imágenes", 0.4f)
+        if (!extractQuestionImages(bytes)) return fail("no se pudieron extraer las imágenes")
 
         // Una sesión antigua no debe sobrevivir a una restauración de Planario.
         PlanarioDependencies.studyTimerController.discardStudyTimer()
         PlanarioDependencies.studyRepository.clearActiveStudyTimerTracking()
         PlanarioDependencies.stopStudyTimerForegroundService()
 
-        runCatching { ImportManager(context, localStore).restoreBackup(dbRaw) }.getOrElse { return false }
+        NexumProgress.set("Restaurando la Biblioteca", 0.55f)
+        runCatching { ImportManager(context, localStore).restoreBackup(dbRaw) }.getOrElse { return fail("falló al guardar la biblioteca: ${it.message}") }
 
+        NexumProgress.set("Restaurando el Plan", 0.7f)
         if (planRaw != null && !PlanarioDependencies.studyRepository.importBackupJson(planRaw)) {
-            return false
+            return fail("falló al guardar el plan")
         }
+        NexumProgress.set("Restaurando enlaces y ajustes", 0.85f)
         if (quickLinksRaw != null) {
-            runCatching { QuickTestLinkManager(context).importJson(quickLinksRaw) }.getOrElse { return false }
+            runCatching { QuickTestLinkManager(context).importJson(quickLinksRaw) }.getOrElse { return fail("falló al guardar los enlaces de test rápido: ${it.message}") }
         }
         if (webQuickLinksRaw != null) {
             if (!runCatching {
                 WebQuickLinkStore.get(context).importJson(webQuickLinksRaw)
-            }.getOrDefault(false)) return false
+            }.getOrDefault(false)) return fail("falló al guardar los enlaces web")
         }
         if (settingsRaw != null) {
-            runCatching { restoreTestarioSettings(settingsRaw) }.getOrElse { return false }
+            runCatching { restoreTestarioSettings(settingsRaw) }.getOrElse { return fail("falló al guardar los ajustes: ${it.message}") }
         }
-        runCatching { SavedTestSessionStore(context).importJson(pendingTestRaw) }.getOrElse { return false }
-        runCatching { SavedMixedSessionStore(context).importJson(pendingMixedRaw) }.getOrElse { return false }
+        runCatching { SavedTestSessionStore(context).importJson(pendingTestRaw) }.getOrElse { return fail("falló al guardar la sesión de test pendiente: ${it.message}") }
+        runCatching { SavedMixedSessionStore(context).importJson(pendingMixedRaw) }.getOrElse { return fail("falló al guardar la sesión mixta pendiente: ${it.message}") }
+        NexumProgress.set("Finalizando", 0.97f)
         return true
     }
 
@@ -280,10 +294,10 @@ class UnifiedDataManager(private val context: Context) {
         val staging = File(recoveryDir, "$name.partial")
         val protected = File(recoveryDir, name)
         try {
-            FileOutputStream(staging).use { output ->
-                exportGlobalBackup(output, privateRescueOnly = true)
-                output.fd.sync()
-            }
+            // exportGlobalBackup cierra el stream; hay que sincronizar a disco con otro
+            // descriptor, porque fd.sync() sobre uno cerrado lanza excepción.
+            FileOutputStream(staging).use { exportGlobalBackup(it, privateRescueOnly = true) }
+            FileOutputStream(staging, true).use { it.fd.sync() }
             check(staging.isFile && staging.length() > 0L) {
                 "La copia preventiva está vacía."
             }
@@ -294,7 +308,10 @@ class UnifiedDataManager(private val context: Context) {
             if (staging.exists()) staging.delete()
         }
         true
-    }.getOrDefault(false)
+    }.getOrElse {
+        lastRestoreFailure = "copia previa: ${it.javaClass.simpleName}: ${it.message}"
+        false
+    }
 
     /**
      * Extrae las imágenes en dos fases: primero valida y descomprime todo en
@@ -469,6 +486,8 @@ class UnifiedDataManager(private val context: Context) {
     }
 
     companion object {
+        /** Motivo del último fallo de restauración, para mostrarlo al usuario. */
+        @Volatile var lastRestoreFailure: String? = null
         const val GLOBAL_FORMAT = "testario_planario_global"
         const val PLAN_FORMAT = "nexum_plan_bundle"
         private const val MAX_IMPORT_IMAGE_BYTES = 64L * 1024L * 1024L

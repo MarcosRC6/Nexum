@@ -71,6 +71,18 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+      - name: Assemble optimized preview APK (release build, debug-signed)
+        run: ./gradlew assembleRelease -PnexumPreview=true --stacktrace
+
+      - name: Upload optimized preview APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUM_ANDROID_OPTIMIZED_PREVIEW
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Validate production release compilation
         run: ./gradlew assembleRelease --stacktrace
 

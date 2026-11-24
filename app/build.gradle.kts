@@ -25,8 +25,8 @@ android {
         applicationId = "com.example.estudario"
         minSdk = 26
         targetSdk = 35
-        versionCode = 25
-        versionName = "2.0"
+        versionCode = 26
+        versionName = "3.0"
         manifestPlaceholders["nexumAppLabel"] = "@string/app_name"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -49,13 +49,19 @@ android {
         getByName("release") {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("nexumOfficial")
+            } else if (nexumPreviewBuild) {
+                // Optimized (non-debuggable) preview: installable next to production, debug-signed.
+                applicationIdSuffix = ".laton"
+                versionNameSuffix = "-laton-preview"
+                manifestPlaceholders["nexumAppLabel"] = "NEXUM Latón"
+                signingConfig = signingConfigs.getByName("debug")
             }
         }
         getByName("debug") {
             if (nexumPreviewBuild) {
-                applicationIdSuffix = ".neon"
-                versionNameSuffix = "-neon-preview"
-                manifestPlaceholders["nexumAppLabel"] = "NEXUM Neón"
+                applicationIdSuffix = ".laton"
+                versionNameSuffix = "-laton-preview"
+                manifestPlaceholders["nexumAppLabel"] = "NEXUM Latón"
             }
         }
     }

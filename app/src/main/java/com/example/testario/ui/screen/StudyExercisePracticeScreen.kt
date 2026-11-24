@@ -32,6 +32,7 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import java.io.File
 import java.util.UUID
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 
 private fun imageModel(path: String): Any = if (path.startsWith("/")) File(path) else path
 
@@ -121,8 +122,7 @@ fun StudyExercisePracticeScreen(
                     IconButton(onClick = {
                         libraryViewModel.toggleStudyExerciseFlag(topicId, exercise.id)
                     }) {
-                        Text(if (exercise.flagged) "🚩" else "⚑",
-                            color = if (exercise.flagged) TestarioPrimary else TestarioMutedText)
+                        EstudarioIcon(EstudarioIconKind.FLAG, if (exercise.flagged) TestarioPrimary else TestarioMutedText, Modifier.size(24.dp))
                     }
                 }
                 Text(exercise.prompt, color = TestarioText, style = MaterialTheme.typography.titleLarge)
@@ -303,8 +303,7 @@ fun StudyExercisePracticeScreen(
                     IconButton(onClick = {
                         libraryViewModel.toggleStudyExerciseFlag(topicId, exercise.id)
                     }) {
-                        Text(if (exercise.flagged) "🚩" else "⚑",
-                            color = if (exercise.flagged) TestarioPrimary else TestarioMutedText)
+                        EstudarioIcon(EstudarioIconKind.FLAG, if (exercise.flagged) TestarioPrimary else TestarioMutedText, Modifier.size(24.dp))
                     }
                 }
                 if (question.isNotBlank()) Text(if (revealed) question else maskedQuestion,

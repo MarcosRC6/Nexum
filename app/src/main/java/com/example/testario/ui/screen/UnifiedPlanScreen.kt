@@ -20,12 +20,16 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import com.example.testario.ui.theme.NeonTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,7 +58,6 @@ import com.example.testario.ui.theme.TestarioSurface
 import com.example.testario.ui.theme.TestarioText
 import com.example.testario.viewmodel.LibraryViewModel
 
-private enum class PlanTab { PLAN, TIMER, CALENDAR }
 
 @Composable
 fun UnifiedPlanScreen(
@@ -73,14 +76,15 @@ fun UnifiedPlanScreen(
     val planTopics by PlanarioDependencies.studyRepository.topics.collectAsState()
     val linkManager = remember { QuickTestLinkManager(context.applicationContext) }
 
-    var selectedTab by remember(initialTab) {
-        mutableStateOf(
-            when (initialTab) {
-                "timer" -> PlanTab.TIMER
-                "calendar" -> PlanTab.CALENDAR
-                else -> PlanTab.PLAN
-            }
-        )
+    // Plan, Reloj y Calendario son páginas de un paginador: siguen al dedo y, al llegar
+    // al borde, el gesto pasa al paginador de secciones de TestarioApp.
+    val requestedPage = when (initialTab) { "plan" -> 0; "timer" -> 1; "calendar" -> 2; else -> null }
+    val tabPager = rememberPagerState(initialPage = requestedPage ?: 0, pageCount = { 3 })
+    val tabScope = rememberCoroutineScope()
+    LaunchedEffect(initialTab) {
+        if (requestedPage != null && tabPager.currentPage != requestedPage) {
+            tabPager.animateScrollToPage(requestedPage)
+        }
     }
     var showLinkDialog by remember { mutableStateOf(false) }
 
@@ -117,23 +121,32 @@ fun UnifiedPlanScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = { selectedTab = PlanTab.PLAN },
+                    onClick = { tabScope.launch { tabPager.animateScrollToPage(0) } },
                     modifier = Modifier.weight(1f),
-                    selected = selectedTab == PlanTab.PLAN
-                ) { Text("Plan") }
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
+                    selected = tabPager.currentPage == 0
+                ) { Text("Plan", maxLines = 1) }
                 Button(
-                    onClick = { selectedTab = PlanTab.TIMER },
+                    onClick = { tabScope.launch { tabPager.animateScrollToPage(1) } },
                     modifier = Modifier.weight(1f),
-                    selected = selectedTab == PlanTab.TIMER
-                ) { Text("Reloj") }
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
+                    selected = tabPager.currentPage == 1
+                ) { Text("Reloj", maxLines = 1) }
                 Button(
-                    onClick = { selectedTab = PlanTab.CALENDAR },
+                    onClick = { tabScope.launch { tabPager.animateScrollToPage(2) } },
                     modifier = Modifier.weight(1f),
-                    selected = selectedTab == PlanTab.CALENDAR
-                ) { Text("Calendario") }
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
+                    selected = tabPager.currentPage == 2
+                ) { Text("Calendario", maxLines = 1) }
             }
 
-            if (selectedTab == PlanTab.PLAN) {
+            HorizontalPager(
+                state = tabPager,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                key = { it }
+            ) { tab ->
+            Column(Modifier.fillMaxSize()) {
+            if (tab == 0) {
                 activeTopic?.let { active ->
                     val link = linkManager.get(active.id)
                     val linkedTopics = database.topics.filter { it.id in link.libraryTopicIds }
@@ -143,7 +156,6 @@ fun UnifiedPlanScreen(
                             .padding(horizontal = 16.dp, vertical = 2.dp),
                         shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-                        border = BorderStroke(1.dp, TestarioPrimary.copy(alpha = 0.45f))
                     ) {
                         Column(
                             Modifier.padding(14.dp),
@@ -189,7 +201,7 @@ fun UnifiedPlanScreen(
                         onStartLinkedTest = onStartQuickTest
                     )
                 }
-            } else if (selectedTab == PlanTab.TIMER) {
+            } else if (tab == 1) {
                 Column(Modifier.weight(1f)) {
                     TimerScreen()
                 }
@@ -197,6 +209,8 @@ fun UnifiedPlanScreen(
                 Column(Modifier.weight(1f)) {
                     CalendarScreen()
                 }
+            }
+            }
             }
         }
     }

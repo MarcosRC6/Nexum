@@ -114,7 +114,7 @@ internal fun EditableAnnotationImage(
                 .background(TestarioSurface.copy(alpha = .94f), CircleShape)
                 .semantics { contentDescription = "Editar imagen" }
         ) {
-            Text("✎", color = TestarioText, style = MaterialTheme.typography.titleLarge)
+            EditIcon(TestarioText)
         }
     }
     if (showActions) {

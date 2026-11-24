@@ -15,6 +15,9 @@ class BehaviorSettingsViewModel(application: Application) : AndroidViewModel(app
     )
         private set
 
+    var showQuestionOrigin by mutableStateOf(preferencesManager.getShowQuestionOrigin())
+        private set
+
     var failureExitCorrectStreak by mutableStateOf(
         preferencesManager.getFailureExitCorrectStreak()
     )
@@ -23,6 +26,11 @@ class BehaviorSettingsViewModel(application: Application) : AndroidViewModel(app
     fun changePrioritizeFailuresInNormalTests(enabled: Boolean) {
         prioritizeFailuresInNormalTests = enabled
         preferencesManager.setPrioritizeFailuresInNormalTests(enabled)
+    }
+
+    fun changeShowQuestionOrigin(enabled: Boolean) {
+        showQuestionOrigin = enabled
+        preferencesManager.setShowQuestionOrigin(enabled)
     }
 
     fun changeFailureExitCorrectStreak(value: Int) {
@@ -34,5 +42,6 @@ class BehaviorSettingsViewModel(application: Application) : AndroidViewModel(app
     fun restoreDefaults() {
         changePrioritizeFailuresInNormalTests(true)
         changeFailureExitCorrectStreak(3)
+        changeShowQuestionOrigin(true)
     }
 }
