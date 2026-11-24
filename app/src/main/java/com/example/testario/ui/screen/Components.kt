@@ -314,6 +314,18 @@ fun MainBottomNavigation(
     onStats: () -> Unit
 ) {
     if (LocalNexumRail.current) return
+    NexumCapsule(selected, onHome, onLibrary, onPlan, onTest)
+}
+
+/** Cápsula inferior: Inicio, Biblioteca, Plan, Test. La dibuja TestarioApp una sola vez. */
+@Composable
+fun NexumCapsule(
+    selected: MainSection,
+    onHome: () -> Unit,
+    onLibrary: () -> Unit,
+    onPlan: () -> Unit,
+    onTest: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -330,8 +342,8 @@ fun MainBottomNavigation(
         ) {
             CapsuleNavItem(EstudarioIconKind.HOME, "Inicio", selected == MainSection.HOME, onHome)
             CapsuleNavItem(EstudarioIconKind.LIBRARY, "Biblioteca", selected == MainSection.LIBRARY, onLibrary)
-            CapsuleNavItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest)
             CapsuleNavItem(EstudarioIconKind.PLAN, "Plan", selected == MainSection.PLAN, onPlan)
+            CapsuleNavItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest)
         }
     }
 }
@@ -428,8 +440,8 @@ fun NexumNavRail(
         Box(Modifier.height(18.dp))
         RailNavItem(EstudarioIconKind.HOME, "Inicio", selected == MainSection.HOME, onHome)
         RailNavItem(EstudarioIconKind.LIBRARY, "Biblioteca", selected == MainSection.LIBRARY, onLibrary)
-        RailNavItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest)
         RailNavItem(EstudarioIconKind.PLAN, "Plan", selected == MainSection.PLAN, onPlan)
+        RailNavItem(EstudarioIconKind.TEST, "Test", selected == MainSection.TEST, onTest)
         RailNavItem(EstudarioIconKind.STATS, "Estadísticas", selected == MainSection.STATS, onStats)
         Box(Modifier.weight(1f))
         RailNavItem(EstudarioIconKind.SETTINGS, "Ajustes", false, onSettings)

@@ -1191,6 +1191,8 @@ fun SettingsScreen(
                     onClick = {
                         val bytes = pendingUnifiedBytes
                         if (bytes != null) {
+                            // Cerrar el aviso ya: si no, tapa la barra de progreso.
+                            showUnifiedRestoreConfirm = false
                             isLoading = true
                             coroutineScope.launch {
                                 val result = runCatching {
@@ -1228,6 +1230,7 @@ fun SettingsScreen(
                     onClick = {
                         val bytes = pendingTestarioBackupBytes
                         if (bytes != null) {
+                            showTestarioBackupRestoreConfirm = false
                             isLoading = true
                             coroutineScope.launch {
                                 val restore = runCatching {
@@ -1288,10 +1291,12 @@ fun SettingsScreen(
     if (showRestoreConfirmDialog) {
         AlertDialog(onDismissRequest = { showRestoreConfirmDialog = false; pendingRestoreText = null }, title = { Text("Restaurar copia de seguridad") }, text = { Text("Se sobreescribirán todos tus datos y recursos actuales. Esta acción no se puede deshacer.") }, confirmButton = {
             Button(onClick = {
+                val text = pendingRestoreText!!
+                showRestoreConfirmDialog = false
                 isLoading = true
                 coroutineScope.launch {
                     try {
-                        importExportViewModel.restoreBackup(pendingRestoreText!!)
+                        importExportViewModel.restoreBackup(text)
                         message = "Backup restaurado correctamente."
                     } catch(e: Exception) {
                         message = "Error: Archivo corrupto."

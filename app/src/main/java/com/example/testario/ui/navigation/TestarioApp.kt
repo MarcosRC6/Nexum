@@ -12,6 +12,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import com.example.testario.ui.screen.NexumCapsule
+import com.example.testario.ui.theme.TestarioBackground
 import androidx.compose.ui.platform.LocalConfiguration
 import com.example.testario.ui.screen.LocalNexumRail
 import com.example.testario.ui.screen.MainSection
@@ -155,6 +165,13 @@ fun TestarioApp(
         }
     }
 
+    fun goGroups() {
+        navController.navigate(Routes.GROUPS) {
+            popUpTo(Routes.HOME) { inclusive = false }
+            launchSingleTop = true
+        }
+    }
+
     fun goStats() {
         navController.navigate(Routes.STATS) {
             popUpTo(Routes.HOME) { inclusive = false }
@@ -247,6 +264,8 @@ fun TestarioApp(
                 route == Routes.STATS -> MainSection.STATS
                 else -> null
             }
+            // Secciones de la cápsula (Estadísticas solo cuelga del carril o de Inicio).
+            val capsuleSection = railSection?.takeIf { it != MainSection.STATS }
             val cfg = LocalConfiguration.current
             // El carril necesita ~500 dp de alto: un móvil horizontal usa la cápsula.
             val showRail = railSection != null && cfg.screenWidthDp >= 600 && cfg.screenHeightDp >= 480
@@ -262,17 +281,63 @@ fun TestarioApp(
                     onSettings = { goSettings() }
                 )
             }
-            CompositionLocalProvider(LocalNexumRail provides showRail) {
+            val showCapsule = !showRail && capsuleSection != null
+            CompositionLocalProvider(LocalNexumRail provides (showRail || capsuleSection != null)) {
+            Column(Modifier.weight(1f).fillMaxHeight()) {
+            // En móvil, deslizar el dedo recorre Inicio → Biblioteca → Grupos → Plan → Test.
+            val swipeThreshold = with(LocalDensity.current) { 72.dp.toPx() }
+            val swipeBy: (Int) -> Unit = { delta ->
+                val target = SWIPE_ORDER.getOrNull(SWIPE_ORDER.indexOf(route) + delta)
+                if (route in SWIPE_ORDER && target != null) when (target) {
+                    Routes.HOME -> goHome()
+                    Routes.LIBRARY -> goLibrary()
+                    Routes.GROUPS -> goGroups()
+                    Routes.PLAN -> goPlan()
+                    else -> goTest()
+                }
+            }
             // The library default is a 700 ms cross-fade, which feels sluggish.
-            // A short fade plus a small slide gives direction without delay.
+            // Entre secciones principales la pantalla se desplaza según el sentido del gesto.
             NavHost(
                 navController = navController,
                 startDestination = Routes.HOME,
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                enterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 14 } },
-                exitTransition = { fadeOut(tween(160)) },
-                popEnterTransition = { fadeIn(tween(220)) },
-                popExitTransition = { fadeOut(tween(160)) + slideOutHorizontally(tween(240)) { it / 14 } }
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .then(if (showCapsule) Modifier.consumeWindowInsets(WindowInsets.navigationBars) else Modifier)
+                    .pointerInput(showCapsule, route) {
+                        if (!showCapsule) return@pointerInput
+                        var total = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { total = 0f },
+                            onDragCancel = { total = 0f },
+                            onDragEnd = {
+                                if (total <= -swipeThreshold) swipeBy(1)
+                                else if (total >= swipeThreshold) swipeBy(-1)
+                            },
+                            onHorizontalDrag = { _, dx -> total += dx }
+                        )
+                    },
+                enterTransition = {
+                    val d = swipeDirection(initialState.destination.route, targetState.destination.route)
+                    if (d != 0) slideIntoContainer(slideSide(d), tween(280)) + fadeIn(tween(200))
+                    else fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 14 }
+                },
+                exitTransition = {
+                    val d = swipeDirection(initialState.destination.route, targetState.destination.route)
+                    if (d != 0) slideOutOfContainer(slideSide(d), tween(280)) + fadeOut(tween(200))
+                    else fadeOut(tween(160))
+                },
+                popEnterTransition = {
+                    val d = swipeDirection(initialState.destination.route, targetState.destination.route)
+                    if (d != 0) slideIntoContainer(slideSide(d), tween(280)) + fadeIn(tween(200))
+                    else fadeIn(tween(220))
+                },
+                popExitTransition = {
+                    val d = swipeDirection(initialState.destination.route, targetState.destination.route)
+                    if (d != 0) slideOutOfContainer(slideSide(d), tween(280)) + fadeOut(tween(200))
+                    else fadeOut(tween(160)) + slideOutHorizontally(tween(240)) { it / 14 }
+                }
             ) {
             composable(Routes.HOME) {
                 BackHandler(enabled = timerState.studyTimerState == StudyTimerState.RUNNING) {
@@ -497,6 +562,23 @@ fun TestarioApp(
                 )
             }
             }
+            if (showCapsule && capsuleSection != null) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(TestarioBackground)
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                ) {
+                    NexumCapsule(
+                        selected = capsuleSection,
+                        onHome = { goHome() },
+                        onLibrary = { goLibrary() },
+                        onPlan = { goPlan() },
+                        onTest = { goTest() }
+                    )
+                }
+            }
+            }
             }
             }
         }
@@ -588,3 +670,17 @@ fun TestarioApp(
         }
     }
 }
+
+/** Orden de las secciones al deslizar: Inicio, Biblioteca, Grupos, Plan y Test. */
+private val SWIPE_ORDER = listOf(Routes.HOME, Routes.LIBRARY, Routes.GROUPS, Routes.PLAN, Routes.TEST_CONFIG)
+
+/** +1 si el destino queda a la derecha del origen, -1 a la izquierda, 0 si no son secciones principales. */
+private fun swipeDirection(from: String?, to: String?): Int {
+    val a = SWIPE_ORDER.indexOf(from)
+    val b = SWIPE_ORDER.indexOf(to)
+    return if (a < 0 || b < 0) 0 else b.compareTo(a)
+}
+
+private fun slideSide(direction: Int) =
+    if (direction > 0) AnimatedContentTransitionScope.SlideDirection.Left
+    else AnimatedContentTransitionScope.SlideDirection.Right

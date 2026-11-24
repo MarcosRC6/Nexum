@@ -64,6 +64,8 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.graphics.graphicsLayer
@@ -594,6 +596,7 @@ fun HomeScreen(
                                 if (homeSettingsViewModel.showPlanShortcut) add(Triple("Plan", EstudarioIconKind.PLAN, onPlan))
                                 if (homeSettingsViewModel.showStatsShortcut) add(Triple("Estadísticas", EstudarioIconKind.STATS, onStats))
                             }
+                            var quickAccessEditing by remember { mutableStateOf(false) }
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(20.dp),
@@ -602,14 +605,55 @@ fun HomeScreen(
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                         Text("Accesos rápidos", style = MaterialTheme.typography.titleLarge, color = TestarioText, modifier = Modifier.weight(1f))
-                                        IconButton(onClick = { showManageWebLinks = true }) {
-                                            EditIcon(TestarioPrimary)
+                                        // El lápiz elige qué accesos se ven; el + de la cuadrícula añade enlaces.
+                                        IconButton(
+                                            onClick = {
+                                                quickAccessEditing = !quickAccessEditing
+                                                if (quickAccessEditing) homeQuickAccessExpanded = true
+                                            },
+                                            modifier = Modifier.semantics {
+                                                contentDescription = if (quickAccessEditing) "Terminar de elegir accesos" else "Elegir qué accesos mostrar"
+                                            }
+                                        ) {
+                                            if (quickAccessEditing) EstudarioIcon(EstudarioIconKind.CHECK, TestarioPrimary, Modifier.size(22.dp))
+                                            else EditIcon(TestarioPrimary)
                                         }
                                         IconButton(onClick = { homeQuickAccessExpanded = !homeQuickAccessExpanded }) {
                                             ChevronIcon(homeQuickAccessExpanded)
                                         }
                                     }
-                                    if (homeQuickAccessExpanded) {
+                                    if (homeQuickAccessExpanded && quickAccessEditing) {
+                                        val choices = listOf(
+                                            Triple("Biblioteca", EstudarioIconKind.LIBRARY, homeSettingsViewModel.showLibraryShortcut) to { v: Boolean -> homeSettingsViewModel.changeShowLibraryShortcut(v) },
+                                            Triple("Test", EstudarioIconKind.TEST, homeSettingsViewModel.showTestShortcut) to { v: Boolean -> homeSettingsViewModel.changeShowTestShortcut(v) },
+                                            Triple("Plan", EstudarioIconKind.PLAN, homeSettingsViewModel.showPlanShortcut) to { v: Boolean -> homeSettingsViewModel.changeShowPlanShortcut(v) },
+                                            Triple("Estadísticas", EstudarioIconKind.STATS, homeSettingsViewModel.showStatsShortcut) to { v: Boolean -> homeSettingsViewModel.changeShowStatsShortcut(v) },
+                                            Triple("Enlaces", EstudarioIconKind.LINK, homeSettingsViewModel.showWebLinksShortcut) to { v: Boolean -> homeSettingsViewModel.changeShowWebLinksShortcut(v) }
+                                        )
+                                        Text("Toca para mostrar u ocultar", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                        choices.chunked(3).forEach { rowItems ->
+                                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                rowItems.forEach { (info, toggle) ->
+                                                    val (label, icon, on) = info
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clip(RoundedCornerShape(15.dp))
+                                                            .background(if (on) TestarioNeonSelected else TestarioSurfaceLight)
+                                                            .selectable(selected = on, role = Role.Switch, onClick = { toggle(!on) })
+                                                            .padding(vertical = 12.dp, horizontal = 4.dp),
+                                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                                                    ) {
+                                                        EstudarioIcon(icon, if (on) TestarioPrimary else TestarioMutedText, Modifier.size(24.dp))
+                                                        Text(label, color = if (on) TestarioText else TestarioMutedText, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                                    }
+                                                }
+                                                repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                                            }
+                                        }
+                                    }
+                                    if (homeQuickAccessExpanded && !quickAccessEditing) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         quickAccesses.forEach { item ->
                                             Card(
