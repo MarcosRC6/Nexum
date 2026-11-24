@@ -875,15 +875,12 @@ private fun FixedObjectiveRow(
                     )
                 }
 
-                OutlinedButton(
+                FilledTonalButton(
                     onClick = onDeleteClick,
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.16f),
                         contentColor = MaterialTheme.colorScheme.error
-                    ),
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.45f)
                     )
                 ) {
                     Text(

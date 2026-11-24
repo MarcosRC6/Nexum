@@ -68,6 +68,8 @@ import com.example.testario.ui.theme.TestarioNeonSurface
 import com.example.testario.ui.theme.TestarioNeonSelected
 import com.example.testario.ui.theme.TestarioBackground
 import com.example.testario.ui.theme.TestarioPrimary
+import com.example.testario.ui.theme.TestarioRedDark
+import com.example.testario.ui.theme.TestarioRed
 import com.example.testario.ui.theme.TestarioPrimaryDark
 import com.example.testario.ui.theme.TestarioOutline
 import com.example.testario.ui.theme.TestarioNavBackground
@@ -410,10 +412,11 @@ fun NexumTonalButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     primary: Boolean = false,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    danger: Boolean = false
 ) {
-    val container = if (primary) TestarioNeonSelected else TestarioSurfaceLight
-    val content = if (primary) TestarioPrimary else TestarioText
+    val container = if (danger) TestarioRedDark else if (primary) TestarioNeonSelected else TestarioSurfaceLight
+    val content = if (danger) TestarioRed else if (primary) TestarioPrimary else TestarioText
     Box(
         modifier = modifier
             .height(52.dp)

@@ -462,10 +462,6 @@ private fun SelectedDayStatusCard(
     Surface(
         shape = MaterialTheme.shapes.large,
         color = selectedDay.status.toCalendarBackgroundColor(),
-        border = BorderStroke(
-            width = 1.dp,
-            color = selectedDay.status.toCalendarBorderColor()
-        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -487,10 +483,6 @@ private fun SelectedDayStatusCard(
                 Surface(
                     shape = CircleShape,
                     color = if (isCalendarDark()) Color.Black.copy(alpha = 0.28f) else Color.White.copy(alpha = 0.75f),
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = selectedDay.status.toCalendarBorderColor()
-                    )
                 ) {
                     Text(
                         text = selectedDay.status.toReadableText(),
@@ -529,7 +521,6 @@ private fun SelectedDayObjectivesBlock(
         Surface(
             shape = MaterialTheme.shapes.medium,
             color = tone.toCalendarBackgroundColor(),
-            border = BorderStroke(width = 1.dp, color = tone.toCalendarBorderColor()),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
@@ -554,7 +545,6 @@ private fun SelectedDayInfoRow(
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = DayStatus.EMPTY.toCalendarBackgroundColor(),
-        border = BorderStroke(width = 1.dp, color = DayStatus.EMPTY.toCalendarBorderColor()),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(

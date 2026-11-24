@@ -57,6 +57,8 @@ import com.example.testario.ui.theme.TestarioText
 import com.example.testario.ui.theme.TestarioYellow
 import com.example.testario.viewmodel.LibraryViewModel
 import com.example.testario.viewmodel.StatsViewModel
+import com.example.testario.ui.theme.NexumNumeral
+import androidx.compose.ui.unit.sp
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -113,9 +115,9 @@ fun StatsScreen(
             // --- RENDIMIENTO GENERAL ---
             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = TestarioSurface)) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(text = "Rendimiento general", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "$globalPercent%", style = MaterialTheme.typography.displayMedium, color = globalColor)
+                    Text(text = "Rendimiento general", style = MaterialTheme.typography.titleMedium, color = TestarioMutedText)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = "$globalPercent%", style = NexumNumeral, color = globalColor)
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         StatBlock(totalQuestions.toString(), "Preguntas", TestarioText, Modifier.weight(1f))
@@ -195,9 +197,7 @@ fun StatsScreen(
                                 }
                                 if (tFailures > 0) {
                                     Spacer(modifier = Modifier.height(14.dp))
-                                    OutlinedButton(onClick = { onReviewFailures(topic.id) }, modifier = Modifier.fillMaxWidth().height(42.dp), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, TestarioRed.copy(0.5f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = TestarioRed)) {
-                                        Text("Repasar $tFailures fallos del tema")
-                                    }
+                                    NexumTonalButton(text = "Repasar $tFailures fallos del tema", onClick = { onReviewFailures(topic.id) }, danger = true, modifier = Modifier.fillMaxWidth())
                                 }
                             }
                         }
@@ -252,7 +252,7 @@ fun StatsScreen(
 
 
             Column(modifier = Modifier.fillMaxWidth().animateContentSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-                TextButton(onClick = { showExtras = !showExtras }) { Text(text = if (showExtras) "Ocultar detalles ▲" else "Ver más detalles ▼", color = TestarioMutedText) }
+                TextButton(onClick = { showExtras = !showExtras }) { Text(text = if (showExtras) "Ocultar detalles" else "Ver más detalles", color = TestarioMutedText) }
                 if (showExtras) {
                     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = TestarioSurface)) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -275,18 +275,12 @@ fun StatsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = TestarioSurface),
-                border = BorderStroke(1.dp, TestarioRed.copy(alpha = 0.35f))
+                colors = CardDefaults.cardColors(containerColor = TestarioSurface)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Gestión de estadísticas", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                     Text("Borra aciertos, fallos, blancos, tiempos y notas de los tests. No elimina preguntas ni temas.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
-                    OutlinedButton(
-                        onClick = { showClearStatsDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        border = BorderStroke(1.dp, TestarioRed),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TestarioRed)
-                    ) { Text("Borrar estadísticas") }
+                    NexumTonalButton(text = "Borrar estadísticas", onClick = { showClearStatsDialog = true }, danger = true, modifier = Modifier.fillMaxWidth())
                 }
             }
             Spacer(modifier = Modifier.height(20.dp))
@@ -379,10 +373,9 @@ private fun MixedExamReviewDialog(
 
 @Composable
 private fun StatBlock(value: String, label: String, valueColor: Color, modifier: Modifier = Modifier) {
-    Card(modifier = modifier.height(64.dp), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = TestarioSurfaceLight)) {
-        Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = value, style = MaterialTheme.typography.titleMedium, color = valueColor)
-            Text(text = label, style = MaterialTheme.typography.labelSmall, color = TestarioMutedText)
-        }
+    // Cifra ligera sobre la propia tarjeta: sin cajas dentro de la caja.
+    Column(modifier = modifier, horizontalAlignment = Alignment.Start) {
+        Text(text = value, style = NexumNumeral.copy(fontSize = 30.sp, lineHeight = 34.sp, letterSpacing = (-0.8).sp), color = valueColor)
+        Text(text = label, style = MaterialTheme.typography.labelMedium, color = TestarioMutedText)
     }
 }
