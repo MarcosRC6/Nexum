@@ -317,7 +317,7 @@ fun QuestionEditorScreen(
 
             if (error != null) {
                 item {
-                    Card(colors = CardDefaults.cardColors(containerColor = TestarioRedDark), border = BorderStroke(1.dp, TestarioRed), shape = RoundedCornerShape(18.dp)) {
+                    Card(colors = CardDefaults.cardColors(containerColor = TestarioRedDark), shape = RoundedCornerShape(18.dp)) {
                         Text(text = error ?: "", color = TestarioText, modifier = Modifier.padding(14.dp))
                     }
                 }
@@ -360,13 +360,7 @@ fun QuestionEditorScreen(
             if (existingQuestion != null) {
                 item {
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedButton(
-                        onClick = { showDeleteDialog = true },
-                        modifier = Modifier.fillMaxWidth().height(58.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TestarioRed),
-                        border = BorderStroke(1.dp, TestarioRed)
-                    ) { Text("Eliminar pregunta") }
+                    NexumTonalButton(text = "Eliminar pregunta", onClick = { showDeleteDialog = true }, danger = true, modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }

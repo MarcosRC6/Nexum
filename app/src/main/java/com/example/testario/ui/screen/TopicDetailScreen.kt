@@ -440,7 +440,7 @@ fun TopicDetailScreen(
                             color = TestarioSurfaceLight
                         )
                         DropdownMenuItem(
-                            text = { Text("Solo marcadas 🚩") },
+                            text = { Text("Solo marcadas") },
                             trailingIcon = {
                                 Checkbox(checked = filterFlagged, onCheckedChange = null)
                             },
@@ -946,9 +946,7 @@ private fun StudyExerciseCard(
                         color = TestarioMutedText)
                 }
                 IconButton(onClick = { showFlagDialog = true }) {
-                    Text(if (exercise.flagged) "🚩" else "⚑",
-                        color = if (exercise.flagged) TestarioPrimary else TestarioMutedText,
-                        style = MaterialTheme.typography.titleLarge)
+                    EstudarioIcon(EstudarioIconKind.FLAG, if (exercise.flagged) TestarioPrimary else TestarioMutedText, Modifier.size(24.dp))
                 }
                 Box {
                     IconButton(onClick = { expanded = true }) {
@@ -1087,9 +1085,7 @@ private fun QuestionCard(
                 if (!selectionMode) {
                     IconButton(onClick = { showFlagDialog = true },
                         modifier = Modifier.size(40.dp)) {
-                        Text(if (question.flagged) "🚩" else "⚑",
-                            color = if (question.flagged) TestarioPrimary else TestarioMutedText,
-                            style = MaterialTheme.typography.titleLarge)
+                        EstudarioIcon(EstudarioIconKind.FLAG, if (question.flagged) TestarioPrimary else TestarioMutedText, Modifier.size(24.dp))
                     }
                     Box {
                         IconButton(onClick = { expanded = true }) {

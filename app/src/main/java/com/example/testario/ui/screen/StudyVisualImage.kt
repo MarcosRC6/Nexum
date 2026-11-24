@@ -241,7 +241,7 @@ internal fun StudyVisualImage(
                         onClick = dismissFullscreen,
                         modifier = Modifier.background(Color(0xD90B0D0C), CircleShape)
                     ) {
-                        Text("✕", color = Color.White)
+                        EstudarioIcon(EstudarioIconKind.CLOSE, Color.White, Modifier.size(22.dp))
                     }
                 }
             }

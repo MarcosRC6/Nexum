@@ -25,7 +25,7 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
     ) {
         Column(Modifier.fillMaxWidth().padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(item.topicName.uppercase(), color = TestarioPrimary,
+            Text(item.topicName, color = TestarioMutedText,
                 style = MaterialTheme.typography.labelLarge)
             when (item.type) {
                 MixedItemType.TEST -> {

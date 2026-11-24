@@ -223,14 +223,12 @@ fun MixedSessionScreen(
                 ) {
             if (item.type != MixedItemType.TEST) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(item.topicName.uppercase(), color = TestarioPrimary,
+                    Text(item.topicName, color = TestarioMutedText,
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.weight(1f))
                     val marked = item.exercise?.flagged == true
                     IconButton(onClick = { session.toggleExerciseFlag() }) {
-                        Text(if (marked) "🚩" else "⚑",
-                            color = if (marked) TestarioPrimary else TestarioMutedText,
-                            style = MaterialTheme.typography.titleLarge)
+                        EstudarioIcon(EstudarioIconKind.FLAG, if (marked) TestarioPrimary else TestarioMutedText, Modifier.size(24.dp))
                     }
                 }
             }
@@ -239,8 +237,8 @@ fun MixedSessionScreen(
                     val question = requireNotNull(item.question)
                     var difficultyExpanded by remember(item.id) { mutableStateOf(false) }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(item.topicName.uppercase(), color = TestarioPrimary,
-                            style = MaterialTheme.typography.labelMedium,
+                        Text(item.topicName, color = TestarioMutedText,
+                            style = MaterialTheme.typography.labelLarge,
                             modifier = Modifier.weight(1f))
                         Box {
                             TextButton(onClick = { difficultyExpanded = true }) {
@@ -264,10 +262,10 @@ fun MixedSessionScreen(
                             }
                         }
                         IconButton(onClick = { onEditQuestion(item.topicId, question.id) }) {
-                            Text("✏️")
+                            EstudarioIcon(EstudarioIconKind.EDIT, TestarioMutedText, Modifier.size(22.dp))
                         }
                         IconButton(onClick = { session.toggleTestFlag() }) {
-                            Text(if (question.flagged) "🚩" else "🏳️")
+                            EstudarioIcon(EstudarioIconKind.FLAG, if (question.flagged) TestarioPrimary else TestarioMutedText, Modifier.size(24.dp))
                         }
                     }
                     Text(question.text, color = TestarioText,
