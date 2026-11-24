@@ -22,6 +22,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.example.testario.ui.screen.NexumCapsule
+import com.example.testario.ui.screen.NexumInnerSwipe
+import androidx.compose.animation.core.FastOutSlowInEasing
 import com.example.testario.ui.theme.TestarioBackground
 import androidx.compose.ui.platform.LocalConfiguration
 import com.example.testario.ui.screen.LocalNexumRail
@@ -289,11 +291,13 @@ fun TestarioApp(
             val swipeThreshold = with(LocalDensity.current) { 72.dp.toPx() }
             val swipeBy: (Int) -> Unit = { delta ->
                 val target = SWIPE_ORDER.getOrNull(SWIPE_ORDER.indexOf(route) + delta)
-                if (route in SWIPE_ORDER && target != null) when (target) {
+                val consumedByScreen = route == Routes.PLAN && NexumInnerSwipe.handler?.invoke(delta) == true
+                if (!consumedByScreen && route in SWIPE_ORDER && target != null) when (target) {
                     Routes.HOME -> goHome()
                     Routes.LIBRARY -> goLibrary()
                     Routes.GROUPS -> goGroups()
-                    Routes.PLAN -> goPlan()
+                    // Venir de Test aterriza en la última pestaña (Calendario).
+                    Routes.PLAN -> goPlan(if (delta < 0) "calendar" else "plan")
                     else -> goTest()
                 }
             }
@@ -321,22 +325,22 @@ fun TestarioApp(
                     },
                 enterTransition = {
                     val d = swipeDirection(initialState.destination.route, targetState.destination.route)
-                    if (d != 0) slideIntoContainer(slideSide(d), tween(280)) + fadeIn(tween(200))
+                    if (d != 0) slideIntoContainer(slideSide(d), tween(360, easing = FastOutSlowInEasing)) + fadeIn(tween(240))
                     else fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 14 }
                 },
                 exitTransition = {
                     val d = swipeDirection(initialState.destination.route, targetState.destination.route)
-                    if (d != 0) slideOutOfContainer(slideSide(d), tween(280)) + fadeOut(tween(200))
+                    if (d != 0) slideOutOfContainer(slideSide(d), tween(360, easing = FastOutSlowInEasing)) { it / 3 } + fadeOut(tween(240))
                     else fadeOut(tween(160))
                 },
                 popEnterTransition = {
                     val d = swipeDirection(initialState.destination.route, targetState.destination.route)
-                    if (d != 0) slideIntoContainer(slideSide(d), tween(280)) + fadeIn(tween(200))
+                    if (d != 0) slideIntoContainer(slideSide(d), tween(360, easing = FastOutSlowInEasing)) + fadeIn(tween(240))
                     else fadeIn(tween(220))
                 },
                 popExitTransition = {
                     val d = swipeDirection(initialState.destination.route, targetState.destination.route)
-                    if (d != 0) slideOutOfContainer(slideSide(d), tween(280)) + fadeOut(tween(200))
+                    if (d != 0) slideOutOfContainer(slideSide(d), tween(360, easing = FastOutSlowInEasing)) { it / 3 } + fadeOut(tween(240))
                     else fadeOut(tween(160)) + slideOutHorizontally(tween(240)) { it / 14 }
                 }
             ) {

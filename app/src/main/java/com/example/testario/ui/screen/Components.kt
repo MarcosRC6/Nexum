@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.draw.clip
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.semantics.Role
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -358,10 +359,10 @@ private fun CapsuleNavItem(
 ) {
     val pill by animateColorAsState(
         if (selected) TestarioNeonSelected else TestarioNeonSelected.copy(alpha = 0f),
-        tween(180), label = "capsulePill"
+        tween(300, easing = FastOutSlowInEasing), label = "capsulePill"
     )
     val tint by animateColorAsState(
-        if (selected) TestarioPrimary else TestarioMutedText, tween(180), label = "capsuleTint"
+        if (selected) TestarioPrimary else TestarioMutedText, tween(300, easing = FastOutSlowInEasing), label = "capsuleTint"
     )
     Row(
         modifier = Modifier
@@ -376,8 +377,8 @@ private fun CapsuleNavItem(
         EstudarioIcon(icon, tint = tint, modifier = Modifier.size(24.dp))
         AnimatedVisibility(
             visible = selected,
-            enter = expandHorizontally(tween(180)) + fadeIn(tween(180)),
-            exit = shrinkHorizontally(tween(180)) + fadeOut(tween(120))
+            enter = expandHorizontally(tween(320, easing = FastOutSlowInEasing)) + fadeIn(tween(260)),
+            exit = shrinkHorizontally(tween(320, easing = FastOutSlowInEasing)) + fadeOut(tween(160))
         ) {
             Text(
                 text = label,

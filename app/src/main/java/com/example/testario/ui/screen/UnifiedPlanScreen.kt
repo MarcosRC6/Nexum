@@ -26,6 +26,15 @@ import androidx.compose.material3.Text
 import com.example.testario.ui.theme.NeonTextButton as TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -84,6 +93,17 @@ fun UnifiedPlanScreen(
     }
     var showLinkDialog by remember { mutableStateOf(false) }
 
+    // Deslizar recorre Plan → Reloj → Calendario antes de pasar a la sección siguiente.
+    DisposableEffect(Unit) {
+        val handler: (Int) -> Boolean = { delta ->
+            val tabs = PlanTab.values()
+            val next = selectedTab.ordinal + delta
+            if (next in tabs.indices) { selectedTab = tabs[next]; true } else false
+        }
+        NexumInnerSwipe.handler = handler
+        onDispose { if (NexumInnerSwipe.handler === handler) NexumInnerSwipe.handler = null }
+    }
+
     LaunchedEffect(planTopics, database.topics) {
         linkManager.prune(
             validPlanTopicIds = planTopics.mapTo(mutableSetOf()) { it.id },
@@ -136,7 +156,18 @@ fun UnifiedPlanScreen(
                 ) { Text("Calendario", maxLines = 1) }
             }
 
-            if (selectedTab == PlanTab.PLAN) {
+            AnimatedContent(
+                targetState = selectedTab,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                transitionSpec = {
+                    val dir = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                    (slideInHorizontally(tween(340, easing = FastOutSlowInEasing)) { it * dir } + fadeIn(tween(240))) togetherWith
+                        (slideOutHorizontally(tween(340, easing = FastOutSlowInEasing)) { -it * dir / 3 } + fadeOut(tween(200)))
+                },
+                label = "planTabs"
+            ) { tab ->
+            Column(Modifier.fillMaxSize()) {
+            if (tab == PlanTab.PLAN) {
                 activeTopic?.let { active ->
                     val link = linkManager.get(active.id)
                     val linkedTopics = database.topics.filter { it.id in link.libraryTopicIds }
@@ -191,7 +222,7 @@ fun UnifiedPlanScreen(
                         onStartLinkedTest = onStartQuickTest
                     )
                 }
-            } else if (selectedTab == PlanTab.TIMER) {
+            } else if (tab == PlanTab.TIMER) {
                 Column(Modifier.weight(1f)) {
                     TimerScreen()
                 }
@@ -199,6 +230,8 @@ fun UnifiedPlanScreen(
                 Column(Modifier.weight(1f)) {
                     CalendarScreen()
                 }
+            }
+            }
             }
         }
     }
