@@ -823,7 +823,8 @@ private fun GlobalQuestionSearchCard(
     selected: Boolean,
     onToggle: () -> Unit
 ) {
-    val location = if (!question.originTopicName.isNullOrBlank() && !question.originTopicName.equals(topic.name, ignoreCase = true)) {
+    val showOrigin = LocalShowQuestionOrigin.current
+    val location = if (showOrigin && !question.originTopicName.isNullOrBlank() && !question.originTopicName.equals(topic.name, ignoreCase = true)) {
         "${topic.name} | ${question.originTopicName}"
     } else {
         topic.name

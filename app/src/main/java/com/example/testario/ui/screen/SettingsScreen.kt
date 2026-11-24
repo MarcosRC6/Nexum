@@ -615,8 +615,8 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text("Comportamiento de los ejercicios", style = MaterialTheme.typography.titleLarge, color = TestarioText)
-                                Text("Preguntas falladas, repaso y tarjetas Anki.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
+                                Text("Comportamiento de la app", style = MaterialTheme.typography.titleLarge, color = TestarioText)
+                                Text("Preguntas falladas, repaso, tarjetas Anki y origen de las preguntas.", color = TestarioMutedText, style = MaterialTheme.typography.bodySmall)
                             }
                             ChevronIcon(showBehaviorSettings)
                         }
@@ -665,6 +665,13 @@ fun SettingsScreen(
                                     Checkbox(checked = database.ankiReviewEnabled, onCheckedChange = null)
                                 }
 
+                                HomeSettingToggle(
+                                    title = "Mostrar de dónde viene cada pregunta",
+                                    subtitle = "Si lo desactivas, solo verás el tema al que pertenece, sin el tema de origen.",
+                                    checked = behaviorSettingsViewModel.showQuestionOrigin,
+                                    onCheckedChange = behaviorSettingsViewModel::changeShowQuestionOrigin
+                                )
+
                                 Text("Salir de Fallos", style = MaterialTheme.typography.titleMedium, color = TestarioText)
                                 val failureStreak = behaviorSettingsViewModel.failureExitCorrectStreak
                                 Text(
@@ -691,7 +698,7 @@ fun SettingsScreen(
                                     style = MaterialTheme.typography.bodySmall
                                 )
 
-                                if (!behaviorSettingsViewModel.prioritizeFailuresInNormalTests || failureStreak != 3) {
+                                if (!behaviorSettingsViewModel.prioritizeFailuresInNormalTests || failureStreak != 3 || !behaviorSettingsViewModel.showQuestionOrigin) {
                                     TextButton(
                                         onClick = { behaviorSettingsViewModel.restoreDefaults() },
                                         modifier = Modifier.align(Alignment.End)

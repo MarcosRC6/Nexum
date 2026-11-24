@@ -309,6 +309,9 @@ enum class MainSection { HOME, LIBRARY, TEST, PLAN, STATS }
 /** Verdadero cuando TestarioApp muestra el carril lateral: la cápsula inferior se oculta. */
 val LocalNexumRail = androidx.compose.runtime.compositionLocalOf { false }
 
+/** Ajuste "mostrar de dónde viene cada pregunta"; true mantiene el comportamiento histórico. */
+val LocalShowQuestionOrigin = androidx.compose.runtime.compositionLocalOf { true }
+
 @Composable
 fun MainBottomNavigation(
     selected: MainSection,

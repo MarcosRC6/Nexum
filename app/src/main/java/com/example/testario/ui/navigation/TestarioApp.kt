@@ -32,6 +32,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import com.example.testario.ui.theme.TestarioBackground
 import androidx.compose.ui.platform.LocalConfiguration
 import com.example.testario.ui.screen.LocalNexumRail
+import com.example.testario.ui.screen.LocalShowQuestionOrigin
 import com.example.testario.ui.screen.MainSection
 import com.example.testario.ui.screen.NexumNavRail
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -351,7 +352,10 @@ fun TestarioApp(
                 )
             }
             val showCapsule = !showRail && capsuleSection != null
-            CompositionLocalProvider(LocalNexumRail provides (showRail || capsuleSection != null)) {
+            CompositionLocalProvider(
+                LocalNexumRail provides (showRail || capsuleSection != null),
+                LocalShowQuestionOrigin provides behaviorSettingsViewModel.showQuestionOrigin
+            ) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
             if (showPager) {

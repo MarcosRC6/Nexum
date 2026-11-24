@@ -167,7 +167,8 @@ fun TestScreen(
         database.topics.firstOrNull { t -> t.questions.any { it.id == current.question.id } }?.id
     }
     val currentTopicName = database.topics.firstOrNull { it.id == topicId }?.name ?: "Tema desconocido"
-    val currentTopicDisplayName = topicDisplayName(currentTopicName, current.question.originTopicName)
+    val showOrigin = LocalShowQuestionOrigin.current
+    val currentTopicDisplayName = topicDisplayName(currentTopicName, current.question.originTopicName.takeIf { showOrigin })
 
     fun saveAndLeave() {
         if (sessionViewModel.saveForLater()) {
@@ -284,7 +285,7 @@ fun TestScreen(
                 topic.questions.any { it.id == reviewState.question.id }
             }
             val reviewTopicName = reviewTopic?.name ?: "Tema desconocido"
-            val reviewDisplayName = topicDisplayName(reviewTopicName, reviewState.question.originTopicName)
+            val reviewDisplayName = topicDisplayName(reviewTopicName, reviewState.question.originTopicName.takeIf { showOrigin })
 
             Scaffold(
                 containerColor = TestarioBackground,

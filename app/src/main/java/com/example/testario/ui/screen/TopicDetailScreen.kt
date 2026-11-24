@@ -1063,7 +1063,7 @@ private fun QuestionCard(
                         text = "${question.answers.size} respuestas",
                         color = TestarioMutedText
                     )
-                    if (!question.originTopicName.isNullOrBlank()) {
+                    if (LocalShowQuestionOrigin.current && !question.originTopicName.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Origen: ${question.originTopicName}",
