@@ -31,7 +31,7 @@ import androidx.compose.material3.CardDefaults
 import com.example.testario.ui.theme.NeonIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -418,7 +418,7 @@ private fun AnswerEditorRow(
     Card(
         modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = if (isCorrect) TestarioNeonSelected else TestarioSurface),
-        border = BorderStroke(width = 1.dp, color = if (isCorrect) TestarioPrimary else TestarioSurfaceLight)
+        border = null
     ) {
         Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = CircleShape, color = TestarioSurfaceLight, modifier = Modifier.size(36.dp)) {

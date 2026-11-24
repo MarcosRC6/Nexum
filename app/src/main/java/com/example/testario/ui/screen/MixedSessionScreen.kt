@@ -26,6 +26,7 @@ import com.example.testario.domain.WrittenMarkerFeedback
 import com.example.testario.ui.theme.*
 import com.example.testario.viewmodel.MixedSessionViewModel
 import kotlinx.coroutines.launch
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 
 /**
  * Test, Enumerar and Anki inside the SAME configured session and four-tab app.
@@ -188,13 +189,13 @@ fun MixedSessionScreen(
                         current.responses[index].writtenAnswers.isNotEmpty() ||
                         current.responses[index].revealed
                     Surface(
-                        modifier = Modifier.size(42.dp).clickable {
+                        modifier = Modifier.size(48.dp).clickable {
                             if (!locked && persistDraft()) session.goTo(index)
                         },
                         shape = CircleShape,
                         color = if (chosen) TestarioPrimary else if (completed)
                             TestarioSurfaceLight else TestarioSurface,
-                        border = BorderStroke(1.dp, if (chosen) TestarioPrimary else TestarioSurfaceLight)
+                        border = null
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text("${index + 1}",
@@ -299,7 +300,7 @@ fun MixedSessionScreen(
                             ) { session.selectTestAnswer(answer.id) },
                             shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(containerColor = background),
-                            border = BorderStroke(1.dp, borderColor)
+                            border = null
                         ) {
                             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Surface(shape = CircleShape, color = TestarioSurface,

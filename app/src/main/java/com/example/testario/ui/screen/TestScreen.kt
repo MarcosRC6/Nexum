@@ -344,7 +344,7 @@ fun TestScreen(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
                                     shape = RoundedCornerShape(14.dp),
                                     colors = CardDefaults.cardColors(containerColor = bg),
-                                    border = BorderStroke(1.dp, border)
+                                    border = null
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(14.dp),

@@ -32,7 +32,7 @@ import androidx.compose.material3.DropdownMenuItem
 import com.example.testario.ui.theme.NeonIconButton as IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -878,10 +878,10 @@ private fun TopicCard(
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable { if (isDeleteMode) onToggleSelection() else onOpen() },
-        elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(containerColor = if (isDeleteMode && isSelectedForDelete) TestarioRedDark.copy(alpha = 0.3f) else TestarioSurface),
+        elevation = CardDefaults.cardElevation(0.dp),
+        colors = CardDefaults.cardColors(containerColor = if (isDeleteMode && isSelectedForDelete) TestarioRedDark.copy(alpha = 0.3f) else if (topic.isPinned) TestarioNeonSelected else TestarioSurface),
         shape = RoundedCornerShape(22.dp),
-        border = if (isDeleteMode && isSelectedForDelete) BorderStroke(1.dp, TestarioRed) else if (topic.isPinned) BorderStroke(1.dp, TestarioPrimary) else null
+        border = if (isDeleteMode && isSelectedForDelete) BorderStroke(1.dp, TestarioRed) else null
     ) {
         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (isDeleteMode) {

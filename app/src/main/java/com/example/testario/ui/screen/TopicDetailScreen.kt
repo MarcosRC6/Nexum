@@ -31,7 +31,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import com.example.testario.ui.theme.NeonOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -1201,8 +1201,7 @@ private fun QuestionCard(
 private fun InfoPill(text: String, color: androidx.compose.ui.graphics.Color) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = TestarioSurfaceLight,
-        border = BorderStroke(1.dp, color)
+        color = color.copy(alpha = 0.14f)
     ) {
         Text(
             text = text,

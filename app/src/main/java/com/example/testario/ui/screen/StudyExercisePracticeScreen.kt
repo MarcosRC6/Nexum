@@ -32,6 +32,7 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import java.io.File
 import java.util.UUID
+import com.example.testario.ui.theme.NeonTextField as OutlinedTextField
 
 private fun imageModel(path: String): Any = if (path.startsWith("/")) File(path) else path
 
