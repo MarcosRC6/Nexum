@@ -1162,8 +1162,7 @@ fun SettingsScreen(
                         )
                         showClearPlanningDialog = false
                         message = "Datos de planificación borrados."
-                    },
-                    border = BorderStroke(1.dp, TestarioRed)
+                    }
                 ) { Text("Borrar", color = TestarioRed) }
             },
             dismissButton = { TextButton(onClick = { showClearPlanningDialog = false }) { Text("Cancelar") } }

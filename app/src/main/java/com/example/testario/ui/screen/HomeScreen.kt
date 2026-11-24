@@ -218,8 +218,7 @@ fun LibraryTopicsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = TestarioRedDark),
-                    border = BorderStroke(1.dp, TestarioRed)
+                    colors = CardDefaults.cardColors(containerColor = TestarioRedDark)
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
@@ -235,7 +234,6 @@ fun LibraryTopicsScreen(
                                     isDeleteMode = false
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = TestarioRed),
-                                border = BorderStroke(1.dp, TestarioRed),
                                 selected = false,
                                 enabled = selectedTopicIdsForDelete.isNotEmpty()
                             ) {
@@ -701,11 +699,11 @@ fun LibraryTopicsScreen(
             title = { Text("Gestionar temas") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = { showActionDialog = false; showCombineDialog = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, TestarioPrimary)) { Text("Combinar varios temas") }
+                    OutlinedButton(onClick = { showActionDialog = false; showCombineDialog = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) { Text("Combinar varios temas") }
                     OutlinedButton(
                         onClick = { showActionDialog = false; isDeleteMode = true; selectedTopicIdsForDelete = emptySet() },
                         modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TestarioRed), border = BorderStroke(1.dp, TestarioRed)
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TestarioRed)
                     ) { Text("Eliminar temas") }
                 }
             },
@@ -834,8 +832,7 @@ private fun GlobalQuestionSearchCard(
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface),
-        border = if (selected) BorderStroke(1.5.dp, TestarioPrimary) else null
+        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -880,8 +877,7 @@ private fun TopicCard(
         modifier = Modifier.fillMaxWidth().clickable { if (isDeleteMode) onToggleSelection() else onOpen() },
         elevation = CardDefaults.cardElevation(0.dp),
         colors = CardDefaults.cardColors(containerColor = if (isDeleteMode && isSelectedForDelete) TestarioRedDark.copy(alpha = 0.3f) else if (topic.isPinned) TestarioNeonSelected else TestarioSurface),
-        shape = RoundedCornerShape(22.dp),
-        border = if (isDeleteMode && isSelectedForDelete) BorderStroke(1.dp, TestarioRed) else null
+        shape = RoundedCornerShape(22.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (isDeleteMode) {

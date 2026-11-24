@@ -695,8 +695,7 @@ fun HomeScreen(
                                                                     ) { showManageWebLinks = true },
                                                                     shape = RoundedCornerShape(15.dp),
                                                                     colors = CardDefaults.cardColors(
-                                                                        containerColor = TestarioSurfaceLight),
-                                                                    border = BorderStroke(1.5.dp, TestarioPrimary)
+                                                                        containerColor = TestarioSurfaceLight)
                                                                 ) {
                                                                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                                                         Text("+", color = TestarioPrimary,

@@ -46,11 +46,6 @@ internal fun MixedSessionReviewCard(snapshot: MixedSessionSnapshot, index: Int) 
                         }
                         Card(
                             colors = CardDefaults.cardColors(containerColor = background),
-                            border = BorderStroke(1.dp, when {
-                                right -> TestarioGreen
-                                selected -> TestarioRed
-                                else -> TestarioSurfaceLight
-                            }),
                             shape = RoundedCornerShape(14.dp)
                         ) {
                             Row(Modifier.fillMaxWidth().padding(14.dp)) {

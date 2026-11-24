@@ -1003,8 +1003,7 @@ fun SelectableBigCard(title: String, subtitle: String, selected: Boolean, modifi
     Card(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface),
-        border = if (selected) BorderStroke(1.5.dp, TestarioPrimary) else null
+        colors = CardDefaults.cardColors(containerColor = if (selected) TestarioNeonSelected else TestarioNeonSurface)
     ) {
         Column(Modifier.padding(16.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = if (selected) TestarioPrimary else TestarioText)

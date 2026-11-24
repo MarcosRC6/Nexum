@@ -280,7 +280,7 @@ internal fun StudySketchCanvas(
                     contentAlignment = Alignment.TopEnd) {
                     IconButton(onClick = { fullScreen = false },
                         modifier = Modifier.background(Color(0xD90B0D0C), CircleShape)) {
-                        Text("✕", color = Color.White)
+                        EstudarioIcon(EstudarioIconKind.CLOSE, Color.White, Modifier.size(22.dp))
                     }
                 }
             }

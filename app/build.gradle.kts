@@ -49,6 +49,12 @@ android {
         getByName("release") {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("nexumOfficial")
+            } else if (nexumPreviewBuild) {
+                // Optimized (non-debuggable) preview: installable next to production, debug-signed.
+                applicationIdSuffix = ".laton"
+                versionNameSuffix = "-laton-preview"
+                manifestPlaceholders["nexumAppLabel"] = "NEXUM Latón"
+                signingConfig = signingConfigs.getByName("debug")
             }
         }
         getByName("debug") {

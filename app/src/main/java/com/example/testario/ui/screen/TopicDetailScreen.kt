@@ -833,15 +833,7 @@ private fun SelectionActions(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedButton(
-                onClick = onDelete,
-                enabled = selectedCount > 0,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, TestarioRed)
-            ) {
-                Text("Eliminar", color = if (selectedCount > 0) TestarioRed else TestarioMutedText)
-            }
+            NexumTonalButton(text = "Eliminar", onClick = onDelete, enabled = selectedCount > 0, danger = true, modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -1029,7 +1021,6 @@ private fun QuestionCard(
     }
 
     val cardBorder = when {
-        selected -> BorderStroke(2.dp, TestarioPrimary)
         question.stats.inFailures -> BorderStroke(1.dp, TestarioRed)
         else -> null
     }
