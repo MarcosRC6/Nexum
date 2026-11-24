@@ -885,7 +885,8 @@ private fun FixedObjectiveRow(
                 ) {
                     Text(
                         text = "Eliminar",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }
