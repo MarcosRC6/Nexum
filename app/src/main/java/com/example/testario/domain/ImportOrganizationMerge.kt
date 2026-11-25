@@ -70,12 +70,9 @@ object ImportOrganizationMerge {
                 val name = source.name.trim()
                 require(name.isNotBlank()) { "El ZIP contiene un grupo sin nombre." }
                 val parent = source.parentGroupId?.let(groupIds::get)
-                val mappedTopics = source.topicIds.map { topicId ->
-                    topicIds[topicId]
-                        ?: throw IllegalArgumentException(
-                            "El grupo «$name» referencia un tema que no está en el paquete."
-                        )
-                }.distinct()
+                // Un ZIP parcial puede traer grupos que mencionan temas que no se
+                // exportaron: esa pertenencia se ignora, nunca se rechaza el lote.
+                val mappedTopics = source.topicIds.mapNotNull(topicIds::get).distinct()
                 val matches = groups.withIndex().filter { (_, group) ->
                     group.parentGroupId == parent && group.name.trim().equals(name, true)
                 }
@@ -106,15 +103,11 @@ object ImportOrganizationMerge {
         incoming.testTemplates.forEach { source ->
             val name = source.name.trim()
             require(name.isNotBlank()) { "El ZIP contiene una plantilla sin nombre." }
-            fun remapTopic(id: String) = topicIds[id]
-                ?: throw IllegalArgumentException(
-                    "La plantilla «$name» referencia un tema que no está en el paquete."
-                )
             val remapped = source.copy(
                 id = UUID.randomUUID().toString(),
                 name = name,
-                selectedTopicIds = source.selectedTopicIds.map(::remapTopic).distinct(),
-                selectedFailureTopicIds = source.selectedFailureTopicIds.map(::remapTopic).distinct(),
+                selectedTopicIds = source.selectedTopicIds.mapNotNull(topicIds::get).distinct(),
+                selectedFailureTopicIds = source.selectedFailureTopicIds.mapNotNull(topicIds::get).distinct(),
                 groupAllocations = source.groupAllocations.map { allocation ->
                     val destination = groupIds[allocation.groupId]
                         ?: throw IllegalArgumentException(
