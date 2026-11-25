@@ -748,7 +748,7 @@ fun LibraryTopicsScreen(
                                 modifier = Modifier.fillMaxWidth().clickable { selectedCombineTopicIds = if (isSelected) selectedCombineTopicIds - topic.id else selectedCombineTopicIds + topic.id }.padding(vertical = 4.dp)
                             ) {
                                 Checkbox(checked = isSelected, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = TestarioPrimary))
-                                Text(text = "${topic.name} (${topic.questions.size})", color = TestarioText)
+                                Text(text = "${topic.name} (${topic.questions.size + topic.exercises.count { !it.draft }})", color = TestarioText)
                             }
                         }
                     }
@@ -868,7 +868,8 @@ private fun TopicCard(
     var showClearStatsDialog by remember { mutableStateOf(false) }
     var renameValue by remember(topic.id, topic.name) { mutableStateOf(topic.name) }
 
-    val total = topic.questions.size
+    // Igual que en el detalle del tema: test + respuesta escrita (ejercicios no borrador).
+    val total = topic.questions.size + topic.exercises.count { !it.draft }
     val totalAnswered = topic.questions.sumOf { it.stats.timesAnswered }
     val totalCorrect = topic.questions.sumOf { it.stats.timesCorrect }
     val percent = if (totalAnswered == 0) 0 else ((totalCorrect.toDouble() / totalAnswered) * 100).roundToInt()
