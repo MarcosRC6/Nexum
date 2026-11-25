@@ -139,4 +139,20 @@ class ImportOrganizationMergeTest {
         assertTrue(original.groups.isEmpty())
         assertTrue(original.topics.isEmpty())
     }
+
+    @Test fun referencesToTopicsOutsideThePackageAreIgnoredInsteadOfRejectingTheBatch() {
+        val current = TestarioDatabase()
+        val (decisions, plan) = stage(current, DuplicateTopicAction.RENAME_AUTO)
+        val partial = source.copy(
+            groups = source.groups.map {
+                if (it.id == "child") it.copy(topicIds = listOf("source-topic", "otro-tema-no-exportado")) else it
+            },
+            testTemplates = source.testTemplates.map {
+                it.copy(selectedTopicIds = listOf("source-topic", "otro-tema-no-exportado"))
+            }
+        )
+        val updated = ImportOrganizationMerge.merge(current, partial, decisions, plan)
+        assertEquals(listOf("local-topic"), updated.groups.first { it.name == "Sector" }.topicIds)
+        assertEquals(listOf("local-topic"), updated.testTemplates.single().selectedTopicIds)
+    }
 }
